@@ -1,8 +1,10 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using Sigloc.Domain.Constants;
 
 namespace Sigloc.Domain.Entities;
 
-class ConsolidatedShipmentRoute: BaseEntity
+[Table("ConsolidatedRoute")]
+public class ConsolidatedRoute: BaseEntity
 {
     public required Guid ContratanteId { get; set; } //TODO: Trocar para contratante
     public required EnumRotaConsolidada Status { get; set; }

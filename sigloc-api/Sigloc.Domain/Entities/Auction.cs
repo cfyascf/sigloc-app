@@ -1,7 +1,9 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using Sigloc.Domain.Constants;
 using Sigloc.Domain.Entities;
 
-class Auction: BaseEntity
+[Table("Auction")]
+public class Auction: BaseEntity
 {
     public required Guid RotaId { get; set; } //TODO: Trocar por Rota
     public required DateTime AbertoEm { get; set; } 
