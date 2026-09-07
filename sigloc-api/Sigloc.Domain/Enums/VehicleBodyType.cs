@@ -1,7 +1,7 @@
 using System.ComponentModel;
 
-namespace Sigloc.Domain.Enums
-{
+namespace Sigloc.Domain.Enums;
+
     public enum VehicleBodyType
     {
         [Description("Carga Seca Padrão")]
@@ -19,4 +19,3 @@ namespace Sigloc.Domain.Enums
         [Description("Carreta Prancha / Aberta")]
         Cacamba = 5
     }
-}

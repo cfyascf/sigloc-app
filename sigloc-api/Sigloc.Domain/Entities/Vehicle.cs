@@ -1,11 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Sigloc.Domain.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Sigloc.Domain.Entities
-{
+namespace Sigloc.Domain.Entities;
+
+    [Table("Vehicle")]
     public class Vehicle : BaseEntity
     {
         public Guid TransportadoraId { get; private set; } // FK
@@ -20,7 +18,7 @@ namespace Sigloc.Domain.Entities
         public OperationalStatus Status { get; private set; }
         public bool HasMopp { get; private set; }
         public string Driver { get; private set; }
-        public string Current_loc { get; private set; }
+        public string CurrentLocation { get; private set; }
 
         // O construtor garante que a entidade nasça válida e formatada
         public Vehicle(
@@ -28,8 +26,8 @@ namespace Sigloc.Domain.Entities
         string plate,
         string model,
         int axleCount,
-        decimal capacityWeightKg,
-        decimal capacityVolumeM3,
+        decimal capacityWeight,
+        decimal capacityVolume,
         VehicleBodyType bodyType,
         RefrigerationLevel refrigerationLevel,
         bool hasMopp,
@@ -42,15 +40,15 @@ namespace Sigloc.Domain.Entities
         if (transportadoraId == Guid.Empty) throw new ArgumentException("TransportadoraId é obrigatório");
         if (string.IsNullOrWhiteSpace(plate)) throw new ArgumentException("Placa é obrigatória");
         if (axleCount <= 0) throw new ArgumentException("A quantidade de eixos deve ser maior que zero (Cálculo ANTT/Pedágio).");
-        if (capacityWeightKg <= 0) throw new ArgumentException("A capacidade de peso deve ser maior que zero.");
-        if (capacityVolumeM3 <= 0) throw new ArgumentException("A capacidade de volume deve ser maior que zero.");
+        if (capacityWeight <= 0) throw new ArgumentException("A capacidade de peso deve ser maior que zero.");
+        if (capacityVolume <= 0) throw new ArgumentException("A capacidade de volume deve ser maior que zero.");
 
         TransportadoraId = transportadoraId;
         Plate = plate.Replace(" ", "").Replace("-", "").ToUpper();
         Model = model;
         AxleCount = axleCount;
-        CapacityWeightKg = capacityWeightKg;
-        CapacityVolumeM3 = capacityVolumeM3;
+        CapacityWeight = capacityWeight;
+        CapacityVolume = capacityVolume;
         BodyType = bodyType;
         RefrigerationLevel = refrigerationLevel;
         HasMopp = hasMopp;
@@ -60,4 +58,3 @@ namespace Sigloc.Domain.Entities
         Status = status;
          }
     }
-}
