@@ -19,7 +19,7 @@ public class ConsolidatedRouteController : ControllerBase
         _consolidatedRouteService = consolidatedRouteService;
     }
 
-    private Guid GetCarrierIdFromToken()
+    private Guid GetShipperIdFromToken()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier);
         return claim != null ? Guid.Parse(claim.Value) : Guid.Empty;
@@ -29,7 +29,7 @@ public class ConsolidatedRouteController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Create([FromBody] CreateConsolidatedRouteDto dto, CancellationToken cancellationToken)
     {
-        var carrierId = GetCarrierIdFromToken();
+        var carrierId = GetShipperIdFromToken();
         var result = await _consolidatedRouteService.CreateAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
@@ -46,13 +46,13 @@ public class ConsolidatedRouteController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        var carrierId = GetCarrierIdFromToken();
+        var carrierId = GetShipperIdFromToken();
         var result = await _consolidatedRouteService.GetAllAsync(cancellationToken);
         return Ok(result);
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Carrier")]
+    [Authorize(Roles = "Shipper")]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateConsolidatedRouteDto dto, CancellationToken cancellationToken)
     {
@@ -61,7 +61,7 @@ public class ConsolidatedRouteController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Carrier")]
+    [Authorize(Roles = "Shipper")]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
