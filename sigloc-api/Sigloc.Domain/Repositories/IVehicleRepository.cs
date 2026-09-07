@@ -9,4 +9,5 @@ public interface IVehicleRepository
     Task AddAsync(Vehicle vehicle, CancellationToken cancellationToken = default);
     Task UpdateAsync(Vehicle vehicle, CancellationToken cancellationToken = default);
     Task DeleteAsync(Vehicle vehicle, CancellationToken cancellationToken = default);
+    Task<bool> ExistsByPlateAsync(string plate, CancellationToken cancellationToken = default);
 }

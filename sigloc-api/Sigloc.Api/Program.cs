@@ -2,6 +2,8 @@ using Sigloc.Api.Extensions;
 using Scalar.AspNetCore;
 using Serilog;
 using Microsoft.OpenApi; // Required for logging
+using Sigloc.Infrastructure.Contexts;
+using Microsoft.EntityFrameworkCore;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -49,7 +51,7 @@ try
                 BearerFormat = "JWT"
             };
 
-            document.Components ??= new OpenApiComponents();
+            document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
             document.Components.SecuritySchemes.Add("Bearer", jwtScheme);
 
             return Task.CompletedTask;
@@ -66,13 +68,16 @@ try
         options.AddPolicy("AllowFrontend", policy =>
         {
             policy.WithOrigins(
-                    "http://localhost:5173", // Vite default local port
+                    "http://localhost:5100", // Vite default local port
                     "https://icy-flower-092597810.7.azurestaticapps.net" // Your live frontend
                   )
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });
     });
+
+    builder.Services.AddDbContext<Sigloc.Infrastructure.Contexts.SiglocDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
     var app = builder.Build();
 

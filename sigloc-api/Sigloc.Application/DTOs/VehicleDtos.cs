@@ -1,30 +1,51 @@
 using System;
-using Sigloc.Domain.Enums;
+using Sigloc.Domain.Enums; 
 
 namespace Sigloc.Application.DTOs
 {
     public record CreateVehicleDto(
+        Guid TransportadoraId,
         string Plate, 
         string Model, 
-        decimal Weight, 
-        decimal Volume, 
-        VehicleBodyType BodyType
+        int AxleCount,
+        decimal CapacityWeight, 
+        decimal CapacityVolume, 
+        VehicleBodyType BodyType,
+        RefrigerationLevel RefrigerationLevel,
+        bool HasMopp,
+        bool HasCargoSecuring,
+        string Driver,
+        string CurrentLocation
     );
 
     public record UpdateVehicleDto(
         string? Model, 
-        decimal? Weight, 
-        decimal? Volume, 
-        VehicleBodyType? BodyType
+        int? AxleCount,
+        decimal? CapacityWeight, 
+        decimal? CapacityVolume, 
+        VehicleBodyType? BodyType,
+        RefrigerationLevel? RefrigerationLevel,
+        bool? HasMopp,
+        bool? HasCargoSecuring,
+        string? Driver,
+        string? CurrentLocation,
+        OperationalStatus? Status
     );
 
     public record VehicleResponseDto(
         Guid Id, 
+        Guid TransportadoraId,
         string Plate, 
         string Model, 
-        decimal Weight, 
-        decimal Volume, 
-        VehicleBodyType BodyType, 
-        string Status
+        int AxleCount,
+        decimal CapacityWeight, 
+        decimal CapacityVolume, 
+        VehicleBodyType BodyType,
+        RefrigerationLevel RefrigerationLevel,
+        bool HasMopp,
+        bool HasCargoSecuring,
+        string Driver,
+        string CurrentLocation,
+        OperationalStatus Status
     );
-}                   
+}
