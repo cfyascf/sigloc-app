@@ -79,6 +79,15 @@ try
     builder.Services.AddDbContext<Sigloc.Infrastructure.Contexts.SiglocDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+        // 1. Provedor de JWT (que já havíamos colocado)
+    builder.Services.AddScoped<Sigloc.Application.Contracts.IJwtProvider, Sigloc.Infrastructure.Authentication.JwtProvider>();
+
+    // 2. Registro do Repositório (O serviço precisa do repositório para falar com o banco)
+    builder.Services.AddScoped<Sigloc.Domain.Repositories.IVehicleRepository, Sigloc.Infrastructure.Repositories.VehicleRepository>();
+
+    // 3. Registro do Serviço (A peça que estava faltando para o Controller)
+    builder.Services.AddScoped<Sigloc.Application.Contracts.IVehicleService, Sigloc.Application.Services.VehicleService>();
+
     var app = builder.Build();
 
     // --- MIDDLEWARE PIPELINE ---
