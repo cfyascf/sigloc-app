@@ -9,7 +9,7 @@ namespace Sigloc.Api.Controllers;
 
 [ApiController]
 [Route("api/products")]
-[Authorize] 
+// [Authorize]
 public class ProductsController : ControllerBase
 {
     private readonly IProductService _productService;
@@ -19,53 +19,55 @@ public class ProductsController : ControllerBase
         _productService = productService;
     }
 
-    private Guid GetCarrierIdFromToken()
+    private Guid GetContractorId()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier);
         return claim != null ? Guid.Parse(claim.Value) : Guid.Empty;
     }
 
     [HttpPost]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
-    public async Task<IActionResult> Create([FromBody] CreateProductDto dto, CancellationToken cancellationToken)
+    // [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> Create([FromBody] ProductRequestDto dto, CancellationToken cancellationToken)
     {
-        var carrierId = GetCarrierIdFromToken();
-        var result = await _productService.CreateAsync(dto, cancellationToken);
+        var result = await _productService.CreateAsync(GetContractorId(), dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
-    [HttpGet("{id}")]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
+    [HttpGet("{id:guid}")]
+    // [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _productService.GetByIdAsync(id, cancellationToken);
+        var result = await _productService.GetByIdAsync(GetContractorId(), id, cancellationToken);
         return Ok(result);
     }
 
     [HttpGet]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    // [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> Search(
+        [FromQuery(Name = "busca")] string? search,
+        [FromQuery(Name = "categoria")] string? category,
+        [FromQuery(Name = "pagina")] int page = 1,
+        [FromQuery(Name = "tamanhoPagina")] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
-        var carrierId = GetCarrierIdFromToken();
-        var result = await _productService.GetAllAsync(cancellationToken);
+        var query = new ProductQueryDto(search, category, page, pageSize);
+        var result = await _productService.SearchAsync(GetContractorId(), query, cancellationToken);
         return Ok(result);
     }
 
-    [HttpPut("{id}")]
-    [Authorize(Roles = "Carrier")]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProductDto dto, CancellationToken cancellationToken)
+    [HttpPut("{id:guid}")]
+    // [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] ProductRequestDto dto, CancellationToken cancellationToken)
     {
-        await _productService.UpdateAsync(id, dto, cancellationToken);
-        return NoContent(); // 204 No Content is standard for successful updates
+        var result = await _productService.UpdateAsync(GetContractorId(), id, dto, cancellationToken);
+        return Ok(result);
     }
 
-    [HttpDelete("{id}")]
-    [Authorize(Roles = "Carrier")]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
+    [HttpDelete("{id:guid}")]
+    // [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        await _productService.DeleteAsync(id, cancellationToken);
+        await _productService.DeleteAsync(GetContractorId(), id, cancellationToken);
         return NoContent();
     }
 }

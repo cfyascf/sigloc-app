@@ -12,7 +12,7 @@ using Sigloc.Infrastructure.Contexts;
 namespace Sigloc.Infrastructure.Migrations
 {
     [DbContext(typeof(SiglocDbContext))]
-    [Migration("20260826212657_InitialCreate")]
+    [Migration("20260902230120_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -31,20 +31,53 @@ namespace Sigloc.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ContractorId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("HandlingRestrictions")
+                    b.Property<bool>("Dangerous")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("DefaultVolume")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("DefaultWeight")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("Fragile")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("HandlingRestriction")
                         .HasColumnType("text");
 
-                    b.Property<string>("PackageType")
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PackagingType")
                         .HasColumnType("text");
 
                     b.Property<string>("Sku")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Temperature")
+                    b.Property<double?>("TempMax")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("TempMin")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("TransportEnvironment")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
                         .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
@@ -54,6 +87,9 @@ namespace Sigloc.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ContractorId", "Sku")
+                        .IsUnique();
 
                     b.ToTable("Product");
                 });
