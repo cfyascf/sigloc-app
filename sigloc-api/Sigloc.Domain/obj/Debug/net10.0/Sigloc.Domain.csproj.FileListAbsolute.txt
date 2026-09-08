@@ -1,0 +1,12 @@
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\bin\Debug\net10.0\Sigloc.Domain.deps.json
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\bin\Debug\net10.0\Sigloc.Domain.dll
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\bin\Debug\net10.0\Sigloc.Domain.pdb
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\obj\Debug\net10.0\Sigloc.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\obj\Debug\net10.0\Sigloc.Domain.AssemblyInfoInputs.cache
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\obj\Debug\net10.0\Sigloc.Domain.AssemblyInfo.cs
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\obj\Debug\net10.0\Sigloc.Domain.csproj.CoreCompileInputs.cache
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\obj\Debug\net10.0\Sigloc.Domain.sourcelink.json
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\obj\Debug\net10.0\Sigloc.Domain.dll
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\obj\Debug\net10.0\refint\Sigloc.Domain.dll
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\obj\Debug\net10.0\Sigloc.Domain.pdb
+C:\Projects\freight-guard\sigloc-api\Sigloc.Domain\obj\Debug\net10.0\ref\Sigloc.Domain.dll

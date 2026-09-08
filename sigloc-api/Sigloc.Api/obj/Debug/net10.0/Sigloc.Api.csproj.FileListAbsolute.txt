@@ -1,0 +1,9 @@
+C:\Projects\freight-guard\sigloc-api\Sigloc.Api\obj\Debug\net10.0\Sigloc.Api.csproj.AssemblyReference.cache
+C:\Projects\freight-guard\sigloc-api\Sigloc.Api\obj\Debug\net10.0\rpswa.dswa.cache.json
+C:\Projects\freight-guard\sigloc-api\Sigloc.Api\obj\Debug\net10.0\Sigloc.Api.GeneratedMSBuildEditorConfig.editorconfig
+C:\Projects\freight-guard\sigloc-api\Sigloc.Api\obj\Debug\net10.0\Sigloc.Api.AssemblyInfoInputs.cache
+C:\Projects\freight-guard\sigloc-api\Sigloc.Api\obj\Debug\net10.0\Sigloc.Api.AssemblyInfo.cs
+C:\Projects\freight-guard\sigloc-api\Sigloc.Api\obj\Debug\net10.0\Sigloc.Api.csproj.CoreCompileInputs.cache
+C:\Projects\freight-guard\sigloc-api\Sigloc.Api\obj\Debug\net10.0\Sigloc.Api.MvcApplicationPartsAssemblyInfo.cs
+C:\Projects\freight-guard\sigloc-api\Sigloc.Api\obj\Debug\net10.0\Sigloc.Api.MvcApplicationPartsAssemblyInfo.cache
+C:\Projects\freight-guard\sigloc-api\Sigloc.Api\obj\Debug\net10.0\Sigloc.Api.sourcelink.json

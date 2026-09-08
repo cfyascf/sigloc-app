@@ -1,0 +1,16 @@
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\bin\Debug\net10.0\Sigloc.Application.deps.json
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\bin\Debug\net10.0\Sigloc.Application.dll
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\bin\Debug\net10.0\Sigloc.Application.pdb
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\bin\Debug\net10.0\Sigloc.Domain.dll
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\bin\Debug\net10.0\Sigloc.Domain.pdb
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\Sigloc.Application.csproj.AssemblyReference.cache
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\Sigloc.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\Sigloc.Application.AssemblyInfoInputs.cache
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\Sigloc.Application.AssemblyInfo.cs
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\Sigloc.Application.csproj.CoreCompileInputs.cache
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\Sigloc.Application.sourcelink.json
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\Sigloc.A.5FC68493.Up2Date
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\Sigloc.Application.dll
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\refint\Sigloc.Application.dll
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\Sigloc.Application.pdb
+C:\Projects\freight-guard\sigloc-api\Sigloc.Application\obj\Debug\net10.0\ref\Sigloc.Application.dll
