@@ -60,7 +60,13 @@ try
 
     // 4. Custom Auth & Controllers
     builder.Services.AddSiglocAuthentication(builder.Configuration);
-    builder.Services.AddControllers();
+    
+    builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Força a API a retornar (e aceitar) textos no lugar de números para os Enums
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
     // 5. CORS setup for your React Frontend
     builder.Services.AddCors(options =>
