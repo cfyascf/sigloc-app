@@ -1,6 +1,40 @@
 @Sigloc.Api_HostAddress = http://localhost:5067
 
-GET {{Sigloc.Api_HostAddress}}/weatherforecast/
+### Register a shipper (Contratante) — open self-service
+POST {{Sigloc.Api_HostAddress}}/api/auth/register/contratante
+Content-Type: application/json
+
+{
+  "cnpj": "12.345.678/0001-90",
+  "razaoSocial": "Logística Nacional S.A.",
+  "nomeFantasia": "LogNac",
+  "email": "admin@lognac.com.br",
+  "senha": "Password123!"
+}
+
+### Validate a smart invite (Convite Inteligente)
+GET {{Sigloc.Api_HostAddress}}/api/auth/invite/TOKEN123
 Accept: application/json
+
+### Smart onboarding of a carrier (Transportadora)
+POST {{Sigloc.Api_HostAddress}}/api/auth/invite/TOKEN123/register
+Content-Type: application/json
+
+{
+  "cnpj": "98.765.432/0001-10",
+  "razaoSocial": "Transporte Rápido LTDA",
+  "nomeFantasia": "TransRap",
+  "email": "ops@transrap.com.br",
+  "senha": "Password123!"
+}
+
+### Login (common to all profiles)
+POST {{Sigloc.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@lognac.com.br",
+  "senha": "Password123!"
+}
 
 ###
