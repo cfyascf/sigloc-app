@@ -76,6 +76,47 @@ public class GlobalExceptionHandlerMiddleware
                     trechosVinculados = inUse.LinkedSegments
                 }),
 
+            EmailAlreadyExistsException emailConflict => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "EMAIL_JA_EXISTE",
+                    message = emailConflict.Message
+                }),
+
+            CnpjAlreadyExistsException cnpjConflict => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "CNPJ_JA_EXISTE",
+                    message = cnpjConflict.Message
+                }),
+
+            CarrierAlreadyRegisteredException carrierConflict => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "TRANSPORTADORA_JA_CADASTRADA",
+                    message = carrierConflict.Message,
+                    redirecionarParaLogin = true
+                }),
+
+            InvalidInviteException invalidInvite => (
+                (int)HttpStatusCode.BadRequest,
+                new
+                {
+                    error = "CONVITE_INVALIDO",
+                    message = invalidInvite.Message
+                }),
+
+            InvalidCredentialsException invalidCredentials => (
+                (int)HttpStatusCode.Unauthorized,
+                new
+                {
+                    error = "CREDENCIAIS_INVALIDAS",
+                    message = invalidCredentials.Message
+                }),
+
             KeyNotFoundException => (
                 (int)HttpStatusCode.NotFound,
                 new { error = "NOT_FOUND", message = exception.Message }),

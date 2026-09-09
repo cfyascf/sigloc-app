@@ -8,6 +8,11 @@ public class SiglocDbContext : DbContext
     public SiglocDbContext(DbContextOptions<SiglocDbContext> options) : base(options) { }
 
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<Contractor> Contractors => Set<Contractor>();
+    public DbSet<Carrier> Carriers => Set<Carrier>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<PartnershipInvite> PartnershipInvites => Set<PartnershipInvite>();
+    public DbSet<PartnerConnection> PartnerConnections => Set<PartnerConnection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

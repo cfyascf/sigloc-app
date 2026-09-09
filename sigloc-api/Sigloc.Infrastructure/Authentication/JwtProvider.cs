@@ -16,14 +16,20 @@ public sealed class JwtProvider : IJwtProvider
         _jwtSettings = jwtOptions.Value;
     }
 
-    public string Generate(Guid userId, string email, string role)
+    public string Generate(Guid userId, string email, string role, string profileType, Guid? companyId)
     {
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-            new Claim(ClaimTypes.Email, email),
-            new Claim(ClaimTypes.Role, role)
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(ClaimTypes.Email, email),
+            new(ClaimTypes.Role, role),
+            new("tipoPerfil", profileType)
         };
+
+        if (companyId.HasValue)
+        {
+            claims.Add(new Claim("empresaId", companyId.Value.ToString()));
+        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
