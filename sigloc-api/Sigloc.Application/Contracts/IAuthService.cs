@@ -17,6 +17,9 @@ public interface IAuthService
     Task<AuthResultDto> RegisterCarrierByInviteAsync(string token, RegisterCarrierDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>Open self-service registration of a shipper company using a Google account.</summary>
+    Task<AuthResultDto> RegisterAdministratorWithGoogleAsync(RegisterAdministratorGoogleDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Open self-service registration of a shipper company using a Google account.</summary>
     Task<AuthResultDto> RegisterContractorWithGoogleAsync(RegisterContractorGoogleDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>Smart onboarding of a carrier through an invite link using a Google account.</summary>

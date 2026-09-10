@@ -465,4 +465,29 @@ public partial class AuthService : IAuthService
 
     [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
     private static partial Regex EmailRegex();
+
+    public async Task<AuthResultDto> RegisterAdministratorWithGoogleAsync(RegisterAdministratorGoogleDto dto, CancellationToken cancellationToken = default)
+    {
+        var google = await VerifyGoogleAsync(dto.IdToken, cancellationToken);
+
+        if (await _users.EmailExistsAsync(google.Email, cancellationToken))
+        {
+            throw new EmailAlreadyExistsException(google.Email);
+        }
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = google.Email,
+            PasswordHash = null,
+            AuthProvider = AuthProvider.Google,
+            GoogleId = google.Subject,
+            ProfileType = ProfileType.Admin
+        };
+
+        await _users.AddAsync(user, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return BuildAuthResult(user);
+    }
 }

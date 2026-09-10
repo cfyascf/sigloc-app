@@ -19,6 +19,15 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>Open self-service registration of a shipper company (Contratante).</summary>
+    [HttpPost("register/administrator")]
+    // [Authorize(Policy = Policies.RequireAdminAccess)]
+    public async Task<IActionResult> RegisterAdministrator([FromBody] RegisterAdministratorGoogleDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _authService.RegisterAdministratorWithGoogleAsync(dto, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
+
+    /// <summary>Open self-service registration of a shipper company (Contratante).</summary>
     [HttpPost("register/contratante")]
     [AllowAnonymous]
     public async Task<IActionResult> RegisterContractor([FromBody] RegisterContractorDto dto, CancellationToken cancellationToken)
