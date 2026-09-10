@@ -12,6 +12,8 @@ public class PartnershipInviteConfiguration : IEntityTypeConfiguration<Partnersh
 
         builder.Property(i => i.Token).IsRequired();
 
+        builder.Property(i => i.InviteeEmail).HasMaxLength(320);
+
         builder.HasIndex(i => i.Token).IsUnique();
         builder.HasIndex(i => i.ContractorId);
     }

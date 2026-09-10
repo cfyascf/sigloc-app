@@ -7,6 +7,9 @@ public interface IAuthService
     /// <summary>Open self-service registration of a shipper company and its initial user.</summary>
     Task<AuthResultDto> RegisterContractorAsync(RegisterContractorDto dto, CancellationToken cancellationToken = default);
 
+    /// <summary>Creates a smart invite (Convite Inteligente) owned by the given contractor.</summary>
+    Task<InviteCreatedDto> CreateInviteAsync(Guid contractorId, CreateInviteDto dto, CancellationToken cancellationToken = default);
+
     /// <summary>Validates a smart invite token and returns the inviting contractor context.</summary>
     Task<InviteValidationDto> ValidateInviteAsync(string token, CancellationToken cancellationToken = default);
 
