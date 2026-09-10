@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sigloc.Infrastructure.Contexts;
@@ -11,9 +12,11 @@ using Sigloc.Infrastructure.Contexts;
 namespace Sigloc.Infrastructure.Migrations
 {
     [DbContext(typeof(SiglocDbContext))]
-    partial class SiglocDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260908212302_AddAuthenticationEntities")]
+    partial class AddAuthenticationEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -138,10 +141,6 @@ namespace Sigloc.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("InviteeEmail")
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
-
                     b.Property<bool>("IsUsed")
                         .HasColumnType("boolean");
 
@@ -240,10 +239,6 @@ namespace Sigloc.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AuthProvider")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<Guid?>("CompanyId")
                         .HasColumnType("uuid");
 
@@ -254,10 +249,8 @@ namespace Sigloc.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("GoogleId")
-                        .HasColumnType("text");
-
                     b.Property<string>("PasswordHash")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ProfileType")
@@ -274,10 +267,6 @@ namespace Sigloc.Infrastructure.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
-
-                    b.HasIndex("GoogleId")
-                        .IsUnique()
-                        .HasFilter("\"GoogleId\" IS NOT NULL");
 
                     b.ToTable("User");
                 });

@@ -76,6 +76,63 @@ public class GlobalExceptionHandlerMiddleware
                     trechosVinculados = inUse.LinkedSegments
                 }),
 
+            EmailAlreadyExistsException emailConflict => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "EMAIL_JA_EXISTE",
+                    message = emailConflict.Message
+                }),
+
+            CnpjAlreadyExistsException cnpjConflict => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "CNPJ_JA_EXISTE",
+                    message = cnpjConflict.Message
+                }),
+
+            CarrierAlreadyRegisteredException carrierConflict => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "TRANSPORTADORA_JA_CADASTRADA",
+                    message = carrierConflict.Message,
+                    redirecionarParaLogin = true
+                }),
+
+            ContractorNotFoundException contractorNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "CONTRATANTE_NAO_ENCONTRADO",
+                    message = contractorNotFound.Message
+                }),
+
+            InvalidInviteException invalidInvite => (
+                (int)HttpStatusCode.BadRequest,
+                new
+                {
+                    error = "CONVITE_INVALIDO",
+                    message = invalidInvite.Message
+                }),
+
+            InvalidCredentialsException invalidCredentials => (
+                (int)HttpStatusCode.Unauthorized,
+                new
+                {
+                    error = "CREDENCIAIS_INVALIDAS",
+                    message = invalidCredentials.Message
+                }),
+
+            InvalidGoogleTokenException invalidGoogle => (
+                (int)HttpStatusCode.Unauthorized,
+                new
+                {
+                    error = "TOKEN_GOOGLE_INVALIDO",
+                    message = invalidGoogle.Message
+                }),
+
             KeyNotFoundException => (
                 (int)HttpStatusCode.NotFound,
                 new { error = "NOT_FOUND", message = exception.Message }),

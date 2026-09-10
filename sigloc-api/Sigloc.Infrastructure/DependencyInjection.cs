@@ -24,9 +24,21 @@ public static class DependencyInjection
                     errorCodesToAdd: null)));
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
+        services.Configure<InviteSettings>(configuration.GetSection(InviteSettings.SectionName));
 
         services.AddScoped<IJwtProvider, JwtProvider>();
+        services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+        services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
+        services.AddSingleton<IInviteLinkBuilder, InviteLinkBuilder>();
+
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IContractorRepository, ContractorRepository>();
+        services.AddScoped<ICarrierRepository, CarrierRepository>();
+        services.AddScoped<IPartnershipInviteRepository, PartnershipInviteRepository>();
+        services.AddScoped<IPartnerConnectionRepository, PartnerConnectionRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
     }

@@ -10,8 +10,6 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
-//abuble
-
 try
 {
     Log.Information("Starting FreightGuard Web API...");

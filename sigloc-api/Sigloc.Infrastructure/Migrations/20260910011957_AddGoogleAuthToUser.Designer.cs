@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sigloc.Infrastructure.Contexts;
@@ -11,9 +12,11 @@ using Sigloc.Infrastructure.Contexts;
 namespace Sigloc.Infrastructure.Migrations
 {
     [DbContext(typeof(SiglocDbContext))]
-    partial class SiglocDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260910011957_AddGoogleAuthToUser")]
+    partial class AddGoogleAuthToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -137,10 +140,6 @@ namespace Sigloc.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("InviteeEmail")
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
 
                     b.Property<bool>("IsUsed")
                         .HasColumnType("boolean");
