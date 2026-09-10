@@ -2,6 +2,7 @@ using Google.Apis.Auth;
 using Microsoft.Extensions.Options;
 using Sigloc.Application.Contracts;
 using Sigloc.Application.Exceptions;
+using static Google.Apis.Auth.GoogleJsonWebSignature;
 
 namespace Sigloc.Infrastructure.Authentication;
 
@@ -25,20 +26,20 @@ public sealed class GoogleTokenVerifier : IGoogleTokenVerifier
             throw new InvalidGoogleTokenException();
         }
 
-        var settings = new GoogleJsonWebSignature.ValidationSettings();
+        var settings = new ValidationSettings();
         if (!string.IsNullOrWhiteSpace(_settings.ClientId))
         {
             settings.Audience = new[] { _settings.ClientId };
         }
 
-        GoogleJsonWebSignature.Payload payload;
+        Payload payload;
         try
         {
-            payload = await GoogleJsonWebSignature.ValidateAsync(idToken, settings);
+            payload = await ValidateAsync(idToken, settings);
         }
-        catch (InvalidJwtException)
+        catch (InvalidJwtException ex)
         {
-            throw new InvalidGoogleTokenException();
+            throw new InvalidGoogleTokenException(ex);
         }
 
         return new GoogleUserInfo(

@@ -6,8 +6,8 @@ namespace Sigloc.Application.Exceptions;
 /// </summary>
 public sealed class InvalidGoogleTokenException : Exception
 {
-    public InvalidGoogleTokenException()
-        : base("O token do Google é inválido ou expirou.")
+    public InvalidGoogleTokenException(Exception? innerException = null)
+        : base("O token do Google é inválido ou expirou.", innerException)
     {
     }
 }
