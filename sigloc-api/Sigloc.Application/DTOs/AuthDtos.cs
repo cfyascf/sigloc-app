@@ -47,6 +47,20 @@ public record RegisterCarrierGoogleDto(
 public record GoogleLoginDto(
     [property: JsonPropertyName("idToken")] string? IdToken);
 
+/// <summary>
+/// Request body for POST /api/auth/invite. Issued by an authenticated contractor;
+/// the owning company is taken from the JWT, never from the body.
+/// </summary>
+public record CreateInviteDto(
+    [property: JsonPropertyName("emailConvidado")] string? InviteeEmail,
+    [property: JsonPropertyName("expiraEmDias")] int? ExpiresInDays);
+
+/// <summary>Response for POST /api/auth/invite.</summary>
+public record InviteCreatedDto(
+    [property: JsonPropertyName("token")] string Token,
+    [property: JsonPropertyName("linkConvite")] string InviteLink,
+    [property: JsonPropertyName("expiraEm")] DateTimeOffset? ExpiresAt);
+
 /// <summary>Response for GET /api/auth/invite/{token}.</summary>
 public record InviteValidationDto(
     [property: JsonPropertyName("valido")] bool Valid,

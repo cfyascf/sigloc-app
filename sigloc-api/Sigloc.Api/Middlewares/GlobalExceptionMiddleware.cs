@@ -101,6 +101,14 @@ public class GlobalExceptionHandlerMiddleware
                     redirecionarParaLogin = true
                 }),
 
+            ContractorNotFoundException contractorNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "CONTRATANTE_NAO_ENCONTRADO",
+                    message = contractorNotFound.Message
+                }),
+
             InvalidInviteException invalidInvite => (
                 (int)HttpStatusCode.BadRequest,
                 new

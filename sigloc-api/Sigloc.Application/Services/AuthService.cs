@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
@@ -19,6 +20,7 @@ public partial class AuthService : IAuthService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtProvider _jwtProvider;
     private readonly IGoogleTokenVerifier _googleTokenVerifier;
+    private readonly IInviteLinkBuilder _inviteLinkBuilder;
 
     public AuthService(
         IUserRepository users,
@@ -29,7 +31,8 @@ public partial class AuthService : IAuthService
         IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
         IJwtProvider jwtProvider,
-        IGoogleTokenVerifier googleTokenVerifier)
+        IGoogleTokenVerifier googleTokenVerifier,
+        IInviteLinkBuilder inviteLinkBuilder)
     {
         _users = users;
         _contractors = contractors;
@@ -40,6 +43,7 @@ public partial class AuthService : IAuthService
         _passwordHasher = passwordHasher;
         _jwtProvider = jwtProvider;
         _googleTokenVerifier = googleTokenVerifier;
+        _inviteLinkBuilder = inviteLinkBuilder;
     }
 
     public async Task<AuthResultDto> RegisterContractorAsync(RegisterContractorDto dto, CancellationToken cancellationToken = default)
@@ -83,6 +87,37 @@ public partial class AuthService : IAuthService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return BuildAuthResult(user);
+    }
+
+    public async Task<InviteCreatedDto> CreateInviteAsync(Guid contractorId, CreateInviteDto dto, CancellationToken cancellationToken = default)
+    {
+        // The owning contractor comes from the authenticated identity, so it must exist.
+        var contractor = await _contractors.GetByIdAsync(contractorId, cancellationToken)
+            ?? throw new ContractorNotFoundException(contractorId);
+
+        var expiresInDays = dto.ExpiresInDays ?? DefaultInviteExpiryDays;
+        DateTimeOffset? expiresAt = expiresInDays > 0
+            ? DateTimeOffset.UtcNow.AddDays(expiresInDays)
+            : null;
+
+        var invitedEmail = string.IsNullOrWhiteSpace(dto.InviteeEmail)
+            ? null
+            : NormalizeEmail(dto.InviteeEmail);
+
+        var invite = new PartnershipInvite
+        {
+            Id = Guid.NewGuid(),
+            Token = GenerateInviteToken(),
+            ContractorId = contractor.Id,
+            InviteeEmail = invitedEmail,
+            ExpiresAt = expiresAt,
+            IsUsed = false
+        };
+
+        await _invites.AddAsync(invite, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new InviteCreatedDto(invite.Token, _inviteLinkBuilder.Build(invite.Token), invite.ExpiresAt);
     }
 
     public async Task<InviteValidationDto> ValidateInviteAsync(string token, CancellationToken cancellationToken = default)
@@ -375,6 +410,16 @@ public partial class AuthService : IAuthService
             throw new ValidationException(errors, "Não foi possível concluir o registro.");
         }
     }
+
+    // Fallback used only when the request omits an expiry and no configuration is applied.
+    private const int DefaultInviteExpiryDays = 7;
+
+    // 256 bits of entropy, URL-safe, so the token can live in an invite link.
+    private static string GenerateInviteToken()
+        => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
 
     private static bool IsExpired(PartnershipInvite invite)
         => invite.ExpiresAt.HasValue && invite.ExpiresAt.Value <= DateTimeOffset.UtcNow;

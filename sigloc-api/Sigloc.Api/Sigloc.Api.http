@@ -12,6 +12,17 @@ Content-Type: application/json
   "senha": "Password123!"
 }
 
+### Generate a smart invite (Convite Inteligente) — contractor only, requires JWT
+# The owning company is read from the token (empresaId claim), not the body.
+POST {{Sigloc.Api_HostAddress}}/api/auth/invite
+Authorization: Bearer <CONTRACTOR_JWT>
+Content-Type: application/json
+
+{
+  "emailConvidado": "ops@transrap.com.br",
+  "expiraEmDias": 7
+}
+
 ### Validate a smart invite (Convite Inteligente)
 GET {{Sigloc.Api_HostAddress}}/api/auth/invite/TOKEN123
 Accept: application/json

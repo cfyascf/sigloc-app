@@ -15,6 +15,9 @@ public class PartnershipInvite : BaseEntity
     /// <summary>Contractor that owns (issued) the invite.</summary>
     public Guid ContractorId { get; set; }
 
+    /// <summary>Optional e-mail the invite was addressed to (for the contractor's records).</summary>
+    public string? InviteeEmail { get; set; }
+
     /// <summary>Optional expiry. When null, the invite does not expire.</summary>
     public DateTimeOffset? ExpiresAt { get; set; }
 

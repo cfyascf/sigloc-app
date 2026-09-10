@@ -25,10 +25,12 @@ public static class DependencyInjection
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
+        services.Configure<InviteSettings>(configuration.GetSection(InviteSettings.SectionName));
 
         services.AddScoped<IJwtProvider, JwtProvider>();
         services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
         services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
+        services.AddSingleton<IInviteLinkBuilder, InviteLinkBuilder>();
 
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
