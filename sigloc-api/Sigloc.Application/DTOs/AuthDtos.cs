@@ -23,6 +23,30 @@ public record LoginDto(
     [property: JsonPropertyName("email")] string? Email,
     [property: JsonPropertyName("senha")] string? Password);
 
+/// <summary>
+/// Request body for POST /api/auth/register/contratante/google. Company data is
+/// still required; identity (email/name) comes from the verified Google token.
+/// </summary>
+public record RegisterContractorGoogleDto(
+    [property: JsonPropertyName("idToken")] string? IdToken,
+    [property: JsonPropertyName("cnpj")] string? Cnpj,
+    [property: JsonPropertyName("razaoSocial")] string? CompanyName,
+    [property: JsonPropertyName("nomeFantasia")] string? TradeName);
+
+/// <summary>
+/// Request body for POST /api/auth/invite/{token}/register/google. Company data is
+/// still required; identity (email/name) comes from the verified Google token.
+/// </summary>
+public record RegisterCarrierGoogleDto(
+    [property: JsonPropertyName("idToken")] string? IdToken,
+    [property: JsonPropertyName("cnpj")] string? Cnpj,
+    [property: JsonPropertyName("razaoSocial")] string? CompanyName,
+    [property: JsonPropertyName("nomeFantasia")] string? TradeName);
+
+/// <summary>Request body for POST /api/auth/login/google.</summary>
+public record GoogleLoginDto(
+    [property: JsonPropertyName("idToken")] string? IdToken);
+
 /// <summary>Response for GET /api/auth/invite/{token}.</summary>
 public record InviteValidationDto(
     [property: JsonPropertyName("valido")] bool Valid,

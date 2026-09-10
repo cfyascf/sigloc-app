@@ -13,8 +13,20 @@ public class User : BaseEntity
     /// <summary>Login credential. Unique across the platform.</summary>
     public required string Email { get; set; }
 
-    /// <summary>Cryptographic hash of the password (BCrypt). Never stored in plain text.</summary>
-    public required string PasswordHash { get; set; }
+    /// <summary>
+    /// Cryptographic hash of the password (BCrypt). Never stored in plain text.
+    /// Null when the user authenticates through an external provider (e.g. Google).
+    /// </summary>
+    public string? PasswordHash { get; set; }
+
+    /// <summary>How the user authenticates (local password or an external provider).</summary>
+    public AuthProvider AuthProvider { get; set; }
+
+    /// <summary>
+    /// Stable Google account identifier (the ID token "sub" claim). Set only for
+    /// Google users; unique across the platform.
+    /// </summary>
+    public string? GoogleId { get; set; }
 
     /// <summary>Access profile driving RBAC.</summary>
     public ProfileType ProfileType { get; set; }

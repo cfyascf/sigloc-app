@@ -37,4 +37,34 @@ Content-Type: application/json
   "senha": "Password123!"
 }
 
+### Register a shipper (Contratante) using a Google account
+POST {{Sigloc.Api_HostAddress}}/api/auth/register/contratante/google
+Content-Type: application/json
+
+{
+  "idToken": "<google-id-token>",
+  "cnpj": "12.345.678/0001-90",
+  "razaoSocial": "Logística Nacional S.A.",
+  "nomeFantasia": "LogNac"
+}
+
+### Smart onboarding of a carrier (Transportadora) via invite using a Google account
+POST {{Sigloc.Api_HostAddress}}/api/auth/invite/TOKEN123/register/google
+Content-Type: application/json
+
+{
+  "idToken": "<google-id-token>",
+  "cnpj": "98.765.432/0001-10",
+  "razaoSocial": "Transporte Rápido LTDA",
+  "nomeFantasia": "TransRap"
+}
+
+### Login using a Google account (common to all profiles)
+POST {{Sigloc.Api_HostAddress}}/api/auth/login/google
+Content-Type: application/json
+
+{
+  "idToken": "<google-id-token>"
+}
+
 ###

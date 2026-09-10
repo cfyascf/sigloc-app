@@ -117,6 +117,14 @@ public class GlobalExceptionHandlerMiddleware
                     message = invalidCredentials.Message
                 }),
 
+            InvalidGoogleTokenException invalidGoogle => (
+                (int)HttpStatusCode.Unauthorized,
+                new
+                {
+                    error = "TOKEN_GOOGLE_INVALIDO",
+                    message = invalidGoogle.Message
+                }),
+
             KeyNotFoundException => (
                 (int)HttpStatusCode.NotFound,
                 new { error = "NOT_FOUND", message = exception.Message }),

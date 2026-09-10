@@ -18,6 +18,7 @@ public partial class AuthService : IAuthService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtProvider _jwtProvider;
+    private readonly IGoogleTokenVerifier _googleTokenVerifier;
 
     public AuthService(
         IUserRepository users,
@@ -27,7 +28,8 @@ public partial class AuthService : IAuthService
         IPartnerConnectionRepository connections,
         IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
-        IJwtProvider jwtProvider)
+        IJwtProvider jwtProvider,
+        IGoogleTokenVerifier googleTokenVerifier)
     {
         _users = users;
         _contractors = contractors;
@@ -37,6 +39,7 @@ public partial class AuthService : IAuthService
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
         _jwtProvider = jwtProvider;
+        _googleTokenVerifier = googleTokenVerifier;
     }
 
     public async Task<AuthResultDto> RegisterContractorAsync(RegisterContractorDto dto, CancellationToken cancellationToken = default)
@@ -69,6 +72,7 @@ public partial class AuthService : IAuthService
             Id = Guid.NewGuid(),
             Email = email,
             PasswordHash = _passwordHasher.Hash(dto.Password!),
+            AuthProvider = AuthProvider.Local,
             ProfileType = ProfileType.Contratante,
             CompanyId = contractor.Id
         };
@@ -146,6 +150,7 @@ public partial class AuthService : IAuthService
             Id = Guid.NewGuid(),
             Email = email,
             PasswordHash = _passwordHasher.Hash(dto.Password!),
+            AuthProvider = AuthProvider.Local,
             ProfileType = ProfileType.Transportador,
             CompanyId = carrier.Id
         };
@@ -179,7 +184,140 @@ public partial class AuthService : IAuthService
         }
 
         var user = await _users.GetByEmailAsync(email, cancellationToken);
-        if (user is null || !_passwordHasher.Verify(dto.Password, user.PasswordHash))
+        if (user is null
+            || user.AuthProvider != AuthProvider.Local
+            || string.IsNullOrEmpty(user.PasswordHash)
+            || !_passwordHasher.Verify(dto.Password, user.PasswordHash))
+        {
+            throw new InvalidCredentialsException();
+        }
+
+        return BuildAuthResult(user);
+    }
+
+    public async Task<AuthResultDto> RegisterContractorWithGoogleAsync(RegisterContractorGoogleDto dto, CancellationToken cancellationToken = default)
+    {
+        var google = await VerifyGoogleAsync(dto.IdToken, cancellationToken);
+
+        var cnpj = NormalizeCnpj(dto.Cnpj);
+        ValidateCompanyData(cnpj, dto.CompanyName);
+
+        if (await _users.EmailExistsAsync(google.Email, cancellationToken))
+        {
+            throw new EmailAlreadyExistsException(google.Email);
+        }
+
+        if (await _contractors.CnpjExistsAsync(cnpj, cancellationToken))
+        {
+            throw new CnpjAlreadyExistsException(cnpj);
+        }
+
+        var contractor = new Contractor
+        {
+            Id = Guid.NewGuid(),
+            Cnpj = cnpj,
+            CompanyName = dto.CompanyName!.Trim(),
+            TradeName = string.IsNullOrWhiteSpace(dto.TradeName) ? null : dto.TradeName.Trim()
+        };
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = google.Email,
+            PasswordHash = null,
+            AuthProvider = AuthProvider.Google,
+            GoogleId = google.Subject,
+            ProfileType = ProfileType.Contratante,
+            CompanyId = contractor.Id
+        };
+
+        // Company and user are persisted atomically in a single unit of work.
+        await _contractors.AddAsync(contractor, cancellationToken);
+        await _users.AddAsync(user, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return BuildAuthResult(user);
+    }
+
+    public async Task<AuthResultDto> RegisterCarrierByInviteWithGoogleAsync(string token, RegisterCarrierGoogleDto dto, CancellationToken cancellationToken = default)
+    {
+        var invite = await _invites.GetByTokenAsync(token, cancellationToken);
+        if (invite is null || invite.IsUsed || IsExpired(invite))
+        {
+            throw new InvalidInviteException();
+        }
+
+        var contractor = await _contractors.GetByIdAsync(invite.ContractorId, cancellationToken)
+            ?? throw new InvalidInviteException();
+
+        var google = await VerifyGoogleAsync(dto.IdToken, cancellationToken);
+
+        var cnpj = NormalizeCnpj(dto.Cnpj);
+
+        // Cenário B: the carrier already exists. Abort the registration and tell the
+        // front-end to redirect to login so the carrier can accept the pending
+        // partnership after authenticating.
+        if (await _carriers.CnpjExistsAsync(cnpj, cancellationToken))
+        {
+            throw new CarrierAlreadyRegisteredException(cnpj);
+        }
+
+        // Cenário A: brand-new carrier. Company data is required.
+        ValidateCompanyData(cnpj, dto.CompanyName);
+
+        if (await _users.EmailExistsAsync(google.Email, cancellationToken))
+        {
+            throw new EmailAlreadyExistsException(google.Email);
+        }
+
+        var carrier = new Carrier
+        {
+            Id = Guid.NewGuid(),
+            Cnpj = cnpj,
+            CompanyName = dto.CompanyName!.Trim(),
+            TradeName = string.IsNullOrWhiteSpace(dto.TradeName) ? null : dto.TradeName.Trim()
+        };
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = google.Email,
+            PasswordHash = null,
+            AuthProvider = AuthProvider.Google,
+            GoogleId = google.Subject,
+            ProfileType = ProfileType.Transportador,
+            CompanyId = carrier.Id
+        };
+
+        var connection = new PartnerConnection
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = contractor.Id,
+            CarrierId = carrier.Id,
+            Status = PartnershipStatus.Active
+        };
+
+        invite.IsUsed = true;
+
+        // Carrier, user and partnership connection are persisted atomically.
+        await _carriers.AddAsync(carrier, cancellationToken);
+        await _users.AddAsync(user, cancellationToken);
+        await _connections.AddAsync(connection, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return BuildAuthResult(user);
+    }
+
+    public async Task<AuthResultDto> LoginWithGoogleAsync(GoogleLoginDto dto, CancellationToken cancellationToken = default)
+    {
+        var google = await VerifyGoogleAsync(dto.IdToken, cancellationToken);
+
+        // Match first by the stable Google subject, then fall back to the e-mail so
+        // an account created through Google is still found if the subject changes.
+        var user = await _users.GetByGoogleIdAsync(google.Subject, cancellationToken)
+            ?? await _users.GetByEmailAsync(google.Email, cancellationToken);
+
+        if (user is null || user.AuthProvider != AuthProvider.Google)
         {
             throw new InvalidCredentialsException();
         }
@@ -203,6 +341,39 @@ public partial class AuthService : IAuthService
             user.CompanyId);
 
         return new AuthResultDto(token, userDto);
+    }
+
+    private async Task<Contracts.GoogleUserInfo> VerifyGoogleAsync(string? idToken, CancellationToken cancellationToken)
+    {
+        var google = await _googleTokenVerifier.VerifyAsync(idToken ?? string.Empty, cancellationToken);
+
+        // A Google account whose e-mail is not verified must not be trusted as an identity.
+        if (!google.EmailVerified || string.IsNullOrWhiteSpace(google.Email) || string.IsNullOrWhiteSpace(google.Subject))
+        {
+            throw new InvalidGoogleTokenException();
+        }
+
+        return google with { Email = NormalizeEmail(google.Email) };
+    }
+
+    private static void ValidateCompanyData(string cnpj, string? companyName)
+    {
+        var errors = new List<ValidationError>();
+
+        if (cnpj.Length != 14)
+        {
+            errors.Add(new ValidationError("cnpj", "CNPJ inválido. Informe os 14 dígitos."));
+        }
+
+        if (string.IsNullOrWhiteSpace(companyName))
+        {
+            errors.Add(new ValidationError("razaoSocial", "Campo obrigatório."));
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new ValidationException(errors, "Não foi possível concluir o registro.");
+        }
     }
 
     private static bool IsExpired(PartnershipInvite invite)

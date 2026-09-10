@@ -41,11 +41,35 @@ public class AuthController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
-    /// <summary>Authenticates a user and issues a JWT.</summary>
+    /// <summary>Registration of a shipper (Contratante) using a Google account.</summary>
+    [HttpPost("register/contratante/google")]
+    public async Task<IActionResult> RegisterContractorWithGoogle([FromBody] RegisterContractorGoogleDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _authService.RegisterContractorWithGoogleAsync(dto, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
+
+    /// <summary>Smart onboarding of a carrier (Transportadora) via invite using a Google account.</summary>
+    [HttpPost("invite/{token}/register/google")]
+    public async Task<IActionResult> RegisterCarrierByInviteWithGoogle(string token, [FromBody] RegisterCarrierGoogleDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _authService.RegisterCarrierByInviteWithGoogleAsync(token, dto, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
+
+    /// <summary>Authenticates a user with e-mail and password and issues a JWT.</summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto, CancellationToken cancellationToken)
     {
         var result = await _authService.LoginAsync(dto, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Authenticates a user with a Google account and issues a JWT.</summary>
+    [HttpPost("login/google")]
+    public async Task<IActionResult> LoginWithGoogle([FromBody] GoogleLoginDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _authService.LoginWithGoogleAsync(dto, cancellationToken);
         return Ok(result);
     }
 }
