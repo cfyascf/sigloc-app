@@ -11,7 +11,8 @@ public static class DependencyInjection
     public static IServiceCollection AddSiglocAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
-        var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>();
+        var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
+            ?? throw new InvalidOperationException($"Configuration section '{JwtSettings.SectionName}' is missing.");
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>

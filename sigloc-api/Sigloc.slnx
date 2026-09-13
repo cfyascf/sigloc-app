@@ -1,2 +1,6 @@
 <Solution>
+  <Project Path="Sigloc.Api\Sigloc.Api.csproj" />
+  <Project Path="Sigloc.Application\Sigloc.Application.csproj" />
+  <Project Path="Sigloc.Domain\Sigloc.Domain.csproj" />
+  <Project Path="Sigloc.Infrastructure\Sigloc.Infrastructure.csproj" />
 </Solution>
