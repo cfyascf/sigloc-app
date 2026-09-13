@@ -4,6 +4,9 @@ using Sigloc.Application;
 using Sigloc.Infrastructure;
 using Scalar.AspNetCore;
 using Serilog;
+using Microsoft.OpenApi; // Required for logging
+using Sigloc.Infrastructure.Contexts;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
 Log.Logger = new LoggerConfiguration()
@@ -65,13 +68,25 @@ try
         options.AddPolicy("AllowFrontend", policy =>
         {
             policy.WithOrigins(
-                    "http://localhost:5173", // Vite default local port
+                    "http://localhost:5100", // Vite default local port
                     "https://icy-flower-092597810.7.azurestaticapps.net" // Your live frontend
                   )
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });
     });
+
+    builder.Services.AddDbContext<Sigloc.Infrastructure.Contexts.SiglocDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+        // 1. Provedor de JWT (que já havíamos colocado)
+    builder.Services.AddScoped<Sigloc.Application.Contracts.IJwtProvider, Sigloc.Infrastructure.Authentication.JwtProvider>();
+
+    // 2. Registro do Repositório (O serviço precisa do repositório para falar com o banco)
+    builder.Services.AddScoped<Sigloc.Domain.Repositories.IVehicleRepository, Sigloc.Infrastructure.Repositories.VehicleRepository>();
+
+    // 3. Registro do Serviço (A peça que estava faltando para o Controller)
+    builder.Services.AddScoped<Sigloc.Application.Contracts.IVehicleService, Sigloc.Application.Services.VehicleService>();
 
     var app = builder.Build();
 
