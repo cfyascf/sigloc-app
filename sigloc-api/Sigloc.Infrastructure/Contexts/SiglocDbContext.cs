@@ -13,6 +13,7 @@ public class SiglocDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<PartnershipInvite> PartnershipInvites => Set<PartnershipInvite>();
     public DbSet<PartnerConnection> PartnerConnections => Set<PartnerConnection>();
+    public DbSet<Vehicle> Vehicles => Set<Vehicle>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
