@@ -17,12 +17,28 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
 
         services.AddDbContext<SiglocDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                npgsqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorCodesToAdd: null)));
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+        services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
+        services.Configure<InviteSettings>(configuration.GetSection(InviteSettings.SectionName));
 
         services.AddScoped<IJwtProvider, JwtProvider>();
+        services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+        services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
+        services.AddSingleton<IInviteLinkBuilder, InviteLinkBuilder>();
+
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IContractorRepository, ContractorRepository>();
+        services.AddScoped<ICarrierRepository, CarrierRepository>();
+        services.AddScoped<IPartnershipInviteRepository, PartnershipInviteRepository>();
+        services.AddScoped<IPartnerConnectionRepository, PartnerConnectionRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
     }
