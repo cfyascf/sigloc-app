@@ -82,6 +82,31 @@ public class RouteSegmentRepository : IRouteSegmentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<RouteSegment>> GetByIdsAsync(
+        Guid contractorId,
+        IReadOnlyCollection<Guid> ids,
+        bool tracked,
+        CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+        {
+            return Array.Empty<RouteSegment>();
+        }
+
+        var query = _dbContext.RouteSegments
+            .Where(s => s.ContractorId == contractorId && ids.Contains(s.Id))
+            .Include(s => s.Items)
+                .ThenInclude(i => i.Product)
+            .AsQueryable();
+
+        if (!tracked)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(RouteSegment segment, CancellationToken cancellationToken = default)
     {
         await _dbContext.RouteSegments.AddAsync(segment, cancellationToken);

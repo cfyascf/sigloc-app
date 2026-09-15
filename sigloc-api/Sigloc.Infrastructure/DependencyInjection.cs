@@ -6,6 +6,7 @@ using Sigloc.Domain.Repositories;
 using System.Net.Http.Headers;
 using Sigloc.Infrastructure.Authentication;
 using Sigloc.Infrastructure.Contexts;
+using Sigloc.Infrastructure.Notifications;
 using Sigloc.Infrastructure.Repositories;
 using Sigloc.Infrastructure.Routing;
 
@@ -52,6 +53,9 @@ public static class DependencyInjection
 
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IRouteSegmentRepository, RouteSegmentRepository>();
+        services.AddScoped<IConsolidatedRouteRepository, ConsolidatedRouteRepository>();
+        services.AddScoped<IAuctionRepository, AuctionRepository>();
+        services.AddScoped<IAuctionNotifier, LoggingAuctionNotifier>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IContractorRepository, ContractorRepository>();
         services.AddScoped<ICarrierRepository, CarrierRepository>();

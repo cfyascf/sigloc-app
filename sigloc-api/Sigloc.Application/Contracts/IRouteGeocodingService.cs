@@ -7,6 +7,11 @@ public sealed record RouteGeometry(
     double DistanceKm,
     double EstimatedTimeHours);
 
+/// <summary>Distance and duration of a driving leg between two known coordinates.</summary>
+public sealed record RouteLeg(
+    double DistanceKm,
+    double EstimatedTimeHours);
+
 /// <summary>
 /// Resolves textual addresses into coordinates and computes the driving distance and
 /// duration between them (backed by an external routing provider such as OpenRouteService).
@@ -18,4 +23,11 @@ public interface IRouteGeocodingService
     /// to destination. All external calls are performed asynchronously.
     /// </summary>
     Task<RouteGeometry> ResolveAsync(string originAddress, string destinationAddress, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Computes the outbound driving distance/duration between two already-known
+    /// coordinates (each formatted as "longitude,latitude"). Used to measure the leg
+    /// between consecutive segments (destination of one → origin of the next).
+    /// </summary>
+    Task<RouteLeg> ComputeLegAsync(string fromCoordinate, string toCoordinate, CancellationToken cancellationToken = default);
 }

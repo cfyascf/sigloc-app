@@ -54,6 +54,35 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
             EstimatedTimeHours: Math.Round(matrix.DurationSeconds / SecondsPerHour, 2));
     }
 
+    public async Task<RouteLeg> ComputeLegAsync(
+        string fromCoordinate,
+        string toCoordinate,
+        CancellationToken cancellationToken = default)
+    {
+        var from = ParseCoordinate(fromCoordinate);
+        var to = ParseCoordinate(toCoordinate);
+
+        var matrix = await ComputeMatrixAsync(from, to, cancellationToken);
+
+        return new RouteLeg(
+            DistanceKm: Math.Round(matrix.DistanceMeters / MetersPerKilometer, 2),
+            EstimatedTimeHours: Math.Round(matrix.DurationSeconds / SecondsPerHour, 2));
+    }
+
+    private static double[] ParseCoordinate(string coordinate)
+    {
+        var parts = coordinate?.Split(',');
+        if (parts is not { Length: 2 } ||
+            !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude) ||
+            !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude))
+        {
+            throw new GeocodingException($"The coordinate '{coordinate}' is not in the expected 'longitude,latitude' format.");
+        }
+
+        // OpenRouteService always works in [longitude, latitude] order.
+        return new[] { longitude, latitude };
+    }
+
     private async Task<double[]> GeocodeAsync(string address, CancellationToken cancellationToken)
     {
         var url = $"{GeocodePath}?text={Uri.EscapeDataString(address)}";

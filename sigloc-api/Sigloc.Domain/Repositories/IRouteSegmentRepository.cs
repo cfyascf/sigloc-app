@@ -23,6 +23,17 @@ public interface IRouteSegmentRepository
         IReadOnlyCollection<Guid> productIds,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Loads several segments (scoped to the contractor) including items and products.
+    /// When <paramref name="tracked"/> is true the entities are tracked so callers can
+    /// update them inside a transaction.
+    /// </summary>
+    Task<IReadOnlyList<RouteSegment>> GetByIdsAsync(
+        Guid contractorId,
+        IReadOnlyCollection<Guid> ids,
+        bool tracked,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(RouteSegment segment, CancellationToken cancellationToken = default);
 
     /// <summary>Replaces the items of an existing segment and persists the updated segment.</summary>
