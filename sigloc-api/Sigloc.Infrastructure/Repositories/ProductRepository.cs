@@ -68,10 +68,14 @@ public class ProductRepository : IProductRepository
                 cancellationToken);
     }
 
-    public Task<IReadOnlyList<string>> GetLinkedSegmentIdsAsync(Guid productId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> GetLinkedSegmentIdsAsync(Guid productId, CancellationToken cancellationToken = default)
     {
-        // Route segments (trechos) are not modelled yet; no product can be in use.
-        return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+        return await _dbContext.ProductRouteSegments
+            .AsNoTracking()
+            .Where(i => i.ProductId == productId)
+            .Select(i => i.RouteSegmentId.ToString())
+            .Distinct()
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AddAsync(Product product, CancellationToken cancellationToken = default)
