@@ -63,14 +63,27 @@ try
     builder.Services.AddApplication();
     builder.Services.AddControllers();
 
+    // Allowed origins are read from configuration ("Cors:AllowedOrigins") so they
+    // can be managed per-environment (appsettings / Azure App Settings) without
+    // recompiling. Falls back to sensible defaults when the section is absent.
+    var allowedOrigins = builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>();
+
+    if (allowedOrigins is null || allowedOrigins.Length == 0)
+    {
+        allowedOrigins = new[]
+        {
+            "http://localhost:5173", // Vite default local port
+            "https://icy-flower-092597810.7.azurestaticapps.net" // Live frontend
+        };
+    }
+
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowFrontend", policy =>
         {
-            policy.WithOrigins(
-                    "http://localhost:5100", // Vite default local port
-                    "https://icy-flower-092597810.7.azurestaticapps.net" // Your live frontend
-                  )
+            policy.WithOrigins(allowedOrigins)
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });
