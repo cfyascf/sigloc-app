@@ -39,33 +39,6 @@ namespace Sigloc.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Vehicle",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    TransportadoraId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Plate = table.Column<string>(type: "text", nullable: false),
-                    Model = table.Column<string>(type: "text", nullable: false),
-                    CapacityWeight = table.Column<decimal>(type: "numeric", nullable: false),
-                    CapacityVolume = table.Column<decimal>(type: "numeric", nullable: false),
-                    AxleCount = table.Column<int>(type: "integer", nullable: false),
-                    HasCargoSecuring = table.Column<bool>(type: "boolean", nullable: false),
-                    BodyType = table.Column<int>(type: "integer", nullable: false),
-                    RefrigerationLevel = table.Column<int>(type: "integer", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    HasMopp = table.Column<bool>(type: "boolean", nullable: false),
-                    Driver = table.Column<string>(type: "text", nullable: false),
-                    CurrentLocation = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    Version = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Vehicle", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "ProductRouteSegment",
                 columns: table => new
                 {
@@ -117,9 +90,6 @@ namespace Sigloc.Infrastructure.Migrations
         {
             migrationBuilder.DropTable(
                 name: "ProductRouteSegment");
-
-            migrationBuilder.DropTable(
-                name: "Vehicle");
 
             migrationBuilder.DropTable(
                 name: "RouteSegment");
