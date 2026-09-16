@@ -44,7 +44,7 @@ public class RouteSegmentsController : ControllerBase
     [HttpGet]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Search(
-        RouteSegmentQueryDto query,
+        [FromQuery] RouteSegmentQueryDto query,
         CancellationToken cancellationToken = default)
     {
         var result = await _routeSegmentService.SearchAsync(GetContractorId(), query, cancellationToken);

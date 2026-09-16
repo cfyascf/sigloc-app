@@ -39,7 +39,7 @@ public static class DependencyInjection
             if (!string.IsNullOrWhiteSpace(openRouteSettings.ApiKey))
             {
                 client.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue(openRouteSettings.ApiKey);
+                    new AuthenticationHeaderValue("Bearer", openRouteSettings.ApiKey);
             }
 
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
