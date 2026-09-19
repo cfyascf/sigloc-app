@@ -58,6 +58,17 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Resgata o convite ativo (ainda não expirado e não usado) mais recente do contratante autenticado. Devolve 204 se não houver nenhum.</summary>
+    [HttpGet("invite/active")]
+    [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> GetActiveInvite(CancellationToken cancellationToken)
+    {
+        var contractorId = GetCompanyId();
+        var result = await _authService.GetActiveInviteAsync(contractorId, cancellationToken);
+
+        return result is null ? NoContent() : Ok(result);
+    }
+
     /// <summary>Smart onboarding of a carrier (Transportadora) through an invite link.</summary>
     [HttpPost("invite/{token}/register")]
     [AllowAnonymous]
