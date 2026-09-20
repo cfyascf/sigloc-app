@@ -10,4 +10,5 @@ public interface IVehicleRepository
     Task UpdateAsync(Vehicle vehicle, CancellationToken cancellationToken = default);
     Task DeleteAsync(Vehicle vehicle, CancellationToken cancellationToken = default);
     Task<bool> ExistsByPlateAsync(string plate, CancellationToken cancellationToken = default);
+    Task<Dictionary<Guid, int>> CountFreeByCarrierIdsAsync(IEnumerable<Guid> carrierIds, CancellationToken cancellationToken = default);
 }
