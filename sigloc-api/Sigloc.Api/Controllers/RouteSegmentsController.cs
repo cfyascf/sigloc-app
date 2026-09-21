@@ -8,15 +8,15 @@ using System.Security.Claims;
 namespace Sigloc.Api.Controllers;
 
 [ApiController]
-[Route("api/products")]
+[Route("api/route-segments")]
 [Authorize]
-public class ProductsController : ControllerBase
+public class RouteSegmentsController : ControllerBase
 {
-    private readonly IProductService _productService;
+    private readonly IRouteSegmentService _routeSegmentService;
 
-    public ProductsController(IProductService productService)
+    public RouteSegmentsController(IRouteSegmentService routeSegmentService)
     {
-        _productService = productService;
+        _routeSegmentService = routeSegmentService;
     }
 
     private Guid GetContractorId()
@@ -27,9 +27,9 @@ public class ProductsController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = Policies.RequireShipperAccess)]
-    public async Task<IActionResult> Create([FromBody] ProductRequestDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create([FromBody] RouteSegmentRequestDto dto, CancellationToken cancellationToken)
     {
-        var result = await _productService.CreateAsync(GetContractorId(), dto, cancellationToken);
+        var result = await _routeSegmentService.CreateAsync(GetContractorId(), dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
@@ -37,25 +37,25 @@ public class ProductsController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _productService.GetByIdAsync(GetContractorId(), id, cancellationToken);
+        var result = await _routeSegmentService.GetByIdAsync(GetContractorId(), id, cancellationToken);
         return Ok(result);
     }
 
     [HttpGet]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Search(
-        [FromQuery] ProductQueryDto query,
+        [FromQuery] RouteSegmentQueryDto query,
         CancellationToken cancellationToken = default)
     {
-        var result = await _productService.SearchAsync(GetContractorId(), query, cancellationToken);
+        var result = await _routeSegmentService.SearchAsync(GetContractorId(), query, cancellationToken);
         return Ok(result);
     }
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.RequireShipperAccess)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] ProductRequestDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(Guid id, [FromBody] RouteSegmentRequestDto dto, CancellationToken cancellationToken)
     {
-        var result = await _productService.UpdateAsync(GetContractorId(), id, dto, cancellationToken);
+        var result = await _routeSegmentService.UpdateAsync(GetContractorId(), id, dto, cancellationToken);
         return Ok(result);
     }
 
@@ -63,7 +63,7 @@ public class ProductsController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        await _productService.DeleteAsync(GetContractorId(), id, cancellationToken);
+        await _routeSegmentService.DeleteAsync(GetContractorId(), id, cancellationToken);
         return NoContent();
     }
 }
