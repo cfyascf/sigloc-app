@@ -8,6 +8,10 @@ const srcPath = fileURLToPath(new URL("./src", import.meta.url))
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    port: 5067,
+    strictPort: true,
+  },
   resolve: {
     alias: {
       "@": path.resolve(srcPath),

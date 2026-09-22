@@ -197,7 +197,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
             </div>
             {showSidebarText ? (
               <div className={cn("ml-3 overflow-hidden", brand.textMain)}>
-                <p className="truncate text-sm font-bold">{user.name}</p>
+                <p className="truncate text-sm font-bold">{user?.name ?? "Usuário"}</p>
                 <p
                   className={cn(
                     "text-[10px] font-black uppercase opacity-70",
