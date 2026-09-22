@@ -18,4 +18,10 @@ public class Carrier : BaseEntity
 
     /// <summary>Trade name (nome fantasia).</summary>
     public string? TradeName { get; set; }
+
+    /// <summary>Average rating (1-5) given by contractors. Null until the carrier has at least one review.</summary>
+    public double? AverageRating { get; set; }
+
+    /// <summary>Whether the carrier currently has an active cargo insurance policy on file.</summary>
+    public bool HasActiveInsurancePolicy { get; set; }
 }

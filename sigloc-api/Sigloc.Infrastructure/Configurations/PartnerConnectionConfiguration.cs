@@ -14,6 +14,15 @@ public class PartnerConnectionConfiguration : IEntityTypeConfiguration<PartnerCo
             .HasConversion<string>()
             .IsRequired();
 
+        builder.Property(c => c.InitiatedBy)
+            .HasConversion<string>()
+            .IsRequired();
+
+        builder.HasOne(c => c.Carrier)
+            .WithMany()
+            .HasForeignKey(c => c.CarrierId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // A contractor and a carrier can only be linked once.
         builder.HasIndex(c => new { c.ContractorId, c.CarrierId }).IsUnique();
     }

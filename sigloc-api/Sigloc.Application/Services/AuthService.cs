@@ -142,6 +142,27 @@ public partial class AuthService : IAuthService
             $"A Empresa {name} deseja estabelecer uma parceria com você.");
     }
 
+    public async Task<ActiveInviteDto?> GetActiveInviteAsync(Guid contractorId, CancellationToken cancellationToken = default)
+    {
+        var invite = await _invites.GetLatestActiveByContractorAsync(contractorId, cancellationToken);
+
+        if (invite is null)
+        {
+            return null;
+        }
+
+        double? hoursRemaining = invite.ExpiresAt.HasValue
+            ? (invite.ExpiresAt.Value - DateTimeOffset.UtcNow).TotalHours
+            : null;
+
+        return new ActiveInviteDto(
+            invite.Id,
+            invite.Token,
+            _inviteLinkBuilder.Build(invite.Token),
+            invite.ExpiresAt,
+            hoursRemaining);
+    }
+
     public async Task<AuthResultDto> RegisterCarrierByInviteAsync(string token, RegisterCarrierDto dto, CancellationToken cancellationToken = default)
     {
         var invite = await _invites.GetByTokenAsync(token, cancellationToken);

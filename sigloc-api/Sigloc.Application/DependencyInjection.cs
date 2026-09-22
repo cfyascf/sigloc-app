@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddScoped<IRoutePreviewService, RoutePreviewService>();
         services.AddScoped<IAuctionService, AuctionService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IPartnerNetworkService, PartnerNetworkService>();
 
         return services;
     }

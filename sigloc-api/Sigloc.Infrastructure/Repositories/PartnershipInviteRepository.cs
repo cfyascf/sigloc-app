@@ -20,6 +20,18 @@ public class PartnershipInviteRepository : IPartnershipInviteRepository
             .FirstOrDefaultAsync(i => i.Token == token, cancellationToken);
     }
 
+    public Task<PartnershipInvite?> GetLatestActiveByContractorAsync(Guid contractorId, CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        return _dbContext.PartnershipInvites
+            .Where(i => i.ContractorId == contractorId
+                    && !i.IsUsed
+                    && (i.ExpiresAt == null || i.ExpiresAt > now))
+            .OrderByDescending(i => i.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task AddAsync(PartnershipInvite invite, CancellationToken cancellationToken = default)
     {
         await _dbContext.PartnershipInvites.AddAsync(invite, cancellationToken);

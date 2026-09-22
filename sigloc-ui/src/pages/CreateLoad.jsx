@@ -25,17 +25,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { productOptionsMock } from "@/constants/products-mock"
+import { useProductOptions } from "@/hooks/use-product-options"
 
 export default function CreateSegment() {
   const navigate = useNavigate()
+
+  const { options: productOptions } = useProductOptions()
 
   // MUDANÇA: O estado agora é um array (lista) de produtos selecionados
   const [selectedProducts, setSelectedProducts] = useState([])
   const [productSearch, setProductSearch] = useState("")
 
   // Filtra os produtos para o Select (Pesquisa + Remove os que já foram selecionados)
-  const filteredProductOptions = productOptionsMock.filter((product) => {
+  const filteredProductOptions = productOptions.filter((product) => {
     // Esconde do dropdown os produtos que já estão na lista de selecionados
     const isAlreadySelected = selectedProducts.some(
       (p) => p.value === product.value
@@ -52,7 +54,7 @@ export default function CreateSegment() {
 
   // Função para adicionar o produto à lista
   const handleAddProduct = (productId) => {
-    const productToAdd = productOptionsMock.find((p) => p.value === productId)
+    const productToAdd = productOptions.find((p) => p.value === productId)
     if (productToAdd) {
       setSelectedProducts([...selectedProducts, productToAdd])
     }
