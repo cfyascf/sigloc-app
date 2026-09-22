@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sigloc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sigloc
+      POSTGRES_PASSWORD: sigloc
+      POSTGRES_DB: sigloc
+    ports:
+      - "5432:5432"
+    volumes:
+      - sigloc-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sigloc -d sigloc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sigloc-pgdata:

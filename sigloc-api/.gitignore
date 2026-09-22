@@ -107,3 +107,10 @@ Thumbs.db
 *.userosscache
 
 [Oo]bj/
+
+# Local secrets and environment overrides (never commit real credentials)
+appsettings.Local.json
+appsettings.*.Local.json
+.env
+.env.local
+*.env
