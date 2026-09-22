@@ -19,4 +19,10 @@ public class PartnerConnection : BaseEntity
 
     /// <summary>Current lifecycle state of the partnership.</summary>
     public PartnershipStatus Status { get; set; }
+
+    /// <summary>Which side started this connection (iniciadoPor no diagrama).</summary>
+    public PartnershipInitiator InitiatedBy { get; set; }
+
+    /// <summary>Navigation property - só vem preenchida quando o repositório faz .Include(c => c.Carrier).</summary>
+    public Carrier? Carrier { get; set; }
 }

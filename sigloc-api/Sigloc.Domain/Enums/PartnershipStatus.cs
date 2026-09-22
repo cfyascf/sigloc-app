@@ -9,5 +9,8 @@ public enum PartnershipStatus
     Pending,
 
     /// <summary>Active partnership. Created automatically when a brand-new carrier onboards through an invite.</summary>
-    Active
+    Active,
+
+    /// <summary>Either side declined the partnership. Terminal state - a new invite/connection is needed to try again.</summary>
+    Rejected
 }
