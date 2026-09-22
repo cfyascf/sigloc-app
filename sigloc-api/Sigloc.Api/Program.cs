@@ -103,6 +103,13 @@ try
 
     var app = builder.Build();
 
+    // In Development, apply pending migrations and seed sample data on startup so a
+    // freshly started local database (e.g. the Docker Compose Postgres container) is
+    // immediately ready for testing.
+    if (app.Environment.IsDevelopment())
+    {
+        await Sigloc.Infrastructure.Persistence.DatabaseSeeder.MigrateAndSeedAsync(app.Services);
+    }
 
     // Catch unhandled exceptions and return a consistent JSON error payload
     app.UseMiddleware<GlobalExceptionHandlerMiddleware>();

@@ -76,6 +76,48 @@ public class GlobalExceptionHandlerMiddleware
                     trechosVinculados = inUse.LinkedSegments
                 }),
 
+            RouteSegmentNotFoundException segmentNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "ROUTE_SEGMENT_NOT_FOUND",
+                    message = segmentNotFound.Message
+                }),
+
+            RouteSegmentNotEditableException segmentNotEditable => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "ROUTE_SEGMENT_NOT_EDITABLE",
+                    message = segmentNotEditable.Message
+                }),
+
+            RouteSegmentsNotFoundException segmentsNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "ROUTE_SEGMENTS_NOT_FOUND",
+                    message = segmentsNotFound.Message,
+                    missingIds = segmentsNotFound.MissingIds
+                }),
+
+            SegmentUnavailableException segmentUnavailable => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "SEGMENT_UNAVAILABLE",
+                    message = segmentUnavailable.Message,
+                    segmentId = segmentUnavailable.SegmentId
+                }),
+
+            GeocodingException geocoding => (
+                (int)HttpStatusCode.BadGateway,
+                new
+                {
+                    error = "GEOCODING_ERROR",
+                    message = geocoding.Message
+                }),
+
             EmailAlreadyExistsException emailConflict => (
                 (int)HttpStatusCode.Conflict,
                 new

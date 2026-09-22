@@ -14,6 +14,10 @@ public class SiglocDbContext : DbContext
     public DbSet<PartnershipInvite> PartnershipInvites => Set<PartnershipInvite>();
     public DbSet<PartnerConnection> PartnerConnections => Set<PartnerConnection>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<RouteSegment> RouteSegments => Set<RouteSegment>();
+    public DbSet<ProductRouteSegment> ProductRouteSegments => Set<ProductRouteSegment>();
+    public DbSet<ConsolidatedRoute> ConsolidatedRoutes => Set<ConsolidatedRoute>();
+    public DbSet<Auction> Auctions => Set<Auction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
