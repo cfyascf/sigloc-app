@@ -116,7 +116,14 @@ export const ROUTES = [
   { path: "/offer-freight", element: <OfferFreight />, access: [ROLES.CONTRACTOR], nav: false },
   { path: "/register-product", element: <RegisterProduct />, access: [ROLES.CONTRACTOR], nav: false },
   { path: "/auction-bids/:segmentId", element: <AuctionBids />, access: [ROLES.CONTRACTOR], nav: false },
-  { path: "/product-management",      element: <ProductManagement />,      access: [ROLES.CONTRACTOR], nav: false },
+  {
+    path: "/product-management",
+    element: <ProductManagement />,
+    label: "Produtos",
+    icon: Package,
+    access: [ROLES.CONTRACTOR],
+    nav: true,
+  },
 
   
   // Carrier only
