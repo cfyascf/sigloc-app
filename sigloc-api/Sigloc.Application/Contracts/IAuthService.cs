@@ -13,6 +13,10 @@ public interface IAuthService
     /// <summary>Validates a smart invite token and returns the inviting contractor context.</summary>
     Task<InviteValidationDto> ValidateInviteAsync(string token, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns the contractor's latest non-expired, unused invite, or null when none exists (front-end then shows only the "Generate new invite" button).</summary>
+    Task<ActiveInviteDto?> GetActiveInviteAsync(Guid contractorId, CancellationToken cancellationToken = default);
+
     /// <summary>Smart onboarding of a carrier through an invite link.</summary>
     Task<AuthResultDto> RegisterCarrierByInviteAsync(string token, RegisterCarrierDto dto, CancellationToken cancellationToken = default);
 

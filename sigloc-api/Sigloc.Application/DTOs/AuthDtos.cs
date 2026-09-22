@@ -1,4 +1,5 @@
 namespace Sigloc.Application.DTOs;
+using System.Text.Json.Serialization;
 
 /// <summary>Request body for POST /api/auth/register/contratante.</summary>
 public record RegisterContractorDto(
@@ -66,6 +67,14 @@ public record InviteValidationDto(
     bool Valid,
     string? ContractorName,
     string Message);
+
+/// <summary>Resposta para o GET /api/auth/invite/active. ExpiresAt/HoursRemaining vêm null quando o convite foi criado sem expiração (Invite.ExpiresAt == null). Os nomes de propriedade em C# seguem o padrão do arquivo (inglês), mas o JSON exposto usa os nomes em português exigidos pela spec do front (JsonPropertyName)</summary>
+public record ActiveInviteDto(
+    [property: JsonPropertyName("id")] Guid Id,
+    [property: JsonPropertyName("codigo")] string Code,
+    [property: JsonPropertyName("linkCompleto")] string InviteLink,
+    [property: JsonPropertyName("expiraEm")] DateTimeOffset? ExpiresAt,
+    [property: JsonPropertyName("horasRestantes")] double? HoursRemaining);
 
 /// <summary>User payload embedded in registration and login responses.</summary>
 public record AuthUserDto(
