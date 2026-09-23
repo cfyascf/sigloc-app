@@ -1,6 +1,7 @@
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
 using Sigloc.Domain.Entities;
+using Sigloc.Domain.Enums;
 using Sigloc.Domain.Repositories;
 
 namespace Sigloc.Application.Services;
@@ -69,7 +70,7 @@ public class VehicleService : IVehicleService
         return vehicles.Select(MapToDto);
     }
 
-    public async Task UpdateAsync(Guid id, UpdateVehicleDto dto, CancellationToken cancellationToken = default)
+   public async Task UpdateAsync(Guid id, UpdateVehicleDto dto, CancellationToken cancellationToken = default)
     {
         var vehicle = await _repository.GetByIdAsync(id, cancellationToken);
         if (vehicle == null)
@@ -77,10 +78,38 @@ public class VehicleService : IVehicleService
             throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
         }
 
+        // --- REGRA DE NEGÓCIO: Bloqueio estrutural em trânsito ---
+        if (vehicle.Status == OperationalStatus.EM_TRANSITO)
+        {
+            // Verifica se algum dos campos estruturais foi enviado com valor diferente do atual
+            bool structuralChanged = 
+                (dto.AxleCount.HasValue && dto.AxleCount.Value != vehicle.AxleCount) ||
+                (dto.CapacityWeight.HasValue && dto.CapacityWeight.Value != vehicle.CapacityWeight) ||
+                (dto.CapacityVolume.HasValue && dto.CapacityVolume.Value != vehicle.CapacityVolume) ||
+                (dto.BodyType.HasValue && dto.BodyType.Value != vehicle.BodyType) ||
+                (dto.RefrigerationLevel.HasValue && dto.RefrigerationLevel.Value != vehicle.RefrigerationLevel) ||
+                (dto.HasMopp.HasValue && dto.HasMopp.Value != vehicle.HasMopp) ||
+                (dto.HasCargoSecuring.HasValue && dto.HasCargoSecuring.Value != vehicle.HasCargoSecuring);
+
+            if (structuralChanged)
+            {
+                throw new InvalidOperationException("Não é possível alterar características estruturais de um veículo que está em trânsito.");
+            }
+        }
+        // ----------------------------------------------------------
+
         vehicle.Update(
-            dto.Model, dto.AxleCount, dto.CapacityWeight, dto.CapacityVolume, 
-            dto.BodyType, dto.RefrigerationLevel, dto.HasMopp, dto.HasCargoSecuring, 
-            dto.Driver, dto.CurrentLocation, dto.Status
+            dto.Model, 
+            dto.AxleCount, 
+            dto.CapacityWeight, 
+            dto.CapacityVolume, 
+            dto.BodyType, 
+            dto.RefrigerationLevel, 
+            dto.HasMopp, 
+            dto.HasCargoSecuring, 
+            dto.Driver, 
+            dto.CurrentLocation, 
+            dto.Status
         );
 
         await _repository.UpdateAsync(vehicle, cancellationToken);

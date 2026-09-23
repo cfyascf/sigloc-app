@@ -27,9 +27,13 @@ public class VehicleRepository : IVehicleRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task AddAsync(Vehicle product, CancellationToken cancellationToken = default)
+    public async Task AddAsync(Vehicle vehicle, CancellationToken cancellationToken = default)
     {
-        await _dbContext.Vehicles.AddAsync(product, cancellationToken);
+                // 1. Adiciona a entidade na memória do Entity Framework
+            await _dbContext.Vehicles.AddAsync(vehicle, cancellationToken);
+            
+            // 2. O SEGREDO ESTÁ AQUI: Efetiva a gravação no banco de dados!
+            await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(Vehicle vehicle, CancellationToken cancellationToken = default)
