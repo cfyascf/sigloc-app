@@ -23,6 +23,27 @@ public class RouteSegmentRepository : IRouteSegmentRepository
             .FirstOrDefaultAsync(s => s.Id == id && s.ContractorId == contractorId, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<RouteSegment>> GetByIdsAsync(
+        Guid contractorId,
+        IReadOnlyCollection<Guid> ids,
+        bool asTracking,
+        CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+        {
+            return Array.Empty<RouteSegment>();
+        }
+
+        IQueryable<RouteSegment> query = _dbContext.RouteSegments;
+        query = asTracking ? query : query.AsNoTracking();
+
+        return await query
+            .Where(s => s.ContractorId == contractorId && ids.Contains(s.Id))
+            .Include(s => s.Items)
+                .ThenInclude(i => i.Product)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<(IReadOnlyList<RouteSegment> Items, int TotalItems)> SearchAsync(
         Guid contractorId,
         string? origin,

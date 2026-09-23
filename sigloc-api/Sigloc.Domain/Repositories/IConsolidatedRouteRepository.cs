@@ -4,9 +4,11 @@ namespace Sigloc.Domain.Repositories;
 
 public interface IConsolidatedRouteRepository
 {
-    Task<ConsolidatedRoute?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<IEnumerable<ConsolidatedRoute>> GetAllAsync(CancellationToken cancellationToken = default);
-    Task AddAsync(ConsolidatedRoute consolidatedRoute, CancellationToken cancellationToken = default);
-    Task UpdateAsync(ConsolidatedRoute consolidatedRoute, CancellationToken cancellationToken = default);
-    Task DeleteAsync(ConsolidatedRoute consolidatedRoute, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Stages the route for insertion. Does NOT call SaveChanges: it is meant to be
+    /// combined with other staged changes (e.g. updated route segments, a new auction)
+    /// and committed together through <see cref="IUnitOfWork"/> as a single atomic
+    /// transaction.
+    /// </summary>
+    Task AddAsync(ConsolidatedRoute route, CancellationToken cancellationToken = default);
 }

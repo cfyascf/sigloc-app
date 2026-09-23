@@ -4,9 +4,9 @@ namespace Sigloc.Domain.Repositories;
 
 public interface IAuctionRepository
 {
-    Task<Auction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<IEnumerable<Auction>> GetAllAsync(CancellationToken cancellationToken = default);
-    Task AddAsync(Auction consolidatedRoute, CancellationToken cancellationToken = default);
-    Task UpdateAsync(Auction consolidatedRoute, CancellationToken cancellationToken = default);
-    Task DeleteAsync(Auction consolidatedRoute, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Stages the auction for insertion. Does NOT call SaveChanges — see
+    /// <see cref="IConsolidatedRouteRepository.AddAsync"/> for why.
+    /// </summary>
+    Task AddAsync(Auction auction, CancellationToken cancellationToken = default);
 }

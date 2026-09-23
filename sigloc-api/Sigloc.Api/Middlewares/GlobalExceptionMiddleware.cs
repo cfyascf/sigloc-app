@@ -92,6 +92,23 @@ public class GlobalExceptionHandlerMiddleware
                     message = segmentNotEditable.Message
                 }),
 
+            RouteSegmentsNotFoundException segmentsNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "TRECHO_NAO_ENCONTRADO",
+                    message = segmentsNotFound.Message,
+                    trechosNaoEncontrados = segmentsNotFound.MissingIds
+                }),
+
+            RouteSegmentUnavailableException segmentUnavailable => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "TRECHO_INDISPONIVEL",
+                    message = segmentUnavailable.Message
+                }),
+
             GeocodingException geocoding => (
                 (int)HttpStatusCode.BadGateway,
                 new

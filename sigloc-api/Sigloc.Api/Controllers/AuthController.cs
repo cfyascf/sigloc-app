@@ -18,9 +18,13 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
-    /// <summary>Open self-service registration of a shipper company (Contratante).</summary>
+    /// <summary>
+    /// Creates a new Admin account from a Google account. Only an already-authenticated
+    /// Admin can call this — there is no public self-service admin registration. The
+    /// first Admin(s) must be bootstrapped manually (e.g. directly in the database).
+    /// </summary>
     [HttpPost("register/administrator")]
-    // [Authorize(Policy = Policies.RequireAdminAccess)]
+    [Authorize(Policy = Policies.RequireAdminAccess)]
     public async Task<IActionResult> RegisterAdministrator([FromBody] RegisterAdministratorGoogleDto dto, CancellationToken cancellationToken)
     {
         var result = await _authService.RegisterAdministratorWithGoogleAsync(dto, cancellationToken);
