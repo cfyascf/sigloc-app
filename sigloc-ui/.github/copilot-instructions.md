@@ -1,35 +1,42 @@
-Com certeza, Yasmim! Para garantir que a formatação não quebre e que você consiga copiar exatamente o código Markdown com todas as crases e tags intactas, coloquei o conteúdo inteiro dentro de um bloco de código abaixo.
+### 🎨 Frontend Copilot Instructions: React + Vite (Logistics Domain & B2B UI/UX)
 
-Basta clicar no botão de **"Copiar"** no canto superior direito deste bloco e colar no seu arquivo `.md`:
-
-```markdown
-# 🎨 Copilot Instructions: Princípios de UI/UX e Design B2B SaaS
-
-Este documento define as diretrizes, heurísticas e padrões de código (Tailwind CSS + React) para o desenvolvimento e refatoração de interfaces do sistema. O foco é criar telas modernas, de alta densidade de informação, limpas e com excelente usabilidade para analistas de logística (B2B).
-
-## 1. Filosofia de Design (The "Vibe")
-* **Alta Densidade, Baixo Ruído:** O usuário precisa ver muitos dados ao mesmo tempo (SaaS corporativo), mas sem se sentir sobrecarregado. Use grids, colunas e alinhamentos perfeitos.
-* **Flat Design (Sem Sombras):** **NÃO USE** `shadow`, `shadow-sm` ou `shadow-md`. A hierarquia e profundidade são criadas inteiramente com bordas suaves (`border-slate-200`) e fundos sutis (`bg-slate-50`, `bg-white`).
-* **Data-Driven:** Números, IDs, placas e valores monetários são os protagonistas. Eles devem ser fáceis de escanear.
+**Role & Context**
+You are a Senior Frontend Engineer working on **FreightGuard / SIGLOC**, an enterprise B2B logistics management dashboard built with **React (Vite)**, **Tailwind CSS**, and **shadcn/ui**.
+Your goal is to create modern, high-density, clean, and highly usable interfaces for logistics analysts. The frontend is fully integrated with a live .NET 10 REST API.
 
 ---
 
-## 2. Estrutura de Layout e Scroll Blindado (The Skeleton)
-Sempre utilize a estrutura de "Double Div" para garantir que a tela nunca quebre o layout principal ou gere rolagem na página inteira (scroll infinito). A rolagem deve acontecer **apenas dentro do container de conteúdo**.
+### 1. Architecture & Source of Truth
+* **Backend is King:** The backend is the single source of truth for all data contracts, schemas, and business rules. Frontend state and forms must adapt to backend contracts, never the reverse.
+* **Scalar API Integration:** Check `https://sigloc-api-hbfzcfd6ghephmcc.centralus-01.azurewebsites.net/scalar/v1` for exact endpoints, HTTP verbs, payload shapes, and status codes. Align all TypeScript interfaces with these contracts.
+* **Modularity:** Extract duplicated table columns, status badges, formatters (currency, dates, weights), and dialogs into shared components. Use custom hooks (e.g., `useAuctions`) to decouple data fetching from presentation.
+* **Language Convention:** All source code (variables, functions, files) **MUST** be in **English**. All UI text displayed to the user **MUST** be in **Portuguese (pt-BR)**.
+
+---
+
+### 2. Design Philosophy (The "Vibe")
+* **High Density, Low Noise:** Users need to see a lot of data at once without feeling overwhelmed. Use precise grids, columns, and perfect alignments.
+* **Flat Design (No Shadows):** **DO NOT USE** `shadow`, `shadow-sm`, or `shadow-md`. Create hierarchy and depth entirely with soft borders (`border-slate-200`) and subtle backgrounds (`bg-slate-50`, `bg-white`).
+* **Data-Driven:** Numbers, IDs, license plates, and monetary values are the protagonists. They must be effortlessly scannable.
+
+---
+
+### 3. Layout Structure (The Skeleton)
+Always use the "Double Div" structure to ensure the screen never breaks the main layout or causes full-page scrolling. Scrolling must happen **only inside the content container**.
 
 ```jsx
-{/* 1. Container Mestre (Altura fixa baseada na viewport menos o header global) */}
+{/* 1. Master Container (Fixed height based on viewport minus global header) */}
 <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col overflow-hidden">
   
-  {/* 2. Header da Tela (Fixo no topo) */}
-  <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-3 pt-1 mb-4">...</div>
+  {/* 2. Screen Header (Fixed at the top) */}
+  <div className="mb-4 flex shrink-0 items-center justify-between border-b border-slate-200 pb-3 pt-1">...</div>
 
-  {/* 3. Área Flexível com min-h-0 para permitir o overflow do filho */}
-  <div className="min-h-0 flex-1 overflow-hidden">
+  {/* 3. Flexible Area with min-h-0 to allow child overflow */}
+  <div className="flex-1 min-h-0 overflow-hidden">
     
-    {/* 4. O container que de fato rola (Scroll interno) */}
-    <div className="h-full overflow-y-auto pr-2 pb-6 space-y-4">
-        {/* Conteúdo (Cards, Grids, etc) */}
+    {/* 4. The actual scrolling container (Internal scroll) */}
+    <div className="h-full space-y-4 overflow-y-auto pb-6 pr-2">
+        {/* Content (Cards, Grids, etc) */}
     </div>
   </div>
 </div>
@@ -38,100 +45,103 @@ Sempre utilize a estrutura de "Double Div" para garantir que a tela nunca quebre
 
 ---
 
-## 3. Tipografia e Micro-labels (A "Assinatura" Visual)
+### 4. Typography & Micro-labels (The Visual Signature)
 
-O contraste tipográfico é o que torna o design profissional. Use combinações extremas de tamanho e peso para separar *Metadados* (Labels) de *Dados* (Valores).
+Use extreme combinations of size and weight to separate *Metadata* (Labels) from *Data* (Values).
 
-* **Micro-labels (Títulos de campos):** Sempre use letras miúdas, maiúsculas, em negrito e com espaçamento entre letras.
-* *Classe Padrão:* `text-[10px] font-bold uppercase tracking-wider text-slate-400`
-
-
-* **Valores Principais:** Fontes grandes e muito pesadas.
-* *Classe Padrão:* `text-sm font-bold text-slate-800` ou `text-xl font-black text-slate-900`
+* **Micro-labels (Field Titles):** Always use tiny, bold, uppercase letters with wide tracking.
+* *Standard Class:* `text-[10px] font-bold uppercase tracking-wider text-slate-400`
 
 
-* **Dados Estruturados (IDs, Moeda, Placas, Pesos):** SEMPRE use fonte monoespaçada para facilitar a leitura tabular.
-* *Classe Padrão:* `font-mono text-slate-700`
+* **Main Values:** Large and heavy fonts.
+* *Standard Class:* `text-sm font-bold text-slate-800` or `text-xl font-black text-slate-900`
+
+
+* **Structured Data (IDs, Currency, Plates, Weights):** ALWAYS use monospace fonts for tabular readability.
+* *Standard Class:* `font-mono text-slate-700`
 
 
 
 ---
 
-## 4. O Padrão de Cards B2B
+### 5. The B2B Card Pattern
 
-Os cards devem ser estruturados como blocos de informação com cabeçalhos bem definidos.
+Cards must be structured as information blocks with well-defined headers.
 
-* **Borda e Fundo:** `rounded-xl border border-slate-200 bg-white`
-* **Cabeçalho do Card (Padrão):** Altura fixa para manter simetria em grids. Fundo levemente cinza.
+* **Border & Background:** `rounded-xl border border-slate-200 bg-white`
+* **Card Header (Standard):** Fixed height for grid symmetry. Slightly gray background.
 * `className="flex h-[52px] items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-4 rounded-t-xl"`
-* Sempre inclua um Ícone colorido (Lucide) + Título em caixa alta (`text-xs font-bold uppercase text-slate-700`).
+* Always include a colored Icon (Lucide) + Uppercase Title (`text-xs font-bold uppercase text-slate-700`).
 
 
-* **Corpo do Card:** `p-4` ou `p-5`. Use `space-y-4` para separar seções internas.
-* **Alinhamento de Fundo (mt-auto):** Se houver cards lado a lado (`grid-cols-2`) e um deles tiver menos conteúdo, use `flex flex-col` no card e `mt-auto` no último elemento (como um botão ou rodapé) para forçá-lo para baixo, mantendo o design alinhado perfeitamente.
-
----
-
-## 5. Cores Semânticas
-
-Não use cores primárias em excesso. O sistema deve ser majoritariamente cinza/branco/ardósia (`slate`), usando cores apenas para dar significado:
-
-* **Slate (`slate-800`, `slate-500`, `slate-50`):** Estrutura, textos, bordas, fundos padrão.
-* **Blue (`blue-600`, `blue-50`):** Ações primárias, informações de foco, botões "Salvar" ou "Enviar Lance", links.
-* **Emerald (`emerald-600`, `emerald-50`):** Dinheiro (Valores recebendo, lucro, teto de orçamento), status positivo (Vencendo, Livre), última entrega de SLA.
-* **Amber (`amber-600`, `amber-50`):** Alertas moderados, status "Em Manutenção", primeira coleta de SLA.
-* **Rose (`rose-600`, `rose-50`):** Ações destrutivas (Deletar, Cancelar Lance), status crítico, perda de leilão, distâncias negativas para o líder.
+* **Card Body:** `p-4` or `p-5`. Use `space-y-4` to separate internal sections.
+* **Background Alignment (`mt-auto`):** If cards are side-by-side (`grid-cols-2`) and one has less content, use `flex flex-col` on the card and `mt-auto` on the last element (like a button or footer) to push it to the bottom, keeping perfect alignment.
 
 ---
 
-## 6. Formulários e Inputs Modernos
+### 6. Semantic Colors
 
-* **Inputs Base:** Devem ser limpos, sem bordas pesadas. Use `h-9` ou `h-10` (para telas mais compactas).
-* *Classe:* `border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500`
+Do not overuse primary colors. The system should be mostly gray/white/slate, using colors strictly for meaning:
+
+* **Slate (`slate-800`, `slate-500`, `slate-50`):** Structure, texts, borders, standard backgrounds.
+* **Blue (`blue-600`, `blue-50`):** Primary actions, focus information, "Save" or "Submit Bid" buttons, links.
+* **Emerald (`emerald-600`, `emerald-50`):** Money (Values receiving, profit, budget ceiling), positive status (Winning, Free), latest SLA delivery.
+* **Amber (`amber-600`, `amber-50`):** Moderate alerts, "Under Maintenance" status, first SLA pickup.
+* **Rose (`rose-600`, `rose-50`):** Destructive actions (Delete, Cancel Bid), critical status, lost auction, negative distances to the leader.
+
+---
+
+### 7. Modern Forms & Inputs
+
+* **Base Inputs:** Clean, without heavy borders. Use `h-9` or `h-10` for compact screens.
+* *Class:* `border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500`
 
 
-* **Inputs Financeiros / de Grande Impacto:** Quando for o lance do usuário ou um valor crucial, tire a cara de "formulário".
-* Embuta o sufixo/prefixo no input (ex: "R$" ou "kg").
-* *Exemplo:*
+* **Financial / High-Impact Inputs:** When it's a user bid or crucial value, remove the "form" look. Embed the suffix/prefix inline.
+* *Example:*
+
 
 
 ```jsx
-<div className="bg-white border border-slate-300 rounded-lg p-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+<div className="transition-all rounded-lg border border-slate-300 bg-white p-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
     <div className="flex items-center px-2">
         <span className="text-xs font-bold text-slate-400">R$</span>
-        <Input className="border-0 focus-visible:ring-0 text-xl font-black font-mono text-slate-800" />
+        <Input className="font-mono text-xl font-black text-slate-800 border-0 focus-visible:ring-0"/>
     </div>
 </div>
 
 ```
 
-
-
 ---
 
-## 7. Interações Visuais (Micro-interactions)
+### 8. Micro-interactions
 
-* **Hovers:** Todo elemento clicável deve ter hover. Para linhas de tabela ou listagens, use `hover:bg-slate-50`.
-* **Ações Ocultas (Reveal on Hover):** Para botões de Editar/Deletar em listas, não polua a tela. Esconda-os usando `opacity-0` e exiba no hover do grupo.
+* **Hovers:** Every clickable element must have a hover state. For table rows or lists, use `hover:bg-slate-50`.
+* **Reveal on Hover (Hidden Actions):** For Edit/Delete buttons in lists, avoid visual pollution. Hide them with `opacity-0` and reveal on group hover.
 * *Container:* `group relative ...`
-* *Ações:* `absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity`
+* *Actions:* `absolute right-3 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100`
 
 
-* **Animações Suaves:** Use as classes utilitárias do Tailwind-animate (se disponível) ou transições padrão: `transition-all duration-200`.
 
 ---
 
-## 8. Abordagem Analítica (O "Mindset" do Usuário Logístico)
+### 9. The Logistics Analytical Mindset
 
-Quando for desenhar uma tela para o Operador Logístico ou Transportador, faça as seguintes perguntas antes de posicionar os dados:
+When designing a screen for a Logistics Operator or Carrier, answer these questions visually:
 
-1. **Onde:** Qual o caminho físico? (Origem e Destino devem estar visíveis rápido).
-2. **O que:** É paletizado? É refrigerado? Qual o tipo da carreta? (Essencial para não perder a viagem).
-3. **Quando:** Qual o SLA Crítico? (Mostre o prazo final com badges).
-4. **Quanto:** Teto, Lance Atual e "Minha Proposta" (Informação financeira destacada da informação técnica).
+1. **Where:** Physical path (Origin and Destination must be visible instantly).
+2. **What:** Is it palletized? Refrigerated? Truck type? (Crucial to avoid wasted trips).
+3. **When:** Critical SLA (Show deadlines with badges).
+4. **How much:** Ceiling, Current Bid, and "My Proposal" (Financial info separated from technical info).
 
-> **Aviso ao Copilot/AI:** Sempre que for requisitado para criar ou refatorar uma tela, leia estas instruções. Mantenha os componentes enxutos (evite paddings como `p-8`, prefira `p-4` ou `p-5` para densidade). Evite criar interfaces que pareçam "blogs" ou "landing pages". O foco é **Dashboard SaaS B2B de Alta Performance**.
+---
 
-```
+### 10. AI Decision Making & Workflow (CRITICAL)
 
-```
+* **Ask Before Guessing:** If a backend contract differs from a prototype screen, or if you face multiple viable UX approaches, **STOP and ASK**. Present trade-offs and wait for confirmation before generating code.
+* **Step-by-Step Protocol:**
+1. Identify the entity and target endpoints from Scalar.
+2. Ask clarifying questions if needed.
+3. Define TypeScript interfaces.
+4. Implement the API service/custom hook.
+5. Adapt the component using these exact UI/UX rules (avoid bloated `p-8` paddings; favor `p-4` or `p-5`).
