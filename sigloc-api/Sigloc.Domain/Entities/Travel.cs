@@ -6,14 +6,15 @@ namespace Sigloc.Domain.Entities;
 [Table("Travel")]
 public class Travel : BaseEntity
 {
+    // A criar ainda classe Rota
     public Guid RotaId { get; set; } // FK
     public Guid LanceVencedorId { get; set; } // FK
     public DateTimeOffset? IniciadaEm { get; set; }
     public DateTimeOffset? FinalizadaEm { get; set; }
     public TravelStatus Status { get; set; }
     public decimal PisoAnttFinal { get; set; }
-    //public Monitoramento Monitoramento { get;  set; }
-    //public IReadOnlyCollection<Telemetria> Telemetrias { get;  set; }
+    public Monitoring Monitoramento { get;  set; }
+    public IReadOnlyCollection<Telemetry> Telemetrias { get;  set; }
 
 
 

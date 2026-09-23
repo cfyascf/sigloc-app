@@ -2,22 +2,22 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Sigloc.Domain.Entities;
 
-[Table("Telemetria")]
-public class Telemetria : BaseEntity
+[Table("Telemetry")]
+public class Telemetry : BaseEntity
 {
     public Guid ViagemId { get; set; } // FK
-    public string Latitude { get; set; }
-    public string Longitude { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
     public DateTimeOffset Timestamp { get; set; }
 
     // Navegação do EF Core
     public Travel Viagem { get; set; }
 
-    public Telemetria(Guid viagemId, string latitude, string longitude)
+    public Telemetry(Guid viagemId, double latitude, double longitude)
     {
         if (viagemId == Guid.Empty) throw new ArgumentException("ViagemId é obrigatório");
-        if (string.IsNullOrWhiteSpace(latitude)) throw new ArgumentException("Latitude é obrigatória");
-        if (string.IsNullOrWhiteSpace(longitude)) throw new ArgumentException("Longitude é obrigatória");
+        if (latitude < -90 || latitude > 90) throw new ArgumentException("Latitude é inválida");
+        if (longitude < -180 || longitude > 180) throw new ArgumentException("Longitude é inválida");
 
         ViagemId = viagemId;
         Latitude = latitude;

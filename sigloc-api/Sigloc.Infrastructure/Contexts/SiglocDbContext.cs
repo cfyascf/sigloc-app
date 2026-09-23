@@ -15,6 +15,14 @@ public class SiglocDbContext : DbContext
     public DbSet<PartnerConnection> PartnerConnections => Set<PartnerConnection>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
 
+    public DbSet<Travel> Travels => Set<Travel>();
+
+    public DbSet<Monitoring> Monitoring => Set<Monitoring>();
+
+    public DbSet<Telemetry> Telemetry => Set<Telemetry>();
+
+
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
