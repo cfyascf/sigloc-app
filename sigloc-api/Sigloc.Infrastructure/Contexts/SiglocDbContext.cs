@@ -17,9 +17,9 @@ public class SiglocDbContext : DbContext
 
     public DbSet<Travel> Travels => Set<Travel>();
 
-    public DbSet<Monitoring> Monitoring => Set<Monitoring>();
+    public DbSet<Monitoring> Monitorings => Set<Monitoring>();
 
-    public DbSet<Telemetry> Telemetry => Set<Telemetry>();
+    public DbSet<Telemetry> Telemetries => Set<Telemetry>();
 
 
 

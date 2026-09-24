@@ -7,7 +7,7 @@ namespace Sigloc.Domain.Entities;
 public class Travel : BaseEntity
 {
     // A criar ainda classe Rota
-    public Guid RotaId { get; set; } // FK
+    //public Guid RotaId { get; set; } // FK
     public Guid LanceVencedorId { get; set; } // FK
     public DateTimeOffset? IniciadaEm { get; set; }
     public DateTimeOffset? FinalizadaEm { get; set; }
@@ -25,7 +25,7 @@ public class Travel : BaseEntity
         if (lanceVencedorId == Guid.Empty) throw new ArgumentException("LanceVencedorId é obrigatório");
         if (pisoAnttFinal < 0) throw new ArgumentException("O Piso ANTT não pode ser negativo");
 
-        RotaId = rotaId;
+        //RotaId = rotaId;
         LanceVencedorId = lanceVencedorId;
         PisoAnttFinal = pisoAnttFinal;
         Status = TravelStatus.AGUARDANDO_COLETA;
