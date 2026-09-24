@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 
 // Importa os trechos para cruzamento
-import { availableRouteSegments } from "@/constants/route-segments-mock"
+import { availableRouteSegments } from "./RouteSegmentManagement"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`

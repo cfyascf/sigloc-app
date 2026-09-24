@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import {
   ArrowLeft,
   PackageOpen,
+  Truck,
   MapPinned,
   CalendarClock,
   DollarSign,
-  Loader2,
+  Scale,
+  Box,
   Save,
   X,
   Plus,
@@ -16,7 +18,6 @@ import { Link, useNavigate } from "react-router-dom"
 import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FormAlert } from "@/components/auth/FormAlert"
 import {
   Select,
   SelectContent,
@@ -25,37 +26,19 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useProductOptions } from "@/hooks/use-product-options"
-import { useAsyncAction } from "@/hooks/use-async-action"
-import { createRouteSegment } from "@/services/route-segment-service"
-import { mapRouteSegmentFieldErrors } from "@/constants/route-segments"
 
-export default function CreateRouteSegment() {
+export default function CreateSegment() {
   const navigate = useNavigate()
 
   const { options: productOptions } = useProductOptions()
 
-  const [origin, setOrigin] = useState("")
-  const [destination, setDestination] = useState("")
-  const [pickupDeadline, setPickupDeadline] = useState("")
-  const [deliveryDeadline, setDeliveryDeadline] = useState("")
-  const [budgetCeiling, setBudgetCeiling] = useState("")
-  const [estimatedTollCost, setEstimatedTollCost] = useState("")
-
-  // Selected products carry a quantity so the backend can compute the physical
-  // totals and the consolidated vehicle requirement.
+  // MUDANÇA: O estado agora é um array (lista) de produtos selecionados
   const [selectedProducts, setSelectedProducts] = useState([])
   const [productSearch, setProductSearch] = useState("")
 
-  const { run, pending, error, fieldErrors } = useAsyncAction((form) =>
-    createRouteSegment(form)
-  )
-
-  const mappedFieldErrors = useMemo(
-    () => mapRouteSegmentFieldErrors(fieldErrors),
-    [fieldErrors]
-  )
-
+  // Filtra os produtos para o Select (Pesquisa + Remove os que já foram selecionados)
   const filteredProductOptions = productOptions.filter((product) => {
+    // Esconde do dropdown os produtos que já estão na lista de selecionados
     const isAlreadySelected = selectedProducts.some(
       (p) => p.value === product.value
     )
@@ -69,59 +52,27 @@ export default function CreateRouteSegment() {
       .some((field) => field.toLowerCase().includes(search))
   })
 
+  // Função para adicionar o produto à lista
   const handleAddProduct = (productId) => {
     const productToAdd = productOptions.find((p) => p.value === productId)
     if (productToAdd) {
-      setSelectedProducts([...selectedProducts, { ...productToAdd, quantity: 1 }])
+      setSelectedProducts([...selectedProducts, productToAdd])
     }
-    setProductSearch("")
+    setProductSearch("") // Limpa a pesquisa após adicionar
   }
 
+  // Função para remover um produto da lista
   const handleRemoveProduct = (productId) => {
     setSelectedProducts(selectedProducts.filter((p) => p.value !== productId))
   }
 
-  const handleQuantityChange = (productId, quantity) => {
-    setSelectedProducts((current) =>
-      current.map((p) =>
-        p.value === productId ? { ...p, quantity } : p
-      )
-    )
-  }
-
-  const handleSubmit = async (event) => {
-    event.preventDefault()
-
-    const form = {
-      origin,
-      destination,
-      pickupDeadline,
-      deliveryDeadline,
-      budgetCeiling,
-      estimatedTollCost,
-      items: selectedProducts.map((p) => ({
-        productId: p.value,
-        quantity: p.quantity,
-      })),
-    }
-
-    const result = await run(form)
-    if (result.ok) {
-      navigate("/route-segment-management")
-    }
-  }
-
   return (
     <AppShell title="Cadastro de Trecho">
-      <form
-        onSubmit={handleSubmit}
-        className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden"
-      >
+      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden">
         {/* HEADER LIMPO E TEXTUAL */}
         <div className="mb-5 flex shrink-0 items-center justify-between border-b border-slate-200 pt-1 pb-3">
-          <Link to="/route-segment-management">
+          <Link to="/load-management">
             <Button
-              type="button"
               variant="ghost"
               className="h-auto p-0 text-sm font-medium text-slate-500 hover:bg-transparent hover:text-slate-900"
             >
@@ -132,34 +83,19 @@ export default function CreateRouteSegment() {
 
           <div className="flex items-center gap-3">
             <Button
-              type="button"
+              asChild
               variant="outline"
-              disabled={pending}
               className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700"
-              onClick={() => navigate("/route-segment-management")}
             >
-              <X size={14} className="mr-1.5" /> Cancelar
+              <Link to="/load-management">
+                <X size={14} className="mr-1.5" /> Cancelar
+              </Link>
             </Button>
-            <Button
-              type="submit"
-              disabled={pending}
-              className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700"
-            >
-              {pending ? (
-                <Loader2 size={14} className="mr-1.5 animate-spin" />
-              ) : (
-                <Save size={14} className="mr-1.5" />
-              )}
-              Salvar Trecho Operacional
+            <Button className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700">
+              <Save size={14} className="mr-1.5" /> Salvar Trecho Operacional
             </Button>
           </div>
         </div>
-
-        {error ? (
-          <div className="mb-4 shrink-0">
-            <FormAlert message={error.message} />
-          </div>
-        ) : null}
 
         <div className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto pr-2 pb-6">
@@ -183,7 +119,7 @@ export default function CreateRouteSegment() {
                       Composição da Carga (Produtos)
                     </label>
 
-                    {/* Select atua como botão/pesquisa para Adicionar */}
+                    {/* Select agora atua apenas como botão/pesquisa para Adicionar */}
                     <Select value="" onValueChange={handleAddProduct}>
                       <SelectTrigger className="h-10 w-full border-slate-200 bg-slate-50 text-sm transition-colors hover:bg-slate-100 focus:border-blue-500 focus:ring-blue-500">
                         <SelectValue placeholder="Buscar e adicionar produto à carga..." />
@@ -230,13 +166,13 @@ export default function CreateRouteSegment() {
                       </SelectContent>
                     </Select>
 
-                    {/* LISTA MÚLTIPLA: produtos adicionados, com quantidade */}
+                    {/* LISTA MULTIPLA: Mostra os produtos que foram adicionados */}
                     {selectedProducts.length > 0 && (
                       <div className="flex max-h-[160px] animate-in flex-col gap-2 overflow-y-auto pr-1 fade-in">
                         {selectedProducts.map((product) => (
                           <div
                             key={product.value}
-                            className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm transition-all hover:border-slate-300"
+                            className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-2 shadow-sm transition-all hover:border-slate-300"
                           >
                             <div className="flex min-w-0 items-center gap-2.5">
                               <span className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-slate-600 uppercase">
@@ -248,46 +184,19 @@ export default function CreateRouteSegment() {
                                 </span>
                               </div>
                             </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                              <div className="flex items-center gap-1">
-                                <label className="text-[10px] font-semibold text-slate-400">
-                                  Qtd
-                                </label>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  value={product.quantity}
-                                  onChange={(event) =>
-                                    handleQuantityChange(
-                                      product.value,
-                                      event.target.value === ""
-                                        ? ""
-                                        : Number(event.target.value)
-                                    )
-                                  }
-                                  className="h-7 w-16 border-slate-200 text-center text-xs focus:border-blue-500 focus:ring-blue-500"
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveProduct(product.value)}
-                                className="h-6 w-6 shrink-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                              >
-                                <X size={14} />
-                              </Button>
-                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveProduct(product.value)}
+                              className="h-6 w-6 shrink-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                            >
+                              <X size={14} />
+                            </Button>
                           </div>
                         ))}
                       </div>
                     )}
-
-                    {mappedFieldErrors.items ? (
-                      <p className="text-[11px] font-medium text-rose-600">
-                        {mappedFieldErrors.items}
-                      </p>
-                    ) : null}
                   </div>
 
                   <div className="mt-auto flex items-center justify-between rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-2.5">
@@ -298,7 +207,7 @@ export default function CreateRouteSegment() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate("/register-product")}
+                      onClick={() => navigate("/create-product")}
                       className="h-8 border-slate-200 bg-white text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
                     >
                       <Plus size={13} className="mr-1.5" /> Cadastrar produto
@@ -326,16 +235,9 @@ export default function CreateRouteSegment() {
                         Local de Coleta (Origem)
                       </label>
                       <Input
-                        value={origin}
-                        onChange={(event) => setOrigin(event.target.value)}
                         placeholder="Ex: Curitiba, PR"
                         className="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500"
                       />
-                      {mappedFieldErrors.origin ? (
-                        <p className="text-[11px] font-medium text-rose-600">
-                          {mappedFieldErrors.origin}
-                        </p>
-                      ) : null}
                     </div>
 
                     <div className="relative space-y-2 pl-8">
@@ -344,36 +246,104 @@ export default function CreateRouteSegment() {
                         Local de Entrega (Destino)
                       </label>
                       <Input
-                        value={destination}
-                        onChange={(event) => setDestination(event.target.value)}
                         placeholder="Ex: São Paulo, SP"
                         className="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500"
                       />
-                      {mappedFieldErrors.destination ? (
-                        <p className="text-[11px] font-medium text-rose-600">
-                          {mappedFieldErrors.destination}
-                        </p>
-                      ) : null}
                     </div>
                   </div>
-
-                  <p className="mt-4 text-[11px] font-medium text-slate-400">
-                    Distância, tempo estimado e o veículo exigido são calculados
-                    automaticamente a partir da origem, destino e produtos.
-                  </p>
                 </div>
               </div>
 
               {/* ========================================================
-                  LINHA 2: PRAZOS (Esq) + META COMERCIAL (Dir)
+                  LINHA 2: CUBAGEM (Esq) + PRAZOS E META (Dir)
                   ======================================================== */}
 
-              {/* Bloco 2: Prazos (Esquerda, Baixo) */}
+              {/* Bloco 2: Dimensionamento e Restrição (Esquerda, Baixo) */}
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
+                <div className="flex h-[52px] shrink-0 items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
+                  <Truck size={16} className="text-blue-600" />
+                  <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
+                    Cubagem e Veículo Exigido
+                  </h2>
+                </div>
+
+                <div className="flex flex-1 flex-col p-5">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                        <Scale size={13} className="text-slate-400" /> Peso
+                        Total
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          className="h-10 border-slate-200 pr-10 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        />
+                        <span className="absolute top-2.5 right-3 text-xs font-semibold text-slate-400">
+                          kg
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                        <Box size={13} className="text-slate-400" /> Volume
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          className="h-10 border-slate-200 pr-10 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        />
+                        <span className="absolute top-2.5 right-3 text-xs font-semibold text-slate-400">
+                          m³
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto border-t border-slate-100 pt-5">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-600">
+                        Restrição de Equipamento
+                      </label>
+                      <Select>
+                        <SelectTrigger className="h-10 border-slate-200 text-sm focus:ring-blue-500">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            value="nenhuma"
+                            className="font-semibold text-slate-900"
+                          >
+                            Nenhuma Restrição (Livre)
+                          </SelectItem>
+                          <SelectItem value="seca">
+                            Carga Seca Padrão
+                          </SelectItem>
+                          <SelectItem value="sider">
+                            Baú Sider (Abertura Lateral)
+                          </SelectItem>
+                          <SelectItem value="frigorifico">
+                            Baú Frigorífico / Refrigerado
+                          </SelectItem>
+                          <SelectItem value="prancha">
+                            Carreta Prancha / Aberta
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco 4: SLA e Balizamento Financeiro (Direita, Baixo) */}
               <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] shrink-0 items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
                   <CalendarClock size={16} className="text-amber-600" />
                   <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
-                    Prazos (SLA)
+                    Prazos e Meta Comercial
                   </h2>
                 </div>
 
@@ -385,17 +355,8 @@ export default function CreateRouteSegment() {
                       </label>
                       <Input
                         type="datetime-local"
-                        value={pickupDeadline}
-                        onChange={(event) =>
-                          setPickupDeadline(event.target.value)
-                        }
                         className="h-10 border-slate-200 text-xs font-medium text-slate-700 focus:border-blue-500 focus:ring-blue-500"
                       />
-                      {mappedFieldErrors.pickupDeadline ? (
-                        <p className="text-[11px] font-medium text-rose-600">
-                          {mappedFieldErrors.pickupDeadline}
-                        </p>
-                      ) : null}
                     </div>
 
                     <div className="space-y-2">
@@ -404,99 +365,41 @@ export default function CreateRouteSegment() {
                       </label>
                       <Input
                         type="datetime-local"
-                        value={deliveryDeadline}
-                        onChange={(event) =>
-                          setDeliveryDeadline(event.target.value)
-                        }
                         className="h-10 border-slate-200 text-xs font-medium text-slate-700 focus:border-blue-500 focus:ring-blue-500"
                       />
-                      {mappedFieldErrors.deliveryDeadline ? (
-                        <p className="text-[11px] font-medium text-rose-600">
-                          {mappedFieldErrors.deliveryDeadline}
-                        </p>
-                      ) : null}
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Bloco 4: Balizamento Financeiro (Direita, Baixo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
-                <div className="flex h-[52px] shrink-0 items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
-                  <DollarSign size={16} className="text-emerald-600" />
-                  <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
-                    Balizamento Financeiro
-                  </h2>
-                </div>
+                  <div className="mt-auto border-t border-slate-100 pt-5">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                          <DollarSign size={14} className="text-emerald-500" />{" "}
+                          Orçamento Teto (Valor Guia)
+                        </label>
+                        <p className="text-[10px] font-medium text-slate-400">
+                          O piso legal (ANTT) será calculado depois.
+                        </p>
+                      </div>
 
-                <div className="flex flex-1 flex-col p-5">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                        <DollarSign size={13} className="text-emerald-500" />{" "}
-                        Orçamento Teto (Valor Guia)
-                      </label>
-                      <div className="relative">
+                      <div className="relative w-40">
                         <span className="absolute top-2.5 left-3 text-sm font-bold text-slate-400">
                           R$
                         </span>
                         <Input
                           type="number"
-                          min={0}
-                          step="0.01"
-                          value={budgetCeiling}
-                          onChange={(event) =>
-                            setBudgetCeiling(event.target.value)
-                          }
                           placeholder="0,00"
                           className="h-10 border-slate-200 pl-9 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:ring-blue-500"
                         />
                       </div>
-                      {mappedFieldErrors.budgetCeiling ? (
-                        <p className="text-[11px] font-medium text-rose-600">
-                          {mappedFieldErrors.budgetCeiling}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                        <DollarSign size={13} className="text-slate-400" />{" "}
-                        Pedágio Estimado
-                      </label>
-                      <div className="relative">
-                        <span className="absolute top-2.5 left-3 text-sm font-bold text-slate-400">
-                          R$
-                        </span>
-                        <Input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={estimatedTollCost}
-                          onChange={(event) =>
-                            setEstimatedTollCost(event.target.value)
-                          }
-                          placeholder="0,00"
-                          className="h-10 border-slate-200 pl-9 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      {mappedFieldErrors.estimatedTollCost ? (
-                        <p className="text-[11px] font-medium text-rose-600">
-                          {mappedFieldErrors.estimatedTollCost}
-                        </p>
-                      ) : null}
                     </div>
                   </div>
-
-                  <p className="mt-auto border-t border-slate-100 pt-4 text-[10px] font-medium text-slate-400">
-                    O piso legal (ANTT) será calculado depois.
-                  </p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </form>
+      </div>
     </AppShell>
   )
 }
