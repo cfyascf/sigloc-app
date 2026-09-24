@@ -1,16 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Sigloc.Application.DTOs;
-using Sigloc.Application.Services;
-using Sigloc.Domain.Constants;
 using Sigloc.Application.Contracts;
+using Sigloc.Application.DTOs;
+using Sigloc.Domain.Constants;
 using System.Security.Claims;
 
 namespace Sigloc.Api.Controllers;
 
 [ApiController]
 [Route("api/vehicles")]
-//[Authorize] 
+[Authorize]
 public class VehiclesController : ControllerBase
 {
     private readonly IVehicleService _vehicleService;
@@ -20,52 +19,59 @@ public class VehiclesController : ControllerBase
         _vehicleService = vehicleService;
     }
 
-    private Guid GetCarrierIdFromToken()
+    private Guid GetCarrierId()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier);
         return claim != null ? Guid.Parse(claim.Value) : Guid.Empty;
     }
 
     [HttpPost]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
-    public async Task<IActionResult> Create([FromBody] CreateVehicleDto dto, CancellationToken cancellationToken)
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> Create([FromBody] VehicleRequestDto dto, CancellationToken cancellationToken)
     {
-        var carrierId = GetCarrierIdFromToken();
-        var result = await _vehicleService.CreateAsync(dto, cancellationToken);
-
+        var result = await _vehicleService.CreateAsync(GetCarrierId(), dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
-    
-    [HttpGet("{id}")]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
+
+    [HttpGet("{id:guid}")]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _vehicleService.GetByIdAsync(id, cancellationToken);
+        var result = await _vehicleService.GetByIdAsync(GetCarrierId(), id, cancellationToken);
         return Ok(result);
     }
 
     [HttpGet]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> Search(
+        [FromQuery] VehicleQueryDto query,
+        CancellationToken cancellationToken = default)
     {
-        var carrierId = GetCarrierIdFromToken();
-        var result = await _vehicleService.GetAllAsync(cancellationToken);
+        var result = await _vehicleService.SearchAsync(GetCarrierId(), query, cancellationToken);
         return Ok(result);
     }
 
-    [HttpPut("{id}")]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateVehicleDto dto, CancellationToken cancellationToken)
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] VehicleRequestDto dto, CancellationToken cancellationToken)
     {
-        await _vehicleService.UpdateAsync(id, dto, cancellationToken);
+        var result = await _vehicleService.UpdateAsync(GetCarrierId(), id, dto, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await _vehicleService.DeleteAsync(GetCarrierId(), id, cancellationToken);
         return NoContent();
     }
 
-    [HttpDelete("{id}")]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    [HttpGet("validate-plate")]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> ValidatePlate([FromQuery] string plate, CancellationToken cancellationToken)
     {
-        await _vehicleService.DeleteAsync(id, cancellationToken);
-        return NoContent();
+        var available = await _vehicleService.IsPlateAvailableAsync(GetCarrierId(), plate, cancellationToken);
+        return Ok(new { available });
     }
 }

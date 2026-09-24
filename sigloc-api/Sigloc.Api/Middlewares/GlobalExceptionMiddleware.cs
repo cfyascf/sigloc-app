@@ -76,6 +76,23 @@ public class GlobalExceptionHandlerMiddleware
                     trechosVinculados = inUse.LinkedSegments
                 }),
 
+            VehicleNotFoundException vehicleNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "VEICULO_NAO_ENCONTRADO",
+                    message = vehicleNotFound.Message
+                }),
+
+            DuplicatePlateException duplicatePlate => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "PLACA_DUPLICADA",
+                    message = duplicatePlate.Message,
+                    details = Array.Empty<object>()
+                }),
+
             RouteSegmentNotFoundException segmentNotFound => (
                 (int)HttpStatusCode.NotFound,
                 new

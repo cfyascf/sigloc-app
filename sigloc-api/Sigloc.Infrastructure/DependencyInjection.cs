@@ -52,6 +52,7 @@ public static class DependencyInjection
         services.AddSingleton<IInviteLinkBuilder, InviteLinkBuilder>();
 
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IRouteSegmentRepository, RouteSegmentRepository>();
         services.AddScoped<IConsolidatedRouteRepository, ConsolidatedRouteRepository>();
         services.AddScoped<IAuctionRepository, AuctionRepository>();

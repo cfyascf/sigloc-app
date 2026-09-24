@@ -28,13 +28,13 @@ public class PartnerNetworkService : IPartnerNetworkService
         var freeVehicleCounts = await _vehicles.CountFreeByCarrierIdsAsync(carrierIds, cancellationToken);
 
         var partners = connections
-            .Select(connection => MontarDto(connection, freeVehicleCounts))
+            .Select(connection => BuildDto(connection, freeVehicleCounts))
             .ToList();
 
         return new PartnerNetworkDto(totalActive, totalPending, partners);
     }
 
-    private static PartnerDto MontarDto(PartnerConnection connection, Dictionary<Guid, int> freeVehicleCounts)
+    private static PartnerDto BuildDto(PartnerConnection connection, Dictionary<Guid, int> freeVehicleCounts)
     {
         var carrier = connection.Carrier;
 
