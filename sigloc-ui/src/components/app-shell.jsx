@@ -5,13 +5,14 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  LogOut,
   Shield,
   User,
   Settings,
   Palette,
   ChevronDown,
 } from "lucide-react"
-import { NavLink } from "react-router-dom"
+import { NavLink, useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { useBrand } from "@/contexts/BrandContext"
 import { Button } from "@/components/ui/button"
@@ -30,8 +31,15 @@ import {
 const SIDEBAR_STORAGE_KEY = "sigloc_sidebar_collapsed"
 
 export default function AppShell({ title, children, contentClassName, innerClassName }) {
-  const { user, setRole } = useAuth()
+  const { user, setRole, logout } = useAuth()
   const { brand, setBrand, currentKey, availableThemes } = useBrand()
+  const navigate = useNavigate()
+  const isAdmin = user.role === ROLES.DEVELOPER
+
+  const handleLogout = () => {
+    logout()
+    navigate("/login", { replace: true })
+  }
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (globalThis.localStorage === undefined) {
       return false
@@ -134,7 +142,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
           ))}
         </nav>
 
-        {/* Rodapé da Sidebar - Botão de Mudar Role */}
+        {/* Rodapé da Sidebar - Perfil e Sair */}
         <div
           className={cn(
             "flex shrink-0 flex-col gap-3 border-t p-4 transition-colors duration-500",
@@ -142,25 +150,26 @@ export default function AppShell({ title, children, contentClassName, innerClass
             brand.footerBg
           )}
         >
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                title={`Perfil atual: ${roleLabel}`}
-                className={cn(
-                  "text-[10px] font-bold shadow-none",
-                  isSidebarCollapsed ? "w-full justify-center px-0" : "w-full",
-                  brand.sidebarBorder,
-                  brand.navHover,
-                  brand.textMuted,
-                  brand.footerBg
-                )}
-              >
-                {isSidebarCollapsed ? <User size={14} /> : <span>Perfil: {roleLabel}</span>}
-                {showSidebarText ? <ChevronDown size={14} className="ml-2" /> : null}
-              </Button>
-            </DropdownMenuTrigger>
+          {isAdmin ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title={`Perfil atual: ${roleLabel}`}
+                  className={cn(
+                    "text-[10px] font-bold shadow-none",
+                    isSidebarCollapsed ? "w-full justify-center px-0" : "w-full",
+                    brand.sidebarBorder,
+                    brand.navHover,
+                    brand.textMuted,
+                    brand.footerBg
+                  )}
+                >
+                  {isSidebarCollapsed ? <User size={14} /> : <span>Perfil: {roleLabel}</span>}
+                  {showSidebarText ? <ChevronDown size={14} className="ml-2" /> : null}
+                </Button>
+              </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-52">
                 <DropdownMenuLabel className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
                   Alternar Perfil
@@ -184,6 +193,20 @@ export default function AppShell({ title, children, contentClassName, innerClass
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : (
+            <div
+              title={`Perfil atual: ${roleLabel}`}
+              className={cn(
+                "flex items-center rounded-md border py-2 text-[10px] font-bold",
+                isSidebarCollapsed ? "justify-center px-0" : "px-3",
+                brand.sidebarBorder,
+                brand.textMuted,
+                brand.footerBg
+              )}
+            >
+              {isSidebarCollapsed ? <User size={14} /> : <span>Perfil: {roleLabel}</span>}
+            </div>
+          )}
 
           <div className={cn("mt-2 flex items-center", isSidebarCollapsed ? "justify-center" : "") }>
             <div
@@ -197,7 +220,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
             </div>
             {showSidebarText ? (
               <div className={cn("ml-3 overflow-hidden", brand.textMain)}>
-                <p className="truncate text-sm font-bold">{user.name}</p>
+                <p className="truncate text-sm font-bold">{user?.name ?? "Usuário"}</p>
                 <p
                   className={cn(
                     "text-[10px] font-black uppercase opacity-70",
@@ -209,6 +232,22 @@ export default function AppShell({ title, children, contentClassName, innerClass
               </div>
             ) : null}
           </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            title="Sair da conta"
+            className={cn(
+              "mt-1 font-semibold",
+              isSidebarCollapsed ? "w-full justify-center px-0" : "w-full justify-start px-3",
+              brand.navText,
+              brand.navHover
+            )}
+          >
+            <LogOut size={16} className={cn("shrink-0", isSidebarCollapsed ? "mr-0" : "mr-3")} />
+            {showSidebarText ? <span className="text-sm">Sair</span> : null}
+          </Button>
         </div>
       </aside>
 

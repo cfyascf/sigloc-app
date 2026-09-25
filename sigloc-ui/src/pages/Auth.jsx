@@ -1,32 +1,16 @@
-import { useState } from "react"
-import { Building2, Shield, Truck } from "lucide-react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
+import { Shield } from "lucide-react"
+import { useLocation } from "react-router-dom"
 
-import { useAuth } from "@/contexts/AuthContext"
-import { getDefaultRouteForRole } from "@/constants/auth"
-import { ROLES } from "@/constants/roles"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LoginForm } from "@/components/auth/LoginForm"
+import { RegisterForm } from "@/components/auth/RegisterForm"
 
 export default function Auth() {
-  const [accountType, setAccountType] = useState(ROLES.CONTRACTOR)
-  const navigate = useNavigate()
   const location = useLocation()
-  const { login, register } = useAuth()
-
   const activeTab = location.pathname === "/register" ? "register" : "login"
-
-  const handleLogin = (e) => {
-    e.preventDefault()
-    login({ role: accountType })
-    const nextPath = location.state?.from?.pathname || getDefaultRouteForRole(accountType)
-    navigate(nextPath, { replace: true })
-  }
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans">
-      
       {/* Lado Esquerdo: Branding / Apresentação */}
       <div className="hidden w-1/2 flex-col justify-between bg-slate-900 p-12 text-white lg:flex">
         <div>
@@ -37,11 +21,12 @@ export default function Auth() {
             Sig<span className="text-blue-500">loc</span>
           </h1>
           <p className="max-w-md text-lg text-slate-400">
-            A plataforma definitiva de consolidação de cargas e prevenção de overbooking. 
-            Conectando operadores logísticos a transportadoras com eficiência e segurança.
+            A plataforma definitiva de consolidação de cargas e prevenção de
+            overbooking. Conectando operadores logísticos a transportadoras com
+            eficiência e segurança.
           </p>
         </div>
-        
+
         <div className="space-y-4 text-sm text-slate-500">
           <p>&copy; 2026 Sigloc Systems.</p>
           <p>TCC Engineering Project</p>
@@ -50,130 +35,33 @@ export default function Auth() {
 
       {/* Lado Direito: Formulários */}
       <div className="flex w-full flex-col justify-center px-8 sm:px-16 lg:w-1/2 xl:px-32">
-        <div className="mx-auto w-full max-w-md">
-          
+        <div className="mx-auto w-full max-w-md py-12">
           <Tabs defaultValue={activeTab} className="w-full">
             <TabsList className="mb-8 grid w-full grid-cols-2 bg-slate-200/50 p-1">
-              <TabsTrigger value="login" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="login"
+                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
                 Entrar
               </TabsTrigger>
-              <TabsTrigger value="register" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="register"
+                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              >
                 Criar Conta
               </TabsTrigger>
             </TabsList>
 
-            {/* ABA DE LOGIN */}
-            <TabsContent value="login" className="space-y-6">
-              <div className="space-y-2 text-center lg:text-left">
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900">Bem-vindo de volta</h2>
-                <p className="text-sm text-slate-500">Insira suas credenciais para acessar o painel.</p>
-              </div>
-
-              <form noValidate onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="email">Email Corporativo</label>
-                  <Input id="email" type="email" placeholder="nome@empresa.com" required className="border-slate-200" />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-slate-700" htmlFor="password">Senha</label>
-                    <Link to="/auth" className="text-xs font-medium text-blue-600 hover:underline">Esqueceu a senha?</Link>
-                  </div>
-                  <Input id="password" type="password" required className="border-slate-200" />
-                </div>
-
-                <Button type="submit" className="w-full bg-blue-600 text-white hover:bg-blue-700 mt-2">
-                  Entrar no Sistema
-                </Button>
-              </form>
+            <TabsContent value="login">
+              <LoginForm />
             </TabsContent>
 
-            {/* ABA DE REGISTRO */}
-            <TabsContent value="register" className="space-y-6">
-              <div className="space-y-2 text-center lg:text-left">
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900">Nova Conta</h2>
-                <p className="text-sm text-slate-500">Selecione seu perfil e preencha os dados.</p>
-              </div>
-
-              <form className="space-y-4">
-                {/* Seleção de Perfil (Role) */}
-                <div className="grid grid-cols-2 gap-4 pb-2">
-                  <button
-                    type="button"
-                    onClick={() => setAccountType(ROLES.CONTRACTOR)}
-                    className={`cursor-pointer rounded-xl border p-4 text-center transition-all ${
-                      accountType === ROLES.CONTRACTOR
-                        ? "border-blue-600 bg-blue-50/50 shadow-sm"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                  >
-                    <Building2
-                      size={24}
-                      className={`mx-auto mb-2 ${accountType === ROLES.CONTRACTOR ? "text-blue-600" : "text-slate-400"}`}
-                    />
-                    <p
-                      className={`text-sm font-medium ${accountType === ROLES.CONTRACTOR ? "text-blue-900" : "text-slate-700"}`}
-                    >
-                      Operador Logistico
-                    </p>
-                    <p className="mt-1 text-[10px] text-slate-500">Contratar fretes</p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setAccountType(ROLES.CARRIER)}
-                    className={`cursor-pointer rounded-xl border p-4 text-center transition-all ${
-                      accountType === ROLES.CARRIER
-                        ? "border-blue-600 bg-blue-50/50 shadow-sm"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                  >
-                    <Truck
-                      size={24}
-                      className={`mx-auto mb-2 ${accountType === ROLES.CARRIER ? "text-blue-600" : "text-slate-400"}`}
-                    />
-                    <p
-                      className={`text-sm font-medium ${accountType === ROLES.CARRIER ? "text-blue-900" : "text-slate-700"}`}
-                    >
-                      Transportadora
-                    </p>
-                    <p className="mt-1 text-[10px] text-slate-500">Realizar fretes</p>
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="companyName">Nome da Empresa</label>
-                  <Input id="companyName" type="text" placeholder="Razão Social" required className="border-slate-200" />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="regEmail">Email Corporativo</label>
-                  <Input id="regEmail" type="email" placeholder="nome@empresa.com" required className="border-slate-200" />
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700" htmlFor="regPassword">Senha</label>
-                  <Input id="regPassword" type="password" required className="border-slate-200" />
-                </div>
-
-                <Button
-                  type="button"
-                  className="w-full bg-slate-900 text-white hover:bg-slate-800 mt-2"
-                  onClick={() => {
-                    register({ role: accountType })
-                    navigate(getDefaultRouteForRole(accountType), { replace: true })
-                  }}
-                >
-                  Criar Conta
-                </Button>
-              </form>
+            <TabsContent value="register">
+              <RegisterForm />
             </TabsContent>
-
           </Tabs>
         </div>
       </div>
-      
     </div>
   )
 }

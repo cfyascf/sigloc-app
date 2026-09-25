@@ -21,6 +21,15 @@ public class PartnerConnectionRepository : IPartnerConnectionRepository
             .AnyAsync(c => c.ContractorId == contractorId && c.CarrierId == carrierId, cancellationToken);
     }
 
+    public async Task<IEnumerable<PartnerConnection>> GetByContractorAsync(Guid contractorId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.PartnerConnections
+            .AsNoTracking()
+            .Where(c => c.ContractorId == contractorId)
+            .Include(c => c.Carrier)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(PartnerConnection connection, CancellationToken cancellationToken = default)
     {
         await _dbContext.PartnerConnections.AddAsync(connection, cancellationToken);

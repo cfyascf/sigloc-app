@@ -7,6 +7,9 @@ const BrandContext = createContext()
 
 export function BrandProvider({ children }) {
   const { user } = useAuth()
+  // Unauthenticated users have no session; fall back to a default role so brand
+  // resolution stays valid on public pages (e.g. the auth screen).
+  const role = user?.role ?? ROLES.CONTRACTOR
 
   const [brandPrefs, setBrandPrefs] = useState(() => {
     const stored = localStorage.getItem("fg-brand-prefs")
@@ -86,16 +89,16 @@ export function BrandProvider({ children }) {
     },
   }
 
-  const currentThemeKey = brandPrefs[user.role] || "midnight"
+  const currentThemeKey = brandPrefs[role] || "midnight"
   const currentBrandStyle = styles[currentThemeKey]
 
   const setBrand = useCallback(
     (styleKey) => {
-      const newPrefs = { ...brandPrefs, [user.role]: styleKey }
+      const newPrefs = { ...brandPrefs, [role]: styleKey }
       setBrandPrefs(newPrefs)
       localStorage.setItem("fg-brand-prefs", JSON.stringify(newPrefs))
     },
-    [brandPrefs, user.role]
+    [brandPrefs, role]
   )
 
   const value = useMemo(

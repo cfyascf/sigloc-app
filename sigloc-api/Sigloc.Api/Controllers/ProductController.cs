@@ -44,7 +44,7 @@ public class ProductsController : ControllerBase
     [HttpGet]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Search(
-        ProductQueryDto query,
+        [FromQuery] ProductQueryDto query,
         CancellationToken cancellationToken = default)
     {
         var result = await _productService.SearchAsync(GetContractorId(), query, cancellationToken);

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Sigloc.Domain.Entities;
 using Sigloc.Domain.Repositories;
 using Sigloc.Infrastructure.Contexts;
+using Sigloc.Domain.Enums;
 
 namespace Sigloc.Infrastructure.Repositories;
 
@@ -54,4 +55,20 @@ public class VehicleRepository : IVehicleRepository
             return await _dbContext.Vehicles
                 .AnyAsync(v => v.Plate == plate, cancellationToken);
         }
+
+    public async Task<Dictionary<Guid, int>> CountFreeByCarrierIdsAsync(IEnumerable<Guid> carrierIds, CancellationToken cancellationToken = default)
+    {
+        var ids = carrierIds.ToList();
+        if (ids.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        return await _dbContext.Vehicles
+            .AsNoTracking()
+            .Where(v => ids.Contains(v.TransportadoraId) && v.Status == OperationalStatus.LIVRE)
+            .GroupBy(v => v.TransportadoraId)
+            .Select(g => new { CarrierId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CarrierId, x => x.Count, cancellationToken);
+    }
 }

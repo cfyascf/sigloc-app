@@ -22,11 +22,55 @@ namespace Sigloc.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Sigloc.Domain.Entities.Auction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AutomaticAward")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("OpenedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RouteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RouteId")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Auction");
+                });
+
             modelBuilder.Entity("Sigloc.Domain.Entities.Carrier", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<double?>("AverageRating")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("Cnpj")
                         .IsRequired()
@@ -38,6 +82,9 @@ namespace Sigloc.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("HasActiveInsurancePolicy")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("TradeName")
                         .HasColumnType("text");
@@ -54,6 +101,55 @@ namespace Sigloc.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Carrier");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.ConsolidatedRoute", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ConsolidatedCeiling")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("ContractorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("EstimatedAnttFloor")
+                        .HasColumnType("numeric");
+
+                    b.Property<double>("EstimatedTimeHours")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("TotalDistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("TotalVolumeM3")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("TotalWeightKg")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractorId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("ConsolidatedRoute");
                 });
 
             modelBuilder.Entity("Sigloc.Domain.Entities.Contractor", b =>
@@ -90,6 +186,41 @@ namespace Sigloc.Infrastructure.Migrations
                     b.ToTable("Contractor");
                 });
 
+            modelBuilder.Entity("Sigloc.Domain.Entities.Monitoring", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("UltimaAtualizacaoPing")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("UltimoEtaCalculado")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("UltimoProgressoPorcentual")
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ViagemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ViagemId")
+                        .IsUnique();
+
+                    b.ToTable("Monitoring", (string)null);
+                });
+
             modelBuilder.Entity("Sigloc.Domain.Entities.PartnerConnection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -105,6 +236,10 @@ namespace Sigloc.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("InitiatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -116,6 +251,8 @@ namespace Sigloc.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CarrierId");
 
                     b.HasIndex("ContractorId", "CarrierId")
                         .IsUnique();
@@ -234,6 +371,168 @@ namespace Sigloc.Infrastructure.Migrations
                     b.ToTable("Product");
                 });
 
+            modelBuilder.Entity("Sigloc.Domain.Entities.ProductRouteSegment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RouteSegmentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("RouteSegmentId");
+
+                    b.ToTable("ProductRouteSegment");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.RouteSegment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("BudgetCeiling")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("ContractorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("DeliveryDeadline")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DestinationAddress")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DestinationCoordinate")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("DistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("EstimatedTimeHours")
+                        .HasColumnType("double precision");
+
+                    b.Property<decimal>("EstimatedTollCost")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("OriginAddress")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OriginCoordinate")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("PickupDeadline")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RouteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractorId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("RouteSegment");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.Telemetry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ViagemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ViagemId");
+
+                    b.ToTable("Telemetry", (string)null);
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.Travel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("FinalizadaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("IniciadaEm")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LanceVencedorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("PisoAnttFinal")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Travel", (string)null);
+                });
+
             modelBuilder.Entity("Sigloc.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -343,6 +642,78 @@ namespace Sigloc.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Vehicle");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.Auction", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.ConsolidatedRoute", null)
+                        .WithOne()
+                        .HasForeignKey("Sigloc.Domain.Entities.Auction", "RouteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.Monitoring", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.Travel", "Viagem")
+                        .WithOne("Monitoramento")
+                        .HasForeignKey("Sigloc.Domain.Entities.Monitoring", "ViagemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Viagem");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.PartnerConnection", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.Carrier", "Carrier")
+                        .WithMany()
+                        .HasForeignKey("CarrierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Carrier");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.ProductRouteSegment", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sigloc.Domain.Entities.RouteSegment", null)
+                        .WithMany("Items")
+                        .HasForeignKey("RouteSegmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.Telemetry", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.Travel", "Viagem")
+                        .WithMany("Telemetrias")
+                        .HasForeignKey("ViagemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Viagem");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.RouteSegment", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.Travel", b =>
+                {
+                    b.Navigation("Monitoramento")
+                        .IsRequired();
+
+                    b.Navigation("Telemetrias");
                 });
 #pragma warning restore 612, 618
         }
