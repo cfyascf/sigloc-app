@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace Sigloc.Api.Controllers;
 
 [ApiController]
-[Route("api/rotas")]
+[Route("api/routes")]
 [Authorize]
 public class RoutesController : ControllerBase
 {
@@ -25,10 +25,6 @@ public class RoutesController : ControllerBase
         return claim != null ? Guid.Parse(claim.Value) : Guid.Empty;
     }
 
-    /// <summary>
-    /// Simulates consolidating the given route segments (Trechos) into a route.
-    /// Read-only: no data is written. See POST /api/leiloes to effectively create it.
-    /// </summary>
     [HttpPost("preview")]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Preview([FromBody] RoutePreviewRequestDto dto, CancellationToken cancellationToken)

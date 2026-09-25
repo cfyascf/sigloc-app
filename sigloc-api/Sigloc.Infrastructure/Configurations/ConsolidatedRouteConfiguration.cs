@@ -10,12 +10,10 @@ public class ConsolidatedRouteConfiguration : IEntityTypeConfiguration<Consolida
     {
         builder.HasKey(r => r.Id);
 
+        // Persist the status enum as its string name for readability.
         builder.Property(r => r.Status)
             .HasConversion<string>()
             .IsRequired();
-
-        builder.Property(r => r.ConsolidatedBudgetCeiling).HasPrecision(12, 2);
-        builder.Property(r => r.EstimatedAnttFloor).HasPrecision(12, 2);
 
         builder.HasIndex(r => r.ContractorId);
         builder.HasIndex(r => r.Status);

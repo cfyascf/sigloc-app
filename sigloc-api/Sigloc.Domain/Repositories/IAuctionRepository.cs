@@ -4,9 +4,6 @@ namespace Sigloc.Domain.Repositories;
 
 public interface IAuctionRepository
 {
-    /// <summary>
-    /// Stages the auction for insertion. Does NOT call SaveChanges — see
-    /// <see cref="IConsolidatedRouteRepository.AddAsync"/> for why.
-    /// </summary>
+    /// <summary>Stages a new auction. Does not persist until the unit of work is saved.</summary>
     Task AddAsync(Auction auction, CancellationToken cancellationToken = default);
 }

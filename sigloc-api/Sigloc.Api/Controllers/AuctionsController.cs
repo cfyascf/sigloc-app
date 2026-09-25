@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace Sigloc.Api.Controllers;
 
 [ApiController]
-[Route("api/leiloes")]
+[Route("api/auctions")]
 [Authorize]
 public class AuctionsController : ControllerBase
 {
@@ -25,15 +25,11 @@ public class AuctionsController : ControllerBase
         return claim != null ? Guid.Parse(claim.Value) : Guid.Empty;
     }
 
-    /// <summary>
-    /// Atomically consolidates the given route segments into a new route and opens an
-    /// auction for it. Returns 409 (TRECHO_INDISPONIVEL) if any segment is not Available.
-    /// </summary>
     [HttpPost]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Create([FromBody] CreateAuctionRequestDto dto, CancellationToken cancellationToken)
     {
         var result = await _auctionService.CreateAsync(GetContractorId(), dto, cancellationToken);
-        return StatusCode(StatusCodes.Status201Created, result);
+        return CreatedAtAction(nameof(Create), new { id = result.Auction.Id }, result);
     }
 }

@@ -15,6 +15,7 @@ public class ConsolidatedRouteRepository : IConsolidatedRouteRepository
 
     public async Task AddAsync(ConsolidatedRoute route, CancellationToken cancellationToken = default)
     {
+        // Staged only; the caller commits through the unit of work transaction.
         await _dbContext.ConsolidatedRoutes.AddAsync(route, cancellationToken);
     }
 }

@@ -7,137 +7,144 @@ using Sigloc.Domain.Repositories;
 
 namespace Sigloc.Application.Services;
 
-/// <summary>
-/// Implements POST /api/leiloes: atomically consolidates a set of Available route
-/// segments into a new route and opens an auction for it.
-///
-/// Atomicity note: <see cref="IConsolidatedRouteRepository.AddAsync"/> and
-/// <see cref="IAuctionRepository.AddAsync"/> only stage their entities on the shared,
-/// per-request <c>DbContext</c> (they do not call SaveChanges). The route segments
-/// loaded below are tracked entities from the same context, so mutating their
-/// Status/RouteId is also just staged. Every staged change — the new route, the
-/// updated segments, the new auction — is committed together by the single
-/// <see cref="IUnitOfWork.SaveChangesAsync"/> call at the end, which EF Core wraps in
-/// one database transaction. If anything fails before that call, nothing is written.
-/// </summary>
 public class AuctionService : IAuctionService
 {
-    private readonly RouteSegmentAggregator _aggregator;
+    private readonly IRouteSegmentRepository _segmentRepository;
     private readonly IConsolidatedRouteRepository _routeRepository;
     private readonly IAuctionRepository _auctionRepository;
+    private readonly IRouteGeocodingService _geocodingService;
+    private readonly IAuctionNotifier _notifier;
     private readonly IUnitOfWork _unitOfWork;
 
     public AuctionService(
-        RouteSegmentAggregator aggregator,
+        IRouteSegmentRepository segmentRepository,
         IConsolidatedRouteRepository routeRepository,
         IAuctionRepository auctionRepository,
+        IRouteGeocodingService geocodingService,
+        IAuctionNotifier notifier,
         IUnitOfWork unitOfWork)
     {
-        _aggregator = aggregator;
+        _segmentRepository = segmentRepository;
         _routeRepository = routeRepository;
         _auctionRepository = auctionRepository;
+        _geocodingService = geocodingService;
+        _notifier = notifier;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<CreateAuctionResponseDto> CreateAsync(Guid contractorId, CreateAuctionRequestDto dto, CancellationToken cancellationToken = default)
     {
-        var segmentIds = RoutePreviewService.ValidateSegmentIds(dto.TrechoIds);
-        var validated = Validate(dto);
+        var segmentIds = RoutePreviewService.ValidateSegmentIds(dto.SegmentIds);
+        var expiresAt = ValidateExpiry(dto.ExpiresAt);
 
-        var (segmentsInOrder, aggregation) = await _aggregator.LoadAndAggregateAsync(
-            contractorId, segmentIds, asTracking: true, cancellationToken);
+        // Load tracked segments so they can be updated inside the transaction.
+        var segments = await _segmentRepository.GetByIdsAsync(contractorId, segmentIds, tracked: true, cancellationToken);
 
-        var unavailable = segmentsInOrder.FirstOrDefault(s => s.Status != SegmentStatus.Available);
-        if (unavailable is not null)
+        var byId = segments.ToDictionary(s => s.Id);
+        var missing = segmentIds.Where(id => !byId.ContainsKey(id)).Distinct().ToList();
+        if (missing.Count > 0)
         {
-            throw new RouteSegmentUnavailableException(unavailable.Id);
+            throw new RouteSegmentsNotFoundException(missing);
         }
 
-        var (pisoAnttEstimado, _) = RouteFinancials.EstimateAnttFloor(aggregation.TotalDistanceKm);
+        // Every segment must still be available (not already linked to another route).
+        foreach (var id in segmentIds)
+        {
+            var segment = byId[id];
+            if (segment.Status != SegmentStatus.Available || segment.RouteId is not null)
+            {
+                throw new SegmentUnavailableException(id);
+            }
+        }
+
+        var aggregate = await RouteAggregator.AggregateAsync(segmentIds, segments, _geocodingService, cancellationToken);
+
         var openedAt = DateTimeOffset.UtcNow;
 
-        var route = new ConsolidatedRoute
+        var result = await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            ContractorId = contractorId,
-            Status = ConsolidatedRouteStatus.InAuction,
-            TotalDistanceKm = aggregation.TotalDistanceKm,
-            EstimatedTimeHours = aggregation.TotalTimeHours,
-            ConsolidatedBudgetCeiling = aggregation.ConsolidatedBudgetCeiling,
-            EstimatedAnttFloor = pisoAnttEstimado,
-            TotalWeightKg = aggregation.TotalWeightKg,
-            TotalVolumeM3 = aggregation.TotalVolumeM3
-        };
-        await _routeRepository.AddAsync(route, cancellationToken);
+            var route = new ConsolidatedRoute
+            {
+                Id = Guid.NewGuid(),
+                ContractorId = contractorId,
+                Status = RouteStatus.InAuction,
+                TotalDistanceKm = aggregate.TotalDistanceKm,
+                EstimatedTimeHours = aggregate.EstimatedTimeHours,
+                ConsolidatedCeiling = aggregate.ConsolidatedCeiling,
+                EstimatedAnttFloor = aggregate.EstimatedAnttFloor,
+                TotalWeightKg = aggregate.TotalWeightKg,
+                TotalVolumeM3 = aggregate.TotalVolumeM3
+            };
 
-        foreach (var segment in segmentsInOrder)
-        {
-            segment.Status = SegmentStatus.Routed;
-            segment.RouteId = route.Id;
-        }
+            await _routeRepository.AddAsync(route, ct);
 
-        var auction = new Auction
-        {
-            RouteId = route.Id,
-            OpenedAt = openedAt,
-            ExpiresAt = validated.ExpiresAt,
-            AutomaticAward = validated.AutomaticAward,
-            Status = AuctionStatus.Open
-        };
-        await _auctionRepository.AddAsync(auction, cancellationToken);
+            foreach (var id in segmentIds)
+            {
+                var segment = byId[id];
+                segment.Status = SegmentStatus.Routed;
+                segment.RouteId = route.Id;
+            }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var auction = new Auction
+            {
+                Id = Guid.NewGuid(),
+                RouteId = route.Id,
+                OpenedAt = openedAt,
+                ExpiresAt = expiresAt,
+                AutomaticAward = dto.AutomaticAward,
+                Status = AuctionStatus.Open
+            };
 
-        return MapToResponse(auction, route, segmentsInOrder.Count);
+            await _auctionRepository.AddAsync(auction, ct);
+
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            return (route, auction);
+        }, cancellationToken);
+
+        await _notifier.AuctionOpenedAsync(result.auction.Id, result.route.Id, contractorId, cancellationToken);
+
+        return MapToResponse(result.auction, result.route, segmentIds.Count);
     }
 
-    private static ValidatedRequest Validate(CreateAuctionRequestDto dto)
+    private static DateTimeOffset ValidateExpiry(DateTimeOffset? expiresAt)
     {
-        var errors = new List<ValidationError>();
-
-        if (dto.ExpiraEm is null)
+        if (expiresAt is null)
         {
-            errors.Add(new ValidationError("expiraEm", "Obrigatório."));
-        }
-        else if (dto.ExpiraEm <= DateTimeOffset.UtcNow)
-        {
-            errors.Add(new ValidationError("expiraEm", "Deve ser uma data futura."));
+            throw new ValidationException(
+                new[] { new ValidationError("expiresAt", "Required.") },
+                "Could not start the auction.");
         }
 
-        if (dto.AdjudicacaoAutomatica is null)
+        if (expiresAt.Value <= DateTimeOffset.UtcNow)
         {
-            errors.Add(new ValidationError("adjudicacaoAutomatica", "Obrigatório."));
+            throw new ValidationException(
+                new[] { new ValidationError("expiresAt", "Must be in the future.") },
+                "Could not start the auction.");
         }
 
-        if (errors.Count > 0)
-        {
-            throw new ValidationException(errors, "Não foi possível criar o leilão.");
-        }
-
-        return new ValidatedRequest(dto.ExpiraEm!.Value, dto.AdjudicacaoAutomatica!.Value);
+        return expiresAt.Value;
     }
 
-    private static CreateAuctionResponseDto MapToResponse(Auction auction, ConsolidatedRoute route, int segmentsUpdated)
+    private static CreateAuctionResponseDto MapToResponse(Auction auction, ConsolidatedRoute route, int updatedSegments)
     {
-        var auctionDto = new AuctionDto(
-            auction.Id,
-            auction.RouteId,
-            auction.OpenedAt,
-            auction.ExpiresAt,
-            auction.AutomaticAward,
-            auction.Status.ToWire());
-
-        var routeDto = new ConsolidatedRouteSummaryDto(
-            route.Id,
-            route.Status.ToWire(),
-            route.TotalDistanceKm,
-            route.EstimatedTimeHours,
-            route.TotalWeightKg,
-            route.TotalVolumeM3,
-            route.ConsolidatedBudgetCeiling,
-            route.EstimatedAnttFloor);
-
-        return new CreateAuctionResponseDto(auctionDto, routeDto, segmentsUpdated);
+        return new CreateAuctionResponseDto(
+            new AuctionDto(
+                auction.Id,
+                auction.RouteId,
+                auction.OpenedAt,
+                auction.ExpiresAt,
+                auction.AutomaticAward,
+                auction.Status.ToWire()),
+            new ConsolidatedRouteDto(
+                route.Id,
+                route.Status.ToWire(),
+                route.TotalDistanceKm,
+                route.EstimatedTimeHours,
+                route.TotalWeightKg,
+                route.TotalVolumeM3,
+                route.ConsolidatedCeiling,
+                route.EstimatedAnttFloor),
+            updatedSegments);
     }
-
-    private sealed record ValidatedRequest(DateTimeOffset ExpiresAt, bool AutomaticAward);
 }

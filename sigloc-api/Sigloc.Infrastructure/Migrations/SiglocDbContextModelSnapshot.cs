@@ -69,6 +69,9 @@ namespace Sigloc.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<double?>("AverageRating")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("Cnpj")
                         .IsRequired()
                         .HasColumnType("text");
@@ -79,6 +82,9 @@ namespace Sigloc.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("HasActiveInsurancePolicy")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("TradeName")
                         .HasColumnType("text");
@@ -103,9 +109,8 @@ namespace Sigloc.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("ConsolidatedBudgetCeiling")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)");
+                    b.Property<decimal>("ConsolidatedCeiling")
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("ContractorId")
                         .HasColumnType("uuid");
@@ -114,8 +119,7 @@ namespace Sigloc.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("EstimatedAnttFloor")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)");
+                        .HasColumnType("numeric");
 
                     b.Property<double>("EstimatedTimeHours")
                         .HasColumnType("double precision");
@@ -197,6 +201,10 @@ namespace Sigloc.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("InitiatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -208,6 +216,8 @@ namespace Sigloc.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CarrierId");
 
                     b.HasIndex("ContractorId", "CarrierId")
                         .IsUnique();
@@ -529,6 +539,15 @@ namespace Sigloc.Infrastructure.Migrations
                     b.ToTable("Vehicle");
                 });
 
+            modelBuilder.Entity("Sigloc.Domain.Entities.Auction", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.ConsolidatedRoute", null)
+                        .WithOne()
+                        .HasForeignKey("Sigloc.Domain.Entities.Auction", "RouteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Sigloc.Domain.Entities.ProductRouteSegment", b =>
                 {
                     b.HasOne("Sigloc.Domain.Entities.Product", "Product")
@@ -549,6 +568,17 @@ namespace Sigloc.Infrastructure.Migrations
             modelBuilder.Entity("Sigloc.Domain.Entities.RouteSegment", b =>
                 {
                     b.Navigation("Items");
+                });
+                
+            modelBuilder.Entity("Sigloc.Domain.Entities.PartnerConnection", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.Carrier", "Carrier")
+                        .WithMany()
+                        .HasForeignKey("CarrierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Carrier");
                 });
 #pragma warning restore 612, 618
         }

@@ -23,27 +23,6 @@ public class RouteSegmentRepository : IRouteSegmentRepository
             .FirstOrDefaultAsync(s => s.Id == id && s.ContractorId == contractorId, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<RouteSegment>> GetByIdsAsync(
-        Guid contractorId,
-        IReadOnlyCollection<Guid> ids,
-        bool asTracking,
-        CancellationToken cancellationToken = default)
-    {
-        if (ids.Count == 0)
-        {
-            return Array.Empty<RouteSegment>();
-        }
-
-        IQueryable<RouteSegment> query = _dbContext.RouteSegments;
-        query = asTracking ? query : query.AsNoTracking();
-
-        return await query
-            .Where(s => s.ContractorId == contractorId && ids.Contains(s.Id))
-            .Include(s => s.Items)
-                .ThenInclude(i => i.Product)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<(IReadOnlyList<RouteSegment> Items, int TotalItems)> SearchAsync(
         Guid contractorId,
         string? origin,
@@ -101,6 +80,31 @@ public class RouteSegmentRepository : IRouteSegmentRepository
             .AsNoTracking()
             .Where(p => p.ContractorId == contractorId && productIds.Contains(p.Id))
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<RouteSegment>> GetByIdsAsync(
+        Guid contractorId,
+        IReadOnlyCollection<Guid> ids,
+        bool tracked,
+        CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+        {
+            return Array.Empty<RouteSegment>();
+        }
+
+        var query = _dbContext.RouteSegments
+            .Where(s => s.ContractorId == contractorId && ids.Contains(s.Id))
+            .Include(s => s.Items)
+                .ThenInclude(i => i.Product)
+            .AsQueryable();
+
+        if (!tracked)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query.ToListAsync(cancellationToken);
     }
 
     public async Task AddAsync(RouteSegment segment, CancellationToken cancellationToken = default)

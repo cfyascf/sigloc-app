@@ -15,6 +15,7 @@ public class AuctionRepository : IAuctionRepository
 
     public async Task AddAsync(Auction auction, CancellationToken cancellationToken = default)
     {
+        // Staged only; the caller commits through the unit of work transaction.
         await _dbContext.Auctions.AddAsync(auction, cancellationToken);
     }
 }

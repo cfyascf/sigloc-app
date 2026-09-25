@@ -1,79 +1,56 @@
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
 using Sigloc.Application.Exceptions;
-using Sigloc.Domain.Entities;
+using Sigloc.Domain.Repositories;
 
 namespace Sigloc.Application.Services;
 
 public class RoutePreviewService : IRoutePreviewService
 {
-    private readonly RouteSegmentAggregator _aggregator;
+    private readonly IRouteSegmentRepository _segmentRepository;
+    private readonly IRouteGeocodingService _geocodingService;
 
-    public RoutePreviewService(RouteSegmentAggregator aggregator)
+    public RoutePreviewService(
+        IRouteSegmentRepository segmentRepository,
+        IRouteGeocodingService geocodingService)
     {
-        _aggregator = aggregator;
+        _segmentRepository = segmentRepository;
+        _geocodingService = geocodingService;
     }
 
     public async Task<RoutePreviewResponseDto> PreviewAsync(Guid contractorId, RoutePreviewRequestDto dto, CancellationToken cancellationToken = default)
     {
-        var segmentIds = ValidateSegmentIds(dto.TrechoIds);
+        var segmentIds = ValidateSegmentIds(dto.SegmentIds);
 
-        var (_, aggregation) = await _aggregator.LoadAndAggregateAsync(contractorId, segmentIds, asTracking: false, cancellationToken);
+        var segments = await _segmentRepository.GetByIdsAsync(contractorId, segmentIds, tracked: false, cancellationToken);
 
-        return MapToResponse(aggregation);
-    }
-
-    internal static IReadOnlyList<Guid> ValidateSegmentIds(IReadOnlyList<Guid>? trechoIds)
-    {
-        if (trechoIds is null || trechoIds.Count == 0)
-        {
-            throw new ValidationException(
-                new[] { new ValidationError("trechoIds", "Obrigatório. Informe pelo menos um trecho.") },
-                "Não foi possível processar a rota.");
-        }
-
-        return trechoIds.Distinct().ToList();
-    }
-
-    internal static RoutePreviewResponseDto MapToResponse(RouteAggregationResult aggregation)
-    {
-        var (pisoAnttEstimado, custoRodagemKm) = RouteFinancials.EstimateAnttFloor(aggregation.TotalDistanceKm);
+        var aggregate = await RouteAggregator.AggregateAsync(segmentIds, segments, _geocodingService, cancellationToken);
 
         return new RoutePreviewResponseDto(
-            DistanciaTotalKm: aggregation.TotalDistanceKm,
-            TempoEstimadoHoras: aggregation.TotalTimeHours,
-            TetoConsolidado: aggregation.ConsolidatedBudgetCeiling,
-            PisoAnttEstimado: pisoAnttEstimado,
-            PedagioPrevisto: aggregation.EstimatedTollCost,
-            CustoRodagemKm: custoRodagemKm,
-            TotaisAgregados: new TotaisAgregadosDto(aggregation.TotalWeightKg, aggregation.TotalVolumeM3),
-            ExigenciaVeiculoConsolidada: RouteFinancials.DescribeVehicleRequirement(aggregation.VehicleRequirement));
+            aggregate.TotalDistanceKm,
+            aggregate.EstimatedTimeHours,
+            aggregate.ConsolidatedCeiling,
+            aggregate.EstimatedAnttFloor,
+            aggregate.EstimatedToll,
+            aggregate.CostPerKm,
+            new RouteAggregatedTotalsDto(aggregate.TotalWeightKg, aggregate.TotalVolumeM3),
+            new ConsolidatedVehicleRequirementDto(
+                aggregate.VehicleRequirement.BaseBodyworkType,
+                aggregate.VehicleRequirement.MinRefrigerationLevel,
+                aggregate.VehicleRequirement.RequiresMopp,
+                aggregate.VehicleRequirement.RequiresCargoFixing));
     }
-}
 
-/// <summary>
-/// Small helpers shared by the preview and auction creation responses that are not
-/// backed by real cost data yet.
-/// </summary>
-internal static class RouteFinancials
-{
-    // Rough national-average placeholder rate (R$/km), NOT the official ANTT minimum
-    // freight table (which depends on axle count, cargo type and load direction).
-    // TODO: replace with a real ANTT floor calculation — tracked as future work, see
-    // the note in api-mappings/api-mapping-create-route-segment.md.
-    private const decimal PlaceholderRodagemRatePerKm = 8.33m;
-
-    public static (decimal PisoAnttEstimado, decimal CustoRodagemKm) EstimateAnttFloor(double totalDistanceKm)
+    internal static IReadOnlyList<Guid> ValidateSegmentIds(IReadOnlyList<Guid>? segmentIds)
     {
-        var floor = Math.Round(PlaceholderRodagemRatePerKm * (decimal)totalDistanceKm, 2);
-        return (floor, PlaceholderRodagemRatePerKm);
-    }
-
-    public static string DescribeVehicleRequirement(ConsolidatedVehicleRequirement requirement)
-        => requirement.MinRefrigerationLevel switch
+        var ids = segmentIds?.Where(id => id != Guid.Empty).Distinct().ToList() ?? new List<Guid>();
+        if (ids.Count == 0)
         {
-            "Congelado" => "FRIGORÍFICO",
-            "Resfriado" => "REFRIGERADO",
-            _ => requirement.BaseBodyworkType.ToUpperInvariant()
-        };
+            throw new ValidationException(
+                new[] { new ValidationError("segmentIds", "At least one route segment is required.") },
+                "Could not process the route.");
+        }
+
+        return ids;
+    }
 }

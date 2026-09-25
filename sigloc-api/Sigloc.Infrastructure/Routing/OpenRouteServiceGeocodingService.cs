@@ -55,30 +55,31 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
     }
 
     public async Task<RouteLeg> ComputeLegAsync(
-        string originCoordinate,
-        string destinationCoordinate,
+        string fromCoordinate,
+        string toCoordinate,
         CancellationToken cancellationToken = default)
     {
-        var origin = ParseCoordinate(originCoordinate);
-        var destination = ParseCoordinate(destinationCoordinate);
+        var from = ParseCoordinate(fromCoordinate);
+        var to = ParseCoordinate(toCoordinate);
 
-        var matrix = await ComputeMatrixAsync(origin, destination, cancellationToken);
+        var matrix = await ComputeMatrixAsync(from, to, cancellationToken);
 
         return new RouteLeg(
             DistanceKm: Math.Round(matrix.DistanceMeters / MetersPerKilometer, 2),
-            DurationHours: Math.Round(matrix.DurationSeconds / SecondsPerHour, 2));
+            EstimatedTimeHours: Math.Round(matrix.DurationSeconds / SecondsPerHour, 2));
     }
 
     private static double[] ParseCoordinate(string coordinate)
     {
-        var parts = coordinate.Split(',', StringSplitOptions.TrimEntries);
-        if (parts.Length != 2
-            || !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude)
-            || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude))
+        var parts = coordinate?.Split(',');
+        if (parts is not { Length: 2 } ||
+            !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude) ||
+            !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude))
         {
-            throw new GeocodingException($"Invalid coordinate format: '{coordinate}'.");
+            throw new GeocodingException($"The coordinate '{coordinate}' is not in the expected 'longitude,latitude' format.");
         }
 
+        // OpenRouteService always works in [longitude, latitude] order.
         return new[] { longitude, latitude };
     }
 

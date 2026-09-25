@@ -1,124 +1,281 @@
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Search, Plus, Box, AlertTriangle, Save, Trash2, PackageOpen, Tag, Scale, Info, Snowflake, Flame, Pencil, X, FileText } from "lucide-react"
+import {
+  Box,
+  Flame,
+  Info,
+  Loader2,
+  PackageOpen,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  Snowflake,
+  Tag,
+  Trash2,
+  Truck,
+  X,
+} from "lucide-react"
 
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { FormAlert } from "@/components/auth/FormAlert"
+import { ProductFormFields } from "@/components/products/ProductFormFields"
+import { useProductForm } from "@/hooks/use-product-form"
+import { useAsyncAction } from "@/hooks/use-async-action"
+import { productService } from "@/services/product-service"
+import {
+  categoryLabel,
+  environmentLabel,
+  mapProductFieldErrors,
+  TRANSPORT_ENVIRONMENT,
+} from "@/constants/products"
+
+const SEARCH_DEBOUNCE_MS = 350
+
+function ListItem({ product, selected, onSelect }) {
+  const isChilled = product.transportEnvironment !== TRANSPORT_ENVIRONMENT.DRY
+
+  return (
+    <button
+      onClick={() => onSelect(product.id)}
+      className={`flex w-full items-start gap-4 p-4 text-left transition-colors focus:outline-none ${
+        selected ? "bg-blue-50/50" : "bg-white hover:bg-slate-50/70"
+      }`}
+    >
+      <div
+        className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
+          selected ? "bg-blue-600" : "bg-transparent"
+        }`}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="mb-1.5 flex items-center gap-2">
+          <span className="font-mono text-xs font-bold text-slate-500">
+            {product.sku}
+          </span>
+          <div className="flex gap-1">
+            {product.dangerous && (
+              <Badge
+                variant="secondary"
+                className="flex items-center border-none bg-amber-100 px-1.5 py-0 text-[9px] font-black uppercase tracking-wider text-amber-700"
+              >
+                <Flame size={10} className="mr-1" /> Hazmat
+              </Badge>
+            )}
+            {isChilled && (
+              <Badge
+                variant="secondary"
+                className="flex items-center border-none bg-sky-100 px-1.5 py-0 text-[9px] font-black uppercase tracking-wider text-sky-700"
+              >
+                <Snowflake size={10} className="mr-1" />
+                {environmentLabel(product.transportEnvironment)}
+              </Badge>
+            )}
+            {product.fragile && (
+              <Badge
+                variant="secondary"
+                className="border-none bg-rose-50 px-1.5 py-0 text-[9px] font-black uppercase tracking-wider text-rose-600"
+              >
+                Frágil
+              </Badge>
+            )}
+          </div>
+        </div>
+        <h3
+          className={`truncate text-sm ${
+            selected ? "font-bold text-blue-900" : "font-semibold text-slate-800"
+          }`}
+        >
+          {product.name}
+        </h3>
+        <p className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+          <Tag size={12} /> {categoryLabel(product.category)} •{" "}
+          {product.defaultWeight}kg
+        </p>
+      </div>
+    </button>
+  )
+}
+
+function VehicleRequirementCard({ requirement }) {
+  if (!requirement) {
+    return null
+  }
+
+  const rows = [
+    ["Carroceria base", requirement.baseBodyworkType],
+    ["Refrigeração mínima", requirement.minRefrigerationLevel],
+    ["Exige MOPP", requirement.requiresMopp ? "Sim" : "Não"],
+    ["Fixação de carga", requirement.requiresCargoFixing ? "Sim" : "Não"],
+  ]
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/50 md:col-span-2">
+      <div className="flex h-[52px] items-center gap-2 rounded-t-xl border-b border-slate-100 px-5">
+        <Truck size={16} className="text-slate-600" />
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+          Requisito de Veículo (calculado)
+        </h2>
+      </div>
+      <div className="grid grid-cols-2 gap-4 p-5">
+        {rows.map(([label, value]) => (
+          <div key={label} className="space-y-1">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              {label}
+            </p>
+            <p className="text-sm font-semibold text-slate-800">{value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function ProductManagement() {
   const navigate = useNavigate()
-  const [produtos, setProdutos] = useState([
-    {
-      id: "PRD-1001",
-      sku: "CBO-099",
-      nome: "Cebola Roxa (Saca 20kg)",
-      tipo: "Alimentício",
-      pesoPadrao: 20,
-      volumePadrao: 0.05,
-      fragil: false,
-      empilhavel: true,
-      maxCamadas: 5,
-      tipoHu: "paletizado",
-      temperatura: "Ambiente",
-      tempMin: null,
-      tempMax: null,
-      perigosa: false,
-      onu: "",
-      classeRisco: "",
-      descricao: "Atenção: Necessita de baú ventilado (Sider ou Carga Seca sem lona esticada) para evitar apodrecimento por umidade.",
-    },
-    {
-      id: "PRD-1003",
-      sku: "VD-MED",
-      nome: "Ampolas de Vacina (Lote)",
-      tipo: "Medicamento",
-      pesoPadrao: 5,
-      volumePadrao: 0.1,
-      fragil: true,
-      empilhavel: false,
-      maxCamadas: 1,
-      tipoHu: "caixas",
-      temperatura: "Refrigerado",
-      tempMin: 2,
-      tempMax: 8,
-      perigosa: false,
-      onu: "",
-      classeRisco: "",
-      descricao: "Material biológico sensível. Exige registrador de temperatura (datalogger) ativado na viagem.",
-    },
-    {
-      id: "PRD-1005",
-      sku: "GL-SDA",
-      nome: "Soda Cáustica Líquida (IBC)",
-      tipo: "Químico",
-      pesoPadrao: 1200,
-      volumePadrao: 1.0,
-      fragil: false,
-      empilhavel: true,
-      maxCamadas: 2,
-      tipoHu: "caixas",
-      temperatura: "Ambiente",
-      tempMin: null,
-      tempMax: null,
-      perigosa: true,
-      onu: "1824",
-      classeRisco: "8",
-      descricao: "Corrosivo grave. Obrigatório veículo com licença MOPP e kit de contenção de derramamento químico a bordo.",
-    }
-  ])
 
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [items, setItems] = useState([])
+  const [totalItems, setTotalItems] = useState(0)
   const [selectedId, setSelectedId] = useState(null)
-  
-  // NOVO: Estado que controla se a tela da direita está em modo de edição
+  const [detail, setDetail] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
-  
-  const activeProduct = produtos.find(p => p.id === selectedId)
 
-  const filteredProdutos = produtos.filter(p => 
-    p.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  const listAction = useAsyncAction((query) => productService.listProducts(query))
+  const detailAction = useAsyncAction((id) => productService.getProduct(id))
+  const saveAction = useAsyncAction(({ id, payload }) =>
+    productService.updateProduct(id, payload)
+  )
+  const deleteAction = useAsyncAction((id) => productService.deleteProduct(id))
+
+  const { form, setField, reset, showTemperature, showPackaging } =
+    useProductForm(detail)
+
+  const mappedFieldErrors = useMemo(
+    () => mapProductFieldErrors(saveAction.fieldErrors),
+    [saveAction.fieldErrors]
   )
 
-  const handleUpdateField = (field, value) => {
-    setProdutos(current => 
-      current.map(p => p.id === selectedId ? { ...p, [field]: value } : p)
+  // Debounce the search input.
+  useEffect(() => {
+    const handle = setTimeout(
+      () => setDebouncedSearch(searchTerm.trim()),
+      SEARCH_DEBOUNCE_MS
     )
+    return () => clearTimeout(handle)
+  }, [searchTerm])
+
+  const loadList = useCallback(async () => {
+    const result = await listAction.run({
+      search: debouncedSearch || undefined,
+      page: 1,
+      pageSize: 50,
+    })
+    if (result.ok) {
+      setItems(result.data.items)
+      setTotalItems(result.data.totalItems)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch])
+
+  useEffect(() => {
+    loadList()
+  }, [loadList])
+
+  const loadDetail = useCallback(
+    async (id) => {
+      const result = await detailAction.run(id)
+      if (result.ok) {
+        setDetail(result.data)
+        reset(result.data)
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reset]
+  )
+
+  const handleSelect = (id) => {
+    setSelectedId(id)
+    setIsEditing(false)
+    saveAction.reset()
+    deleteAction.reset()
+    loadDetail(id)
   }
 
-  const handleDelete = () => {
-    setProdutos(current => current.filter(p => p.id !== selectedId))
-    setSelectedId(null)
+  const handleStartEdit = () => {
+    reset(detail)
+    saveAction.reset()
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    reset(detail)
+    saveAction.reset()
     setIsEditing(false)
   }
 
-  const handleSelectProduct = (id) => {
-    setSelectedId(id)
-    setIsEditing(false) // Sempre que trocar de produto, trava a tela de novo
+  const handleSave = async () => {
+    const result = await saveAction.run({ id: selectedId, payload: form })
+    if (result.ok) {
+      setDetail(result.data)
+      reset(result.data)
+      setIsEditing(false)
+      // Reflect edits (name/sku/flags) in the list without a full refetch.
+      setItems((current) =>
+        current.map((item) =>
+          item.id === result.data.id
+            ? {
+                ...item,
+                sku: result.data.sku,
+                name: result.data.name,
+                category: result.data.category,
+                transportEnvironment: result.data.transportEnvironment,
+                dangerous: result.data.dangerous,
+                fragile: result.data.fragile,
+                defaultWeight: result.data.defaultWeight,
+                defaultVolume: result.data.defaultVolume,
+              }
+            : item
+        )
+      )
+    }
   }
 
-  const handleSave = () => {
-    // Aqui no futuro você enviaria os dados para a API (Backend)
-    setIsEditing(false) // Trava a tela novamente indicando sucesso
+  const handleDelete = async () => {
+    if (!selectedId) {
+      return
+    }
+    const result = await deleteAction.run(selectedId)
+    if (result.ok) {
+      setItems((current) => current.filter((item) => item.id !== selectedId))
+      setTotalItems((count) => Math.max(0, count - 1))
+      setSelectedId(null)
+      setDetail(null)
+      setIsEditing(false)
+    }
   }
+
+  const listPending = listAction.pending
+  const detailPending = detailAction.pending
 
   return (
     <AppShell title="Catálogo de Produtos">
       <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl gap-6 overflow-hidden">
-        
-        {/* =========================================================
-            PAINEL ESQUERDO: LISTAGEM DE PRODUTOS
-            ========================================================= */}
+        {/* PAINEL ESQUERDO: LISTAGEM */}
         <div className="flex w-full flex-col rounded-xl border border-slate-200 bg-white lg:w-1/2 xl:w-[45%]">
-          
           <div className="flex shrink-0 flex-col gap-3 border-b border-slate-100 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-800">Catálogo de SKUs ({produtos.length})</h2>
-              <Button size="sm" onClick={() => navigate("/register-product")} className="h-8 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700">
+              <h2 className="text-sm font-bold text-slate-800">
+                Catálogo de SKUs ({totalItems})
+              </h2>
+              <Button
+                size="sm"
+                onClick={() => navigate("/register-product")}
+                className="h-8 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700"
+              >
                 <Plus size={14} className="mr-1.5" /> Novo SKU
               </Button>
             </div>
@@ -134,285 +291,172 @@ export default function ProductManagement() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col divide-y divide-slate-100">
-              {filteredProdutos.length === 0 ? (
-                <div className="p-8 text-center text-sm text-slate-500">Nenhum produto encontrado.</div>
-              ) : (
-                filteredProdutos.map((produto) => {
-                  const isSelected = selectedId === produto.id
-
-                  return (
-                    <button
-                      key={produto.id}
-                      onClick={() => handleSelectProduct(produto.id)}
-                      className={`flex w-full items-start gap-4 p-4 text-left transition-colors focus:outline-none ${
-                        isSelected ? "bg-blue-50/50" : "bg-white hover:bg-slate-50/70"
-                      }`}
-                    >
-                      <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${isSelected ? "bg-blue-600" : "bg-transparent"}`} />
-                      
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="font-mono text-xs font-bold text-slate-500">{produto.sku}</span>
-                          <div className="flex gap-1">
-                            {produto.perigosa && (
-                              <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-none px-1.5 py-0 text-[9px] uppercase font-black tracking-wider flex items-center">
-                                <Flame size={10} className="mr-1" /> Hazmat
-                              </Badge>
-                            )}
-                            {produto.temperatura !== "Ambiente" && (
-                              <Badge variant="secondary" className="bg-sky-100 text-sky-700 border-none px-1.5 py-0 text-[9px] uppercase font-black tracking-wider flex items-center">
-                                <Snowflake size={10} className="mr-1" /> {produto.temperatura}
-                              </Badge>
-                            )}
-                            {produto.fragil && (
-                              <Badge variant="secondary" className="bg-rose-50 text-rose-600 border-none px-1.5 py-0 text-[9px] uppercase font-black tracking-wider">
-                                Frágil
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <h3 className={`text-sm truncate ${isSelected ? "font-bold text-blue-900" : "font-semibold text-slate-800"}`}>
-                          {produto.nome}
-                        </h3>
-                        <p className="mt-1 text-[11px] font-medium text-slate-400 flex items-center gap-1.5">
-                          <Tag size={12} /> {produto.tipo} • {produto.pesoPadrao}kg
-                        </p>
-                      </div>
-                    </button>
-                  )
-                })
-              )}
-            </div>
+            {listPending ? (
+              <div className="flex items-center justify-center gap-2 p-8 text-sm text-slate-500">
+                <Loader2 size={16} className="animate-spin" /> Carregando
+                produtos...
+              </div>
+            ) : listAction.error ? (
+              <div className="p-6">
+                <FormAlert message={listAction.error.message} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadList}
+                  className="mt-4 h-8 text-xs"
+                >
+                  Tentar novamente
+                </Button>
+              </div>
+            ) : items.length === 0 ? (
+              <div className="p-8 text-center text-sm text-slate-500">
+                Nenhum produto encontrado.
+              </div>
+            ) : (
+              <div className="flex flex-col divide-y divide-slate-100">
+                {items.map((product) => (
+                  <ListItem
+                    key={product.id}
+                    product={product}
+                    selected={selectedId === product.id}
+                    onSelect={handleSelect}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* =========================================================
-            PAINEL DIREITO: DETALHES E EDIÇÃO
-            ========================================================= */}
-        <div className="hidden lg:flex w-full flex-col rounded-xl border border-slate-200 bg-white lg:w-1/2 xl:w-[55%]">
-          
-          {!activeProduct ? (
+        {/* PAINEL DIREITO: DETALHES / EDIÇÃO */}
+        <div className="hidden w-full flex-col rounded-xl border border-slate-200 bg-white lg:flex lg:w-1/2 xl:w-[55%]">
+          {!selectedId ? (
             <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-slate-500">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50">
                 <PackageOpen size={32} className="text-slate-300" />
               </div>
-              <p className="text-sm font-semibold text-slate-700">Nenhum item selecionado</p>
-              <p className="text-xs mt-1">Selecione um produto na lista ao lado para visualizar e editar seus parâmetros.</p>
+              <p className="text-sm font-semibold text-slate-700">
+                Nenhum item selecionado
+              </p>
+              <p className="mt-1 text-xs">
+                Selecione um produto na lista ao lado para visualizar e editar
+                seus parâmetros.
+              </p>
             </div>
-          ) : (
+          ) : detailPending ? (
+            <div className="flex flex-1 items-center justify-center gap-2 text-sm text-slate-500">
+              <Loader2 size={16} className="animate-spin" /> Carregando
+              detalhes...
+            </div>
+          ) : detailAction.error ? (
+            <div className="p-6">
+              <FormAlert message={detailAction.error.message} />
+            </div>
+          ) : detail ? (
             <>
-              {/* HEADER DIREITO (Com botões de ação) */}
               <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4">
                 <div className="flex items-center gap-2">
                   <Box size={16} className="text-blue-600" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Raio-X do Produto</h2>
-                  {!isEditing && <Badge variant="outline" className="ml-2 bg-white text-[9px] text-slate-400">Somente Leitura</Badge>}
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Raio-X do Produto
+                  </h2>
+                  {!isEditing && (
+                    <Badge
+                      variant="outline"
+                      className="ml-2 bg-white text-[9px] text-slate-400"
+                    >
+                      Somente Leitura
+                    </Badge>
+                  )}
                 </div>
-                
                 <div className="flex items-center gap-2">
                   {!isEditing && (
-                    <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="h-8 text-xs font-semibold text-slate-700 hover:bg-slate-100 bg-white">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleStartEdit}
+                      className="h-8 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
                       <Pencil size={14} className="mr-1.5" /> Editar
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" onClick={handleDelete} className="h-8 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700">
-                    <Trash2 size={14} className="mr-1.5" /> Excluir
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={deleteAction.pending}
+                    onClick={handleDelete}
+                    className="h-8 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                  >
+                    {deleteAction.pending ? (
+                      <Loader2 size={14} className="mr-1.5 animate-spin" />
+                    ) : (
+                      <Trash2 size={14} className="mr-1.5" />
+                    )}
+                    Excluir
                   </Button>
                 </div>
               </div>
 
-              {/* CORPO DO FORMULÁRIO */}
-              <div className={`flex-1 overflow-y-auto p-6 ${!isEditing ? "opacity-95" : ""}`}>
-                <div className="space-y-8 max-w-md">
-                  
-                  {/* Bloco 1: Identidade */}
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Nome do Produto</label>
-                      <Input 
-                        disabled={!isEditing}
-                        value={activeProduct.nome} 
-                        onChange={(e) => handleUpdateField("nome", e.target.value)} 
-                        className="h-10 border-slate-200 text-sm font-semibold text-slate-800 focus:border-blue-500 disabled:opacity-100 disabled:bg-slate-50 disabled:text-slate-600" 
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Código do Produto</label>
-                        <Input 
-                          disabled={!isEditing}
-                          value={activeProduct.sku} 
-                          onChange={(e) => handleUpdateField("sku", e.target.value)} 
-                          className="h-10 border-slate-200 font-mono text-sm text-slate-800 focus:border-blue-500 disabled:opacity-100 disabled:bg-slate-50 disabled:text-slate-600" 
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Categoria</label>
-                        <Input 
-                          disabled={!isEditing}
-                          value={activeProduct.tipo} 
-                          onChange={(e) => handleUpdateField("tipo", e.target.value)} 
-                          className="h-10 border-slate-200 text-sm text-slate-800 focus:border-blue-500 disabled:opacity-100 disabled:bg-slate-50 disabled:text-slate-600" 
-                        />
-                      </div>
-                    </div>
+              <div className="flex-1 overflow-y-auto p-6">
+                {saveAction.error ? (
+                  <div className="mb-5">
+                    <FormAlert message={saveAction.error.message} />
                   </div>
-
-                  {/* Bloco 2: Parâmetros Físicos */}
-                  <div className="space-y-4 border-t border-slate-100 pt-6">
-                    <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><Scale size={14} className="text-slate-400"/> Fatores Físicos Base</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Peso (Kg)</label>
-                        <Input disabled={!isEditing} type="number" value={activeProduct.pesoPadrao} onChange={(e) => handleUpdateField("pesoPadrao", Number(e.target.value))} className="h-10 border-slate-200 text-sm font-mono focus:border-blue-500 disabled:opacity-100 disabled:bg-slate-50" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Vol. (m³)</label>
-                        <Input disabled={!isEditing} type="number" step="0.01" value={activeProduct.volumePadrao} onChange={(e) => handleUpdateField("volumePadrao", Number(e.target.value))} className="h-10 border-slate-200 text-sm font-mono focus:border-blue-500 disabled:opacity-100 disabled:bg-slate-50" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tipo de HU</label>
-                        <Select disabled={!isEditing} value={activeProduct.tipoHu} onValueChange={(value) => handleUpdateField("tipoHu", value)}>
-                          <SelectTrigger className="h-10 w-full min-w-0 border-slate-200 px-2.5 py-1 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-100 disabled:bg-slate-50 disabled:text-slate-600">
-                            <SelectValue placeholder="Selecione o formato..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="paletizado">Paletizado</SelectItem>
-                            <SelectItem value="caixas">Caixas Master</SelectItem>
-                            <SelectItem value="granel">Granel</SelectItem>
-                            <SelectItem value="isotermico">Isotérmico</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                ) : null}
+                {deleteAction.error ? (
+                  <div className="mb-5">
+                    <FormAlert message={deleteAction.error.message} />
                   </div>
+                ) : null}
 
-                  {/* Bloco 3: Ambiente Logístico */}
-                  <div className="space-y-4 border-t border-slate-100 pt-6">
-                    <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><Snowflake size={14} className="text-slate-400"/> Ambiente de Transporte</h3>
-                    <div className={`rounded-xl transition-all ${activeProduct.temperatura !== "Ambiente" ? "border border-sky-300 bg-sky-50/30 p-4" : "border-transparent bg-transparent p-0"} ${!isEditing && "opacity-80"}`}>
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Controle de Temperatura</label>
-                        <Select disabled={!isEditing} value={activeProduct.temperatura} onValueChange={(v) => handleUpdateField("temperatura", v)}>
-                          <SelectTrigger className="h-10 border-slate-200 text-sm font-semibold focus:ring-blue-500 disabled:opacity-100 disabled:bg-slate-50 disabled:text-slate-600">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Ambiente">Seco / Ambiente</SelectItem>
-                            <SelectItem value="Refrigerado">Refrigerado (Positivo)</SelectItem>
-                            <SelectItem value="Congelado">Congelado (Negativo)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                <ProductFormFields
+                  form={form}
+                  setField={setField}
+                  fieldErrors={mappedFieldErrors}
+                  showTemperature={showTemperature}
+                  showPackaging={showPackaging}
+                  disabled={!isEditing}
+                />
 
-                      {activeProduct.temperatura !== "Ambiente" && (
-                        <div className="mt-4 grid grid-cols-2 gap-4 animate-in fade-in zoom-in duration-200">
-                          <div className="space-y-1.5">
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-sky-600">Temp. Mínima (°C)</label>
-                            <Input disabled={!isEditing} type="number" value={activeProduct.tempMin || 0} onChange={(e) => handleUpdateField("tempMin", Number(e.target.value))} className="h-10 border-sky-200 bg-sky-50 text-sm font-mono text-sky-800 focus:border-sky-500 disabled:opacity-80" />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Temp. Máxima (°C)</label>
-                            <Input disabled={!isEditing} type="number" value={activeProduct.tempMax || 0} onChange={(e) => handleUpdateField("tempMax", Number(e.target.value))} className="h-10 border-rose-200 bg-rose-50 text-sm font-mono text-rose-800 focus:border-rose-500 disabled:opacity-80" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Bloco 4: Restrições de Risco (Toggles) */}
-                  <div className="space-y-4 border-t border-slate-100 pt-6">
-                    <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><AlertTriangle size={14} className="text-slate-400"/> Regras de Risco Operacional</h3>
-                    <div className="flex flex-col gap-3">
-                      
-                      <div className={`rounded-xl border p-4 transition-all ${activeProduct.perigosa ? "border-amber-300 bg-amber-50/40" : "border-slate-200 bg-white"} ${!isEditing && "opacity-80"}`}>
-                        <div className="flex items-start gap-3">
-                          <button disabled={!isEditing} onClick={() => handleUpdateField("perigosa", !activeProduct.perigosa)} className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors disabled:cursor-not-allowed ${activeProduct.perigosa ? "border-amber-600 bg-amber-500" : "border-slate-300"}`}>
-                            {activeProduct.perigosa && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                          </button>
-                          <div className="flex-1">
-                            <p className="text-sm font-bold text-slate-800">Carga Perigosa (Hazmat)</p>
-                            
-                            {activeProduct.perigosa && (
-                              <div className="mt-4 grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Número ONU</label>
-                                  <Input disabled={!isEditing} placeholder="Ex: 1203" value={activeProduct.onu} onChange={(e) => handleUpdateField("onu", e.target.value)} className="h-9 border-slate-300 bg-white text-xs font-mono disabled:bg-slate-50 disabled:text-slate-600" />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Classe de Risco</label>
-                                  <Input disabled={!isEditing} placeholder="Ex: 3" value={activeProduct.classeRisco} onChange={(e) => handleUpdateField("classeRisco", e.target.value)} className="h-9 border-slate-300 bg-white text-xs font-mono disabled:bg-slate-50 disabled:text-slate-600" />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <button disabled={!isEditing} onClick={() => handleUpdateField("fragil", !activeProduct.fragil)} className={`flex w-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-80 ${isEditing && "hover:border-slate-300"}`}>
-                        <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${activeProduct.fragil ? "border-rose-500 bg-rose-500" : "border-slate-300"}`}>
-                          {activeProduct.fragil && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-slate-800">Carga Frágil</p>
-                        </div>
-                      </button>
-
-                      <div className={`rounded-xl border p-4 transition-all ${activeProduct.empilhavel ? "border-blue-300 bg-blue-50/40" : "border-slate-200 bg-white"} ${!isEditing && "opacity-80"}`}>
-                        <div className="flex items-start gap-3">
-                          <button disabled={!isEditing} onClick={() => handleUpdateField("empilhavel", !activeProduct.empilhavel)} className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors disabled:cursor-not-allowed ${activeProduct.empilhavel ? "border-blue-600 bg-blue-600" : "border-slate-300"}`}>
-                            {activeProduct.empilhavel && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                          </button>
-                          <div className="flex-1">
-                            <p className="text-sm font-bold text-slate-800">Permite Empilhamento</p>
-
-                            {activeProduct.empilhavel && (
-                              <div className="mt-4 max-w-40 space-y-1.5 animate-in fade-in zoom-in duration-200">
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-blue-600">Max. Camadas</label>
-                                <Input disabled={!isEditing} type="number" value={activeProduct.maxCamadas} onChange={(e) => handleUpdateField("maxCamadas", Number(e.target.value))} className="h-10 border-blue-200 bg-blue-50 text-sm font-mono text-blue-800 focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-400" />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 border-t border-slate-100 pt-6">
-                    <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><FileText size={14} className="text-slate-400"/> Observação de Manuseio (Pátio e Motorista)</h3>
-                    <Textarea 
-                      disabled={!isEditing}
-                      placeholder="Descreva instruções adicionais..."
-                      value={activeProduct.descricao} 
-                      onChange={(e) => handleUpdateField("descricao", e.target.value)} 
-                      className="min-h-[80px] border-slate-200 text-sm focus:border-blue-500 disabled:opacity-100 disabled:bg-slate-50 disabled:text-slate-600"
+                {!isEditing && (
+                  <div className="mt-6">
+                    <VehicleRequirementCard
+                      requirement={detail.vehicleRequirement}
                     />
                   </div>
-
-                </div>
+                )}
               </div>
-              
-              {/* RODAPÉ DO MODO EDIÇÃO (Aparece apenas quando editando) */}
+
               {isEditing && (
-                <div className="shrink-0 border-t border-slate-100 p-4 flex items-center justify-between bg-blue-50/50 animate-in slide-in-from-bottom-4 duration-300">
+                <div className="flex shrink-0 items-center justify-between border-t border-slate-100 bg-blue-50/50 p-4 duration-300 animate-in slide-in-from-bottom-4">
                   <div className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-600">
                     <Info size={14} /> Modo de Edição Ativo
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" className="h-8 text-xs font-semibold text-slate-700 bg-white" onClick={() => setIsEditing(false)}>
+                    <Button
+                      variant="outline"
+                      disabled={saveAction.pending}
+                      className="h-8 bg-white text-xs font-semibold text-slate-700"
+                      onClick={handleCancelEdit}
+                    >
                       <X size={14} className="mr-1.5" /> Cancelar
                     </Button>
-                    <Button className="h-8 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700" onClick={handleSave}>
-                      <Save size={14} className="mr-1.5" /> Salvar Mudanças
+                    <Button
+                      disabled={saveAction.pending}
+                      className="h-8 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700"
+                      onClick={handleSave}
+                    >
+                      {saveAction.pending ? (
+                        <Loader2 size={14} className="mr-1.5 animate-spin" />
+                      ) : (
+                        <Save size={14} className="mr-1.5" />
+                      )}
+                      Salvar Mudanças
                     </Button>
                   </div>
                 </div>
               )}
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </AppShell>
