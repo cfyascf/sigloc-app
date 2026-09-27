@@ -1,47 +1,74 @@
-import { ArrowLeft, MapPinned, DollarSign, Truck, Scale, Box, Gavel, Layers } from "lucide-react"
-import { Link, useNavigate } from "react-router-dom"
+import { useCallback, useEffect, useState } from "react"
+import { ArrowLeft, MapPinned, DollarSign, Truck, Scale, Box, Layers, Loader2 } from "lucide-react"
+import { useNavigate, useParams } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
+import { FormAlert } from "@/components/auth/FormAlert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-
-// ==========================================
-// MOCKS DA ROTA CONSOLIDADA (Substitui os dados de Trecho Único)
-// ==========================================
-const mockRoute = {
-  id: "ROT-9921",
-  name: "Rota Sul-Sudeste Consolidada",
-  status: "Em Leilão",
-  risk: "WARNING",
-  // A soma de todos os trechos
-  totalWeightKg: 25800,
-  totalVolumeM3: 95,
-  totalDistanceKm: 854,
-  targetFare: 12500, // Teto somado
-  bodyType: "Frigorífico (Trailers/Carretas)",
-  // As paradas em ordem
-  itinerary: [
-    { city: "Curitiba, PR", action: "Coleta (2 Trechos)", time: "Hoje, 14:00h" },
-    { city: "Joinville, PR", action: "Coleta (1 Trecho)", time: "Hoje, 17:00h" },
-    { city: "São Paulo, SP", action: "Entrega Parcial", time: "Amanhã, 08:00h" },
-    { city: "Campinas, SP", action: "Entrega Final", time: "Amanhã, 12:00h" },
-  ],
-  // Os trechos que formam essa rota (O que o planejador juntou no Knapsack)
-  segments: [
-    { id: "TRC-1042", load: "Frango Congelado", from: "Curitiba", to: "São Paulo", value: 4200 },
-    { id: "TRC-1088", load: "Polpa de Fruta", from: "Curitiba", to: "Campinas", value: 5100 },
-    { id: "TRC-1090", load: "Sorvetes", from: "Joinville", to: "São Paulo", value: 3200 },
-  ],
-  auctionInfo: {
-    bids: 18,
-    bestBid: 11200,
-    leader: "Expresso Frio Ltda",
-  }
-}
+import { useAsyncAction } from "@/hooks/use-async-action"
+import { getAuctionById } from "@/services/auction-service"
+import { RISK } from "@/constants/risk"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`
 const formatCurrency = (value) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value)
+
+const formatDeadline = (value) => {
+  if (!value) {
+    return "Sem prazo"
+  }
+
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return "Sem prazo"
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
+
+/** Maps an auction detail DTO to the consolidated-route view model used by the JSX. */
+const toRouteModel = (detail) => {
+  const route = detail.route ?? {}
+  const scenario = route.financialScenario ?? {}
+  const metrics = detail.bidMetrics ?? {}
+  const bestBid = metrics.bestBid ?? null
+
+  return {
+    id: route.id || detail.id,
+    name: route.formattedName || "Rota Consolidada",
+    status: detail.status || route.status || "—",
+    risk: RISK.NORMAL,
+    totalWeightKg: route.totalWeightKg ?? 0,
+    totalVolumeM3: route.totalVolumeM3 ?? 0,
+    totalDistanceKm: route.totalDistanceKm ?? 0,
+    targetFare: scenario.consolidatedCeiling ?? 0,
+    anttFloor: scenario.estimatedAnttFloor ?? 0,
+    bodyType: route.consolidatedVehicleRequirement || "—",
+    itinerary: (detail.travelPlan ?? []).map((stop) => ({
+      city: stop.cityState,
+      action: stop.actionType,
+      time: formatDeadline(stop.deadline),
+    })),
+    segments: (detail.segments ?? []).map((segment) => ({
+      id: segment.id,
+      load: segment.mainProduct,
+      from: segment.origin,
+      to: segment.destination,
+      value: segment.financialCeiling ?? 0,
+    })),
+    auctionInfo: {
+      bids: metrics.totalBids ?? 0,
+      bestBid: bestBid?.value ?? null,
+      leader: bestBid?.carrierName ?? null,
+    },
+  }
+}
 
 function getStopBadgeClass(index, totalStops) {
   if (index === 0) {
@@ -57,9 +84,70 @@ function getStopBadgeClass(index, totalStops) {
 
 export default function SegmentDetails() {
   const navigate = useNavigate()
-  const route = mockRoute // Na vida real, busca a rota pelo ID
-  
-  const anttFloor = route.targetFare * 0.75 // Piso da Rota
+  const { loadId } = useParams()
+  const [route, setRoute] = useState(null)
+
+  const detailAction = useAsyncAction((id) => getAuctionById(id))
+  const detailPending = detailAction.pending
+
+  const loadDetail = useCallback(async () => {
+    if (!loadId) {
+      return
+    }
+
+    const result = await detailAction.run(loadId)
+    if (result.ok) {
+      setRoute(result.data ? toRouteModel(result.data) : null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadId])
+
+  useEffect(() => {
+    loadDetail()
+  }, [loadDetail])
+
+  const anttFloor = route?.anttFloor ?? 0
+
+  if (detailPending || detailAction.error || !route) {
+    return (
+      <AppShell title="Detalhes da Rota">
+        <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-3 pt-1 mb-5">
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-auto p-0 text-sm font-medium text-slate-500 hover:bg-transparent hover:text-slate-900"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft size={16} className="mr-2" /> Voltar para a tela anterior
+            </Button>
+          </div>
+
+          {detailPending ? (
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-500">
+              <Loader2 size={16} className="animate-spin" /> Carregando detalhes da rota...
+            </div>
+          ) : detailAction.error ? (
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-6">
+              <FormAlert message={detailAction.error.message} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadDetail}
+                className="h-8 text-xs font-semibold"
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+              Rota não encontrada.
+            </div>
+          )}
+        </div>
+      </AppShell>
+    )
+  }
 
   return (
     <AppShell title={`Detalhes da Rota`}>
@@ -147,10 +235,10 @@ export default function SegmentDetails() {
                   <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Melhor Lance ({route.auctionInfo.bids} recebidos)</p>
-                      <p className="text-xs font-bold text-slate-700 mt-0.5">{route.auctionInfo.leader}</p>
+                      <p className="text-xs font-bold text-slate-700 mt-0.5">{route.auctionInfo.leader ?? "Sem ofertas"}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-black font-mono text-emerald-600">{formatCurrency(route.auctionInfo.bestBid)}</p>
+                      <p className="text-lg font-black font-mono text-emerald-600">{route.auctionInfo.bestBid != null ? formatCurrency(route.auctionInfo.bestBid) : "—"}</p>
                     </div>
                   </div>
                 </div>
