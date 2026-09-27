@@ -4,13 +4,13 @@ using Sigloc.Application.DTOs;
 using Sigloc.Application.Services;
 using Sigloc.Domain.Constants;
 using Sigloc.Application.Contracts;
-using System.Security.Claims;
+using Sigloc.Api.Extensions;
 
 namespace Sigloc.Api.Controllers;
 
 [ApiController]
 [Route("api/vehicles")]
-//[Authorize] 
+[Authorize]
 public class VehiclesController : ControllerBase
 {
     private readonly IVehicleService _vehicleService;
@@ -20,18 +20,12 @@ public class VehiclesController : ControllerBase
         _vehicleService = vehicleService;
     }
 
-    private Guid GetCarrierIdFromToken()
-    {
-        var claim = User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? Guid.Parse(claim.Value) : Guid.Empty;
-    }
-
     [HttpPost]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Create([FromBody] CreateVehicleDto dto, CancellationToken cancellationToken)
     {
-        var carrierId = GetCarrierIdFromToken();
-        var result = await _vehicleService.CreateAsync(dto, cancellationToken);
+        var carrierId = User.GetCompanyId();
+        var result = await _vehicleService.CreateAsync(carrierId, dto, cancellationToken);
 
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
@@ -48,7 +42,6 @@ public class VehiclesController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        var carrierId = GetCarrierIdFromToken();
         var result = await _vehicleService.GetAllAsync(cancellationToken);
         return Ok(result);
     }

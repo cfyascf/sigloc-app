@@ -1,9 +1,9 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
 using Sigloc.Domain.Constants;
+using Sigloc.Api.Extensions;
 
 namespace Sigloc.Api.Controllers;
 
@@ -44,7 +44,7 @@ public class AuthController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> CreateInvite([FromBody] CreateInviteDto dto, CancellationToken cancellationToken)
     {
-        var contractorId = GetCompanyId();
+        var contractorId = User.GetCompanyId();
         var result = await _authService.CreateInviteAsync(contractorId, dto, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
     }
@@ -63,7 +63,7 @@ public class AuthController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> GetActiveInvite(CancellationToken cancellationToken)
     {
-        var contractorId = GetCompanyId();
+        var contractorId = User.GetCompanyId();
         var result = await _authService.GetActiveInviteAsync(contractorId, cancellationToken);
 
         return result is null ? NoContent() : Ok(result);
@@ -112,17 +112,5 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.LoginWithGoogleAsync(dto, cancellationToken);
         return Ok(result);
-    }
-
-    /// <summary>Reads the company id (empresaId) from the authenticated user's JWT claims.</summary>
-    private Guid GetCompanyId()
-    {
-        var raw = User.FindFirstValue("empresaId");
-        if (Guid.TryParse(raw, out var companyId))
-        {
-            return companyId;
-        }
-
-        throw new UnauthorizedAccessException("O token não contém uma empresa (empresaId) válida.");
     }
 }
