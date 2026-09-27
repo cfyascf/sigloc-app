@@ -127,7 +127,12 @@ public class RouteSegmentService : IRouteSegmentService
         segment.EstimatedTollCost = validated.EstimatedTollCost;
         segment.PickupDeadline = validated.PickupDeadline;
         segment.DeliveryDeadline = validated.DeliveryDeadline;
-        segment.Items = validated.Items
+
+        // Build the desired item set and let the repository replace the associative rows.
+        // Do not reassign segment.Items here: the segment is tracked, and mutating its
+        // navigation collection triggers EF Core orphan fix-up that conflicts with the
+        // deterministic delete/insert performed by the repository.
+        var items = validated.Items
             .Select(item => new ProductRouteSegment
             {
                 RouteSegmentId = segment.Id,
@@ -136,9 +141,9 @@ public class RouteSegmentService : IRouteSegmentService
             })
             .ToList();
 
-        await _repository.UpdateAsync(segment, cancellationToken);
+        await _repository.UpdateAsync(segment, items, cancellationToken);
 
-        return MapToResponse(segment, products);
+        return MapToResponse(segment, items, products);
     }
 
     public async Task DeleteAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default)
@@ -267,13 +272,19 @@ public class RouteSegmentService : IRouteSegmentService
             .ToDictionary(g => g.Key, g => g.First().Product!);
 
     private static RouteSegmentResponseDto MapToResponse(RouteSegment segment, IReadOnlyDictionary<Guid, Product> products)
+        => MapToResponse(segment, segment.Items, products);
+
+    private static RouteSegmentResponseDto MapToResponse(
+        RouteSegment segment,
+        IReadOnlyCollection<ProductRouteSegment> links,
+        IReadOnlyDictionary<Guid, Product> products)
     {
-        var items = new List<RouteSegmentItemDto>(segment.Items.Count);
-        var carriedProducts = new List<Product>(segment.Items.Count);
+        var items = new List<RouteSegmentItemDto>(links.Count);
+        var carriedProducts = new List<Product>(links.Count);
         double totalWeight = 0;
         double totalVolume = 0;
 
-        foreach (var link in segment.Items)
+        foreach (var link in links)
         {
             var product = products[link.ProductId];
             carriedProducts.Add(product);
