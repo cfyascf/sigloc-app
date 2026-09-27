@@ -120,43 +120,51 @@ public class RouteSegmentRepository : IRouteSegmentRepository
         IReadOnlyCollection<ProductRouteSegment> items,
         CancellationToken cancellationToken = default)
     {
-        // Wrap the deterministic delete + insert/update in a single transaction so the
-        // operation stays atomic: ExecuteDelete runs immediately against the database, and
-        // the subsequent SaveChanges must commit (or roll back) together with it.
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+        // The execution strategy owns the retry loop; the transaction is opened inside it so a
+        // retry replays the whole operation atomically. Opening a transaction directly is not
+        // allowed while a retrying execution strategy (EnableRetryOnFailure) is configured.
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
 
-        // Delete the existing associative rows directly against the database so we do not
-        // rely on reassigning/clearing the tracked navigation collection (which triggers
-        // EF Core orphan fix-up and produces conflicting modification commands that surface
-        // as a DbUpdateConcurrencyException). This also detaches any of those rows that were
-        // loaded via Include so they are not tracked while we add the replacements.
-        await _dbContext.ProductRouteSegments
-            .Where(i => i.RouteSegmentId == segment.Id)
-            .ExecuteDeleteAsync(cancellationToken);
-
-        foreach (var entry in _dbContext.ChangeTracker
-            .Entries<ProductRouteSegment>()
-            .Where(e => e.Entity.RouteSegmentId == segment.Id)
-            .ToList())
+        await strategy.ExecuteAsync(async () =>
         {
-            entry.State = EntityState.Detached;
-        }
+            // Wrap the deterministic delete + insert/update in a single transaction so the
+            // operation stays atomic: ExecuteDelete runs immediately against the database, and
+            // the subsequent SaveChanges must commit (or roll back) together with it.
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        var replacements = items.Select(item => new ProductRouteSegment
-        {
-            Id = Guid.NewGuid(),
-            RouteSegmentId = segment.Id,
-            ProductId = item.ProductId,
-            Quantity = item.Quantity
-        }).ToList();
+            // Delete the existing associative rows directly against the database so we do not
+            // rely on reassigning/clearing the tracked navigation collection (which triggers
+            // EF Core orphan fix-up and produces conflicting modification commands that surface
+            // as a DbUpdateConcurrencyException). This also detaches any of those rows that were
+            // loaded via Include so they are not tracked while we add the replacements.
+            await _dbContext.ProductRouteSegments
+                .Where(i => i.RouteSegmentId == segment.Id)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        await _dbContext.ProductRouteSegments.AddRangeAsync(replacements, cancellationToken);
+            foreach (var entry in _dbContext.ChangeTracker
+                .Entries<ProductRouteSegment>()
+                .Where(e => e.Entity.RouteSegmentId == segment.Id)
+                .ToList())
+            {
+                entry.State = EntityState.Detached;
+            }
 
-        // segment is tracked; its scalar changes are persisted together with the new rows.
-        // The RouteSegment UPDATE matches its own row, so exactly one row is affected.
-        await _dbContext.SaveChangesAsync(cancellationToken);
+            var replacements = items.Select(item => new ProductRouteSegment
+            {
+                Id = Guid.NewGuid(),
+                RouteSegmentId = segment.Id,
+                ProductId = item.ProductId,
+                Quantity = item.Quantity
+            }).ToList();
 
-        await transaction.CommitAsync(cancellationToken);
+            await _dbContext.ProductRouteSegments.AddRangeAsync(replacements, cancellationToken);
+
+            // segment is tracked; its scalar changes are persisted together with the new rows.
+            // The RouteSegment UPDATE matches its own row, so exactly one row is affected.
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+        });
     }
 
     public async Task DeleteAsync(RouteSegment segment, CancellationToken cancellationToken = default)
