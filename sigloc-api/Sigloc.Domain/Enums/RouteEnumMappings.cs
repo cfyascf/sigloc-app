@@ -22,7 +22,18 @@ public static class RouteEnumMappings
         [AuctionStatus.Cancelled] = "CANCELLED"
     };
 
+    private static readonly Dictionary<BidStatus, string> BidStatusToWire = new()
+    {
+        [BidStatus.Pending] = "PENDING",
+        [BidStatus.Winning] = "WINNING",
+        [BidStatus.Losing] = "LOSING",
+        [BidStatus.Winner] = "WINNER",
+        [BidStatus.Withdrawn] = "WITHDRAWN"
+    };
+
     public static string ToWire(this RouteStatus value) => RouteStatusToWire[value];
 
     public static string ToWire(this AuctionStatus value) => AuctionStatusToWire[value];
+
+    public static string ToWire(this BidStatus value) => BidStatusToWire[value];
 }

@@ -30,6 +30,24 @@ public class AuctionsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateAuctionRequestDto dto, CancellationToken cancellationToken)
     {
         var result = await _auctionService.CreateAsync(GetContractorId(), dto, cancellationToken);
-        return CreatedAtAction(nameof(Create), new { id = result.Auction.Id }, result);
+        return CreatedAtAction(nameof(GetById), new { id = result.Auction.Id }, result);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> Search(
+        [FromQuery] AuctionQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _auctionService.SearchAsync(GetContractorId(), query, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _auctionService.GetDetailAsync(GetContractorId(), id, cancellationToken);
+        return Ok(result);
     }
 }

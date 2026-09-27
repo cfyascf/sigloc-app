@@ -9,4 +9,16 @@ public interface IAuctionService
     /// inside a single atomic transaction, then notifies partner carriers.
     /// </summary>
     Task<CreateAuctionResponseDto> CreateAsync(Guid contractorId, CreateAuctionRequestDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists the contractor's auctions with the consolidated itinerary, aggregated bid
+    /// metrics and the on-demand risk indicator, ordered by expiry (soonest first).
+    /// </summary>
+    Task<PagedAuctionsDto> SearchAsync(Guid contractorId, AuctionQueryDto query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the deep route detail for a single auction: financial scenario, best bid
+    /// with the winning carrier, the Milking Run travel plan and the linked segments.
+    /// </summary>
+    Task<AuctionDetailDto> GetDetailAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default);
 }

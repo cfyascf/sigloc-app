@@ -84,6 +84,14 @@ public class GlobalExceptionHandlerMiddleware
                     message = segmentNotFound.Message
                 }),
 
+            AuctionNotFoundException auctionNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "AUCTION_NOT_FOUND",
+                    message = auctionNotFound.Message
+                }),
+
             RouteSegmentNotEditableException segmentNotEditable => (
                 (int)HttpStatusCode.Conflict,
                 new

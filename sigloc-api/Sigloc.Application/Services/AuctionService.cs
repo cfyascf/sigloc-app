@@ -9,9 +9,14 @@ namespace Sigloc.Application.Services;
 
 public class AuctionService : IAuctionService
 {
+    private const int DefaultPage = 1;
+    private const int DefaultPageSize = 20;
+    private const int MaxPageSize = 100;
+
     private readonly IRouteSegmentRepository _segmentRepository;
     private readonly IConsolidatedRouteRepository _routeRepository;
     private readonly IAuctionRepository _auctionRepository;
+    private readonly IBidRepository _bidRepository;
     private readonly IRouteGeocodingService _geocodingService;
     private readonly IAuctionNotifier _notifier;
     private readonly IUnitOfWork _unitOfWork;
@@ -20,6 +25,7 @@ public class AuctionService : IAuctionService
         IRouteSegmentRepository segmentRepository,
         IConsolidatedRouteRepository routeRepository,
         IAuctionRepository auctionRepository,
+        IBidRepository bidRepository,
         IRouteGeocodingService geocodingService,
         IAuctionNotifier notifier,
         IUnitOfWork unitOfWork)
@@ -27,6 +33,7 @@ public class AuctionService : IAuctionService
         _segmentRepository = segmentRepository;
         _routeRepository = routeRepository;
         _auctionRepository = auctionRepository;
+        _bidRepository = bidRepository;
         _geocodingService = geocodingService;
         _notifier = notifier;
         _unitOfWork = unitOfWork;
@@ -105,6 +112,181 @@ public class AuctionService : IAuctionService
         await _notifier.AuctionOpenedAsync(result.auction.Id, result.route.Id, contractorId, cancellationToken);
 
         return MapToResponse(result.auction, result.route, segmentIds.Count);
+    }
+
+    public async Task<PagedAuctionsDto> SearchAsync(Guid contractorId, AuctionQueryDto query, CancellationToken cancellationToken = default)
+    {
+        var page = query.Page < 1 ? DefaultPage : query.Page;
+        var pageSize = query.PageSize switch
+        {
+            < 1 => DefaultPageSize,
+            > MaxPageSize => MaxPageSize,
+            _ => query.PageSize
+        };
+
+        var status = ParseStatus(query.Status);
+        var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
+
+        var (items, totalItems) = await _auctionRepository.SearchAsync(
+            contractorId, search, status, page, pageSize, cancellationToken);
+
+        var auctionIds = items.Select(i => i.Auction.Id).ToList();
+        var metricsById = (await _bidRepository.GetMetricsForAuctionsAsync(auctionIds, cancellationToken))
+            .ToDictionary(m => m.AuctionId);
+
+        var now = DateTimeOffset.UtcNow;
+        var listItems = items.Select(item =>
+        {
+            var stops = TravelPlanBuilder.Build(item.Segments);
+            var cities = TravelPlanBuilder.OrderedCities(stops);
+
+            metricsById.TryGetValue(item.Auction.Id, out var metrics);
+            var totalBids = metrics?.TotalBids ?? 0;
+            var bestBid = metrics?.BestBid;
+
+            var earliestPickup = item.Segments.Count > 0
+                ? item.Segments.Min(s => s.PickupDeadline)
+                : (DateTimeOffset?)null;
+
+            var risk = AuctionRiskCalculator.Evaluate(
+                earliestPickup, item.Auction.ExpiresAt, item.Auction.Status, totalBids, now);
+
+            return new AuctionListItemDto(
+                Id: item.Auction.Id,
+                RouteId: item.Route.Id,
+                Status: item.Auction.Status.ToWire(),
+                ItinerarySummary: ItineraryFormatter.Summary(cities),
+                ItineraryWithStates: ItineraryFormatter.WithStates(cities),
+                LinkedSegments: item.Segments.Select(s => s.Id).ToList(),
+                RiskIndicator: risk,
+                ExpiresAt: item.Auction.ExpiresAt,
+                BidMetrics: new BidMetricsDto(bestBid, totalBids));
+        }).ToList();
+
+        var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+        return new PagedAuctionsDto(listItems, page, pageSize, totalItems, totalPages);
+    }
+
+    public async Task<AuctionDetailDto> GetDetailAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default)
+    {
+        var detail = await _auctionRepository.GetDetailAsync(id, contractorId, cancellationToken)
+            ?? throw new AuctionNotFoundException(id);
+
+        var stops = TravelPlanBuilder.Build(detail.Segments);
+
+        var totalBids = (await _bidRepository.GetMetricsForAuctionsAsync(new[] { id }, cancellationToken))
+            .FirstOrDefault()?.TotalBids ?? 0;
+
+        var bestBid = await _bidRepository.GetBestBidWithCarrierAsync(id, cancellationToken);
+        BestBidDto? bestBidDto = bestBid is null
+            ? null
+            : new BestBidDto(bestBid.TotalValue, bestBid.CarrierName);
+
+        var products = detail.Segments
+            .SelectMany(s => s.Items)
+            .Where(i => i.Product is not null)
+            .Select(i => i.Product!);
+        var vehicleRequirement = ConsolidatedVehicleRequirement.From(products);
+
+        var segments = detail.Segments.Select(s => new AuctionSegmentDto(
+            Id: s.Id,
+            MainProduct: ResolveMainProduct(s),
+            Origin: CityName(s.OriginAddress),
+            Destination: CityName(s.DestinationAddress),
+            FinancialCeiling: s.BudgetCeiling)).ToList();
+
+        var route = detail.Route;
+        var routeDto = new AuctionDetailRouteDto(
+            Id: route.Id,
+            Status: route.Status.ToWire(),
+            FormattedName: FormatRouteName(stops),
+            TotalDistanceKm: route.TotalDistanceKm,
+            TotalWeightKg: route.TotalWeightKg,
+            TotalVolumeM3: route.TotalVolumeM3,
+            ConsolidatedVehicleRequirement: FormatVehicleRequirement(vehicleRequirement),
+            FinancialScenario: new FinancialScenarioDto(route.ConsolidatedCeiling, route.EstimatedAnttFloor));
+
+        return new AuctionDetailDto(
+            Id: detail.Auction.Id,
+            Status: detail.Auction.Status.ToWire(),
+            ExpiresAt: detail.Auction.ExpiresAt,
+            Route: routeDto,
+            BidMetrics: new DetailBidMetricsDto(totalBids, bestBidDto),
+            TravelPlan: stops,
+            Segments: segments);
+    }
+
+    private static AuctionStatus ParseStatus(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return AuctionStatus.Open;
+        }
+
+        return status.Trim().ToUpperInvariant() switch
+        {
+            "OPEN" => AuctionStatus.Open,
+            "CLOSED" => AuctionStatus.Closed,
+            "CANCELLED" => AuctionStatus.Cancelled,
+            _ => AuctionStatus.Open
+        };
+    }
+
+    /// <summary>Main product of a segment: the one carried in the largest quantity.</summary>
+    private static string ResolveMainProduct(RouteSegment segment)
+    {
+        var main = segment.Items
+            .Where(i => i.Product is not null)
+            .OrderByDescending(i => i.Quantity)
+            .Select(i => i.Product!.Name)
+            .FirstOrDefault();
+
+        return main ?? "—";
+    }
+
+    /// <summary>Human-friendly route name derived from the first and last travel-plan cities.</summary>
+    private static string FormatRouteName(IReadOnlyList<TravelPlanStopDto> stops)
+    {
+        if (stops.Count == 0)
+        {
+            return "Rota Consolidada";
+        }
+
+        var origin = CityName(stops[0].CityState);
+        var destination = CityName(stops[^1].CityState);
+        return origin == destination
+            ? $"Rota {origin}"
+            : $"Rota {origin} → {destination}";
+    }
+
+    private static string CityName(string cityState)
+    {
+        var comma = cityState.IndexOf(',');
+        return (comma >= 0 ? cityState[..comma] : cityState).Trim();
+    }
+
+    /// <summary>Condenses the consolidated vehicle requirement into a single display string.</summary>
+    private static string FormatVehicleRequirement(ConsolidatedVehicleRequirement requirement)
+    {
+        var parts = new List<string> { requirement.BaseBodyworkType };
+
+        if (!string.Equals(requirement.MinRefrigerationLevel, "Nenhuma", StringComparison.OrdinalIgnoreCase))
+        {
+            parts.Add(requirement.MinRefrigerationLevel);
+        }
+
+        if (requirement.RequiresMopp)
+        {
+            parts.Add("MOPP");
+        }
+
+        if (requirement.RequiresCargoFixing)
+        {
+            parts.Add("Fixação de Carga");
+        }
+
+        return string.Join(" · ", parts);
     }
 
     private static DateTimeOffset ValidateExpiry(DateTimeOffset? expiresAt)
