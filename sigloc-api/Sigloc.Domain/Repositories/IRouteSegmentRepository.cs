@@ -36,8 +36,16 @@ public interface IRouteSegmentRepository
 
     Task AddAsync(RouteSegment segment, CancellationToken cancellationToken = default);
 
-    /// <summary>Replaces the items of an existing segment and persists the updated segment.</summary>
-    Task UpdateAsync(RouteSegment segment, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Persists scalar changes made to a tracked <paramref name="segment"/> and replaces its
+    /// associative product rows with <paramref name="items"/>. The replacement is performed
+    /// deterministically (delete existing rows, insert the new ones) without reassigning the
+    /// segment's tracked navigation collection.
+    /// </summary>
+    Task UpdateAsync(
+        RouteSegment segment,
+        IReadOnlyCollection<ProductRouteSegment> items,
+        CancellationToken cancellationToken = default);
 
     Task DeleteAsync(RouteSegment segment, CancellationToken cancellationToken = default);
 }

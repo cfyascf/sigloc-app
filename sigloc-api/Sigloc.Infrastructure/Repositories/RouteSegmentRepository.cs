@@ -115,28 +115,48 @@ public class RouteSegmentRepository : IRouteSegmentRepository
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(RouteSegment segment, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(
+        RouteSegment segment,
+        IReadOnlyCollection<ProductRouteSegment> items,
+        CancellationToken cancellationToken = default)
     {
-        // The new item set arrives on segment.Items. Remove any associative rows that
-        // are still tracked from the original load, then attach the replacement rows.
-        var trackedItems = await _dbContext.ProductRouteSegments
+        // Wrap the deterministic delete + insert/update in a single transaction so the
+        // operation stays atomic: ExecuteDelete runs immediately against the database, and
+        // the subsequent SaveChanges must commit (or roll back) together with it.
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        // Delete the existing associative rows directly against the database so we do not
+        // rely on reassigning/clearing the tracked navigation collection (which triggers
+        // EF Core orphan fix-up and produces conflicting modification commands that surface
+        // as a DbUpdateConcurrencyException). This also detaches any of those rows that were
+        // loaded via Include so they are not tracked while we add the replacements.
+        await _dbContext.ProductRouteSegments
             .Where(i => i.RouteSegmentId == segment.Id)
-            .ToListAsync(cancellationToken);
+            .ExecuteDeleteAsync(cancellationToken);
 
-        var replacementItems = segment.Items.ToList();
-        segment.Items.Clear();
-
-        _dbContext.ProductRouteSegments.RemoveRange(trackedItems);
-
-        foreach (var item in replacementItems)
+        foreach (var entry in _dbContext.ChangeTracker
+            .Entries<ProductRouteSegment>()
+            .Where(e => e.Entity.RouteSegmentId == segment.Id)
+            .ToList())
         {
-            item.Id = Guid.NewGuid();
-            item.RouteSegmentId = segment.Id;
-            item.Product = null;
-            segment.Items.Add(item);
+            entry.State = EntityState.Detached;
         }
 
+        var replacements = items.Select(item => new ProductRouteSegment
+        {
+            Id = Guid.NewGuid(),
+            RouteSegmentId = segment.Id,
+            ProductId = item.ProductId,
+            Quantity = item.Quantity
+        }).ToList();
+
+        await _dbContext.ProductRouteSegments.AddRangeAsync(replacements, cancellationToken);
+
+        // segment is tracked; its scalar changes are persisted together with the new rows.
+        // The RouteSegment UPDATE matches its own row, so exactly one row is affected.
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(RouteSegment segment, CancellationToken cancellationToken = default)
