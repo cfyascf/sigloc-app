@@ -19,9 +19,9 @@ public class Travel : BaseEntity
 
 
     // Construtor de Travel
-    public Travel(Guid rotaId, Guid lanceVencedorId, decimal pisoAnttFinal)
+    public Travel(Guid lanceVencedorId, decimal pisoAnttFinal)
     {
-        if (rotaId == Guid.Empty) throw new ArgumentException("RotaId é obrigatório");
+        //if (rotaId == Guid.Empty) throw new ArgumentException("RotaId é obrigatório");
         if (lanceVencedorId == Guid.Empty) throw new ArgumentException("LanceVencedorId é obrigatório");
         if (pisoAnttFinal < 0) throw new ArgumentException("O Piso ANTT não pode ser negativo");
 
