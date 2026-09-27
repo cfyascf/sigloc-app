@@ -14,7 +14,7 @@ public class VehicleService : IVehicleService
         _repository = repository;
     }
 
-    public async Task<VehicleResponseDto> CreateAsync(CreateVehicleDto dto, CancellationToken cancellationToken = default)
+    public async Task<VehicleResponseDto> CreateAsync(Guid transportadoraId, CreateVehicleDto dto, CancellationToken cancellationToken = default)
     {
         // 1. Normalizar a placa (maiúsculas, sem espaços ou hifens)
         var normalizedPlate = dto.Plate?.Replace(" ", "").Replace("-", "").ToUpper();
@@ -33,7 +33,7 @@ public class VehicleService : IVehicleService
 
         // 3. Criação da Entidade
         var vehicle = new Vehicle(
-            dto.TransportadoraId,
+            transportadoraId,
             normalizedPlate,
             dto.Model,
             dto.AxleCount,

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
 using Sigloc.Domain.Constants;
-using System.Security.Claims;
+using Sigloc.Api.Extensions;
 
 namespace Sigloc.Api.Controllers;
 
@@ -19,11 +19,7 @@ public class AuctionsController : ControllerBase
         _auctionService = auctionService;
     }
 
-    private Guid GetContractorId()
-    {
-        var claim = User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? Guid.Parse(claim.Value) : Guid.Empty;
-    }
+    private Guid GetContractorId() => User.GetCompanyId();
 
     [HttpPost]
     [Authorize(Policy = Policies.RequireShipperAccess)]

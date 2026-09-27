@@ -4,7 +4,6 @@ using Sigloc.Domain.Enums;
 namespace Sigloc.Application.DTOs
 {
     public record CreateVehicleDto(
-        Guid TransportadoraId,
         string Plate, 
         string Model, 
         int AxleCount,
