@@ -267,9 +267,90 @@ public static class DatabaseSeeder
             Status = AuctionStatus.Open
         };
 
+        // --- Carriers and their vehicles (bidders on the auction above) ---
+        var carrierFrio = new Carrier
+        {
+            Id = Guid.NewGuid(),
+            Cnpj = "98765432000155",
+            CompanyName = "Expresso Frio Ltda",
+            TradeName = "Expresso Frio",
+            AverageRating = 4.7,
+            HasActiveInsurancePolicy = true
+        };
+
+        var carrierRapido = new Carrier
+        {
+            Id = Guid.NewGuid(),
+            Cnpj = "45678912000133",
+            CompanyName = "Rápido Sul Transportes",
+            TradeName = "Rápido Sul",
+            AverageRating = 4.2,
+            HasActiveInsurancePolicy = true
+        };
+
+        var vehicleFrio = new Vehicle(
+            transportadoraId: carrierFrio.Id,
+            plate: "ABC1D23",
+            model: "Volvo FH 460",
+            axleCount: 6,
+            capacityWeight: 27000m,
+            capacityVolume: 90m,
+            bodyType: VehicleBodyType.Frigorifico,
+            refrigerationLevel: RefrigerationLevel.Congelado,
+            hasMopp: false,
+            hasCargoSecuring: true,
+            driver: "João Pereira",
+            currentLocation: "Curitiba, PR",
+            status: OperationalStatus.LIVRE);
+
+        var vehicleRapido = new Vehicle(
+            transportadoraId: carrierRapido.Id,
+            plate: "EFG4H56",
+            model: "Scania R450",
+            axleCount: 6,
+            capacityWeight: 26000m,
+            capacityVolume: 88m,
+            bodyType: VehicleBodyType.Frigorifico,
+            refrigerationLevel: RefrigerationLevel.Congelado,
+            hasMopp: false,
+            hasCargoSecuring: true,
+            driver: "Maria Santos",
+            currentLocation: "São Paulo, SP",
+            status: OperationalStatus.LIVRE);
+
+        // --- Bids: Expresso Frio holds the best (lowest total) position ---
+        var bidFrio = new Bid
+        {
+            Id = Guid.NewGuid(),
+            AuctionId = auction.Id,
+            CarrierId = carrierFrio.Id,
+            VehicleId = vehicleFrio.Id,
+            NetFreightValue = 5000.00m,
+            TollValue = 200.00m,
+            TotalValue = 5200.00m,
+            SubmittedAt = now.AddHours(-3),
+            Status = BidStatus.Winning
+        };
+
+        var bidRapido = new Bid
+        {
+            Id = Guid.NewGuid(),
+            AuctionId = auction.Id,
+            CarrierId = carrierRapido.Id,
+            VehicleId = vehicleRapido.Id,
+            NetFreightValue = 5100.00m,
+            TollValue = 200.00m,
+            TotalValue = 5300.00m,
+            SubmittedAt = now.AddHours(-2),
+            Status = BidStatus.Losing
+        };
+
         await dbContext.Set<ConsolidatedRoute>().AddAsync(consolidatedRoute, cancellationToken);
         await dbContext.Set<RouteSegment>().AddRangeAsync(new[] { routedSegment1, routedSegment2 }, cancellationToken);
         await dbContext.Set<Auction>().AddAsync(auction, cancellationToken);
+        await dbContext.Set<Carrier>().AddRangeAsync(new[] { carrierFrio, carrierRapido }, cancellationToken);
+        await dbContext.Set<Vehicle>().AddRangeAsync(new[] { vehicleFrio, vehicleRapido }, cancellationToken);
+        await dbContext.Set<Bid>().AddRangeAsync(new[] { bidFrio, bidRapido }, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }

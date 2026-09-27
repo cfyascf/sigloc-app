@@ -71,7 +71,121 @@ export async function createAuction(
   return toCreateAuctionResult(payload)
 }
 
+/** Normalizes an `AuctionListItemDto` into a plain object for the listing panel. */
+export function toAuctionListItem(dto) {
+  if (!dto) {
+    return null
+  }
+
+  const metrics = dto.bidMetrics ?? {}
+
+  return {
+    id: dto.id ?? null,
+    routeId: dto.routeId ?? null,
+    status: dto.status ?? null,
+    itinerarySummary: dto.itinerarySummary ?? "",
+    itineraryWithStates: dto.itineraryWithStates ?? "",
+    linkedSegments: dto.linkedSegments ?? [],
+    riskIndicator: dto.riskIndicator ?? "NORMAL",
+    expiresAt: dto.expiresAt ?? null,
+    bidMetrics: {
+      bestBid: metrics.bestBid ?? null,
+      totalBids: metrics.totalBids ?? 0,
+    },
+  }
+}
+
+/** Normalizes an `AuctionDetailDto` into a plain object for the route detail screen. */
+export function toAuctionDetail(dto) {
+  if (!dto) {
+    return null
+  }
+
+  const route = dto.route ?? {}
+  const scenario = route.financialScenario ?? {}
+  const metrics = dto.bidMetrics ?? {}
+  const bestBid = metrics.bestBid ?? null
+
+  return {
+    id: dto.id ?? null,
+    status: dto.status ?? null,
+    expiresAt: dto.expiresAt ?? null,
+    route: {
+      id: route.id ?? null,
+      status: route.status ?? null,
+      formattedName: route.formattedName ?? "",
+      totalDistanceKm: route.totalDistanceKm ?? 0,
+      totalWeightKg: route.totalWeightKg ?? 0,
+      totalVolumeM3: route.totalVolumeM3 ?? 0,
+      consolidatedVehicleRequirement: route.consolidatedVehicleRequirement ?? "",
+      financialScenario: {
+        consolidatedCeiling: scenario.consolidatedCeiling ?? 0,
+        estimatedAnttFloor: scenario.estimatedAnttFloor ?? 0,
+      },
+    },
+    bidMetrics: {
+      totalBids: metrics.totalBids ?? 0,
+      bestBid: bestBid
+        ? {
+            value: bestBid.value ?? 0,
+            carrierName: bestBid.carrierName ?? "",
+          }
+        : null,
+    },
+    travelPlan: (dto.travelPlan ?? []).map((stop) => ({
+      order: stop.order ?? 0,
+      cityState: stop.cityState ?? "",
+      actionType: stop.actionType ?? "",
+      deadline: stop.deadline ?? null,
+    })),
+    segments: (dto.segments ?? []).map((segment) => ({
+      id: segment.id ?? null,
+      mainProduct: segment.mainProduct ?? "",
+      origin: segment.origin ?? "",
+      destination: segment.destination ?? "",
+      financialCeiling: segment.financialCeiling ?? null,
+    })),
+  }
+}
+
+function buildQuery({ search, status, page, pageSize } = {}) {
+  const params = new URLSearchParams()
+  if (search) params.set("search", search)
+  if (status) params.set("status", status)
+  if (page) params.set("page", String(page))
+  if (pageSize) params.set("pageSize", String(pageSize))
+
+  const query = params.toString()
+  return query ? `?${query}` : ""
+}
+
+/**
+ * Lists auctions for the current contractor, ordered by expiry (soonest first).
+ * @returns {Promise<{ items, currentPage, pageSize, totalItems, totalPages }>}
+ */
+export async function listAuctions(query, options) {
+  const payload = await apiClient.get(`${BASE}${buildQuery(query)}`, options)
+
+  return {
+    items: (payload?.items ?? []).map(toAuctionListItem),
+    currentPage: payload?.currentPage ?? 1,
+    pageSize: payload?.pageSize ?? 20,
+    totalItems: payload?.totalItems ?? 0,
+    totalPages: payload?.totalPages ?? 0,
+  }
+}
+
+/** Fetches a single auction with its deep route detail (Milking Run + financial scenario). */
+export async function getAuctionById(id, options) {
+  const payload = await apiClient.get(`${BASE}/${id}`, options)
+  return toAuctionDetail(payload)
+}
+
 export const auctionService = {
   createAuction,
   toCreateAuctionResult,
+  listAuctions,
+  getAuctionById,
+  toAuctionListItem,
+  toAuctionDetail,
 }

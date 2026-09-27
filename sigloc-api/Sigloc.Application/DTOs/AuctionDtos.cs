@@ -54,3 +54,94 @@ public record CreateAuctionResponseDto(
     AuctionDto Auction,
     ConsolidatedRouteDto ConsolidatedRoute,
     int UpdatedSegments);
+
+// ---------------------------------------------------------------------------
+// Auction listing (Painel Principal) — GET /api/auctions
+// ---------------------------------------------------------------------------
+
+/// <summary>Query parameters for the auction listing endpoint.</summary>
+public record AuctionQueryDto(
+    string? Search,
+    string? Status,
+    int Page = 1,
+    int PageSize = 20);
+
+/// <summary>Aggregated bid figures shown in the listing.</summary>
+public record BidMetricsDto(
+    decimal? BestBid,
+    int TotalBids);
+
+/// <summary>A single auction row in the management listing.</summary>
+public record AuctionListItemDto(
+    Guid Id,
+    Guid RouteId,
+    string Status,
+    string ItinerarySummary,
+    string ItineraryWithStates,
+    IReadOnlyList<Guid> LinkedSegments,
+    string RiskIndicator,
+    DateTimeOffset ExpiresAt,
+    BidMetricsDto BidMetrics);
+
+/// <summary>Paged auction listing response.</summary>
+public record PagedAuctionsDto(
+    IReadOnlyList<AuctionListItemDto> Items,
+    int CurrentPage,
+    int PageSize,
+    int TotalItems,
+    int TotalPages);
+
+// ---------------------------------------------------------------------------
+// Auction detail (Detalhes da Rota) — GET /api/auctions/{id}
+// ---------------------------------------------------------------------------
+
+/// <summary>Financial intelligence snapshot read from the consolidated route.</summary>
+public record FinancialScenarioDto(
+    decimal ConsolidatedCeiling,
+    decimal EstimatedAnttFloor);
+
+/// <summary>Consolidated route block of the auction detail.</summary>
+public record AuctionDetailRouteDto(
+    Guid Id,
+    string Status,
+    string FormattedName,
+    double TotalDistanceKm,
+    double TotalWeightKg,
+    double TotalVolumeM3,
+    string ConsolidatedVehicleRequirement,
+    FinancialScenarioDto FinancialScenario);
+
+/// <summary>Best bid with the owning carrier's name for the financial scenario card.</summary>
+public record BestBidDto(
+    decimal Value,
+    string CarrierName);
+
+/// <summary>Bid metrics for the detail screen, including the winning carrier.</summary>
+public record DetailBidMetricsDto(
+    int TotalBids,
+    BestBidDto? BestBid);
+
+/// <summary>A single chronological stop of the Milking Run travel plan.</summary>
+public record TravelPlanStopDto(
+    int Order,
+    string CityState,
+    string ActionType,
+    DateTimeOffset Deadline);
+
+/// <summary>A linked segment (Trecho) summarized for the detail screen.</summary>
+public record AuctionSegmentDto(
+    Guid Id,
+    string MainProduct,
+    string Origin,
+    string Destination,
+    decimal? FinancialCeiling);
+
+/// <summary>Full auction detail returned by GET /api/auctions/{id}.</summary>
+public record AuctionDetailDto(
+    Guid Id,
+    string Status,
+    DateTimeOffset ExpiresAt,
+    AuctionDetailRouteDto Route,
+    DetailBidMetricsDto BidMetrics,
+    IReadOnlyList<TravelPlanStopDto> TravelPlan,
+    IReadOnlyList<AuctionSegmentDto> Segments);

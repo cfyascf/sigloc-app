@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Sigloc.Domain.Entities;
+using Sigloc.Domain.Enums;
 using Sigloc.Domain.Repositories;
 using Sigloc.Infrastructure.Contexts;
 
@@ -17,5 +19,93 @@ public class AuctionRepository : IAuctionRepository
     {
         // Staged only; the caller commits through the unit of work transaction.
         await _dbContext.Auctions.AddAsync(auction, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyList<AuctionWithRoute> Items, int TotalItems)> SearchAsync(
+        Guid contractorId,
+        string? search,
+        AuctionStatus status,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        // Auctions joined to their consolidated route, scoped to the contractor.
+        var baseQuery =
+            from auction in _dbContext.Auctions.AsNoTracking()
+            join route in _dbContext.ConsolidatedRoutes.AsNoTracking()
+                on auction.RouteId equals route.Id
+            where route.ContractorId == contractorId && auction.Status == status
+            select new { auction, route };
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+
+            // Filter by auction id (partial text) or by any linked segment's origin/destination.
+            baseQuery = baseQuery.Where(x =>
+                EF.Functions.Like(x.auction.Id.ToString().ToLower(), $"%{term}%")
+                || _dbContext.RouteSegments.Any(s =>
+                    s.RouteId == x.route.Id
+                    && (s.OriginAddress.ToLower().Contains(term)
+                        || s.DestinationAddress.ToLower().Contains(term))));
+        }
+
+        var totalItems = await baseQuery.CountAsync(cancellationToken);
+
+        var pageRows = await baseQuery
+            .OrderBy(x => x.auction.ExpiresAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var routeIds = pageRows.Select(r => r.route.Id).ToList();
+
+        var segments = await _dbContext.RouteSegments
+            .AsNoTracking()
+            .Where(s => s.RouteId != null && routeIds.Contains(s.RouteId.Value))
+            .Include(s => s.Items)
+                .ThenInclude(i => i.Product)
+            .ToListAsync(cancellationToken);
+
+        var segmentsByRoute = segments
+            .GroupBy(s => s.RouteId!.Value)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<RouteSegment>)g.ToList());
+
+        var items = pageRows
+            .Select(r => new AuctionWithRoute(
+                r.auction,
+                r.route,
+                segmentsByRoute.TryGetValue(r.route.Id, out var list) ? list : Array.Empty<RouteSegment>()))
+            .ToList();
+
+        return (items, totalItems);
+    }
+
+    public async Task<AuctionWithRoute?> GetDetailAsync(
+        Guid id,
+        Guid contractorId,
+        CancellationToken cancellationToken = default)
+    {
+        var row = await (
+            from auction in _dbContext.Auctions.AsNoTracking()
+            join route in _dbContext.ConsolidatedRoutes.AsNoTracking()
+                on auction.RouteId equals route.Id
+            where auction.Id == id && route.ContractorId == contractorId
+            select new { auction, route })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var segments = await _dbContext.RouteSegments
+            .AsNoTracking()
+            .Where(s => s.RouteId == row.route.Id)
+            .Include(s => s.Items)
+                .ThenInclude(i => i.Product)
+            .ToListAsync(cancellationToken);
+
+        return new AuctionWithRoute(row.auction, row.route, segments);
     }
 }
