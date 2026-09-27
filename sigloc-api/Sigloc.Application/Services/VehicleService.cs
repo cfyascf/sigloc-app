@@ -52,9 +52,9 @@ public class VehicleService : IVehicleService
         return MapToDto(vehicle);
     }
 
-    public async Task<VehicleResponseDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<VehicleResponseDto> GetByIdAsync(Guid transportadoraId, Guid id, CancellationToken cancellationToken = default)
     {
-        var vehicle = await _repository.GetByIdAsync(id, cancellationToken);
+        var vehicle = await _repository.GetByIdAsync(id, transportadoraId, cancellationToken);
         if (vehicle == null)
         {
             throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
@@ -63,15 +63,15 @@ public class VehicleService : IVehicleService
         return MapToDto(vehicle);
     }
 
-    public async Task<IEnumerable<VehicleResponseDto>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<VehicleResponseDto>> GetAllAsync(Guid transportadoraId, CancellationToken cancellationToken = default)
     {
-        var vehicles = await _repository.GetAllAsync(cancellationToken);
+        var vehicles = await _repository.GetAllAsync(transportadoraId, cancellationToken);
         return vehicles.Select(MapToDto);
     }
 
-    public async Task UpdateAsync(Guid id, UpdateVehicleDto dto, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(Guid transportadoraId, Guid id, UpdateVehicleDto dto, CancellationToken cancellationToken = default)
     {
-        var vehicle = await _repository.GetByIdAsync(id, cancellationToken);
+        var vehicle = await _repository.GetByIdAsync(id, transportadoraId, cancellationToken);
         if (vehicle == null)
         {
             throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
@@ -86,9 +86,9 @@ public class VehicleService : IVehicleService
         await _repository.UpdateAsync(vehicle, cancellationToken);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task DeleteAsync(Guid transportadoraId, Guid id, CancellationToken cancellationToken = default)
 {
-    var vehicle = await _repository.GetByIdAsync(id, cancellationToken);
+    var vehicle = await _repository.GetByIdAsync(id, transportadoraId, cancellationToken);
     if (vehicle == null)
     {
         throw new KeyNotFoundException($"Vehicle with ID {id} not found.");

@@ -18,9 +18,9 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
-    /// <summary>Open self-service registration of a shipper company (Contratante).</summary>
+    /// <summary>Registers a new administrator. Restricted to existing administrators (role Admin from the JWT).</summary>
     [HttpPost("register/administrator")]
-    // [Authorize(Policy = Policies.RequireAdminAccess)]
+    [Authorize(Policy = Policies.RequireAdminAccess)]
     public async Task<IActionResult> RegisterAdministrator([FromBody] RegisterAdministratorGoogleDto dto, CancellationToken cancellationToken)
     {
         var result = await _authService.RegisterAdministratorWithGoogleAsync(dto, cancellationToken);
