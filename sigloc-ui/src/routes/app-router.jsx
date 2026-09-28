@@ -4,6 +4,7 @@ import { Auth as AuthAccess } from "@/constants/auth"
 import { PublicOnly, RequireAuth, RequireRole } from "@/routes/route-guards"
 import { ROUTES } from "@/routes/route-config"
 import { NotFound } from "@/pages/NotFound"
+import Invite from "@/pages/Invite"
 
 const publicRoutes     = ROUTES.filter((r) => r.access === AuthAccess.PUBLIC)
 const authRoutes       = ROUTES.filter((r) => r.access === AuthAccess.AUTHENTICATED)
@@ -14,6 +15,10 @@ const carrierRoutes    = ROUTES.filter((r) => Array.isArray(r.access) && r.acces
 export function Router() {
   return (
     <Routes>
+      {/* Invite landing — reachable whether the visitor is logged in or not. */}
+      <Route path="/convite/:token" element={<Invite />} />
+      <Route path="/invite/:token" element={<Invite />} />
+
       {/* Unauthenticated-only pages */}
       <Route element={<PublicOnly />}>
         {publicRoutes.map((r) => (

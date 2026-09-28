@@ -129,6 +129,24 @@ export function AuthProvider({ children }) {
     [persistSession]
   )
 
+  const registerCarrierByInvite = useCallback(
+    async (token, data) => {
+      const session = await authService.registerCarrierByInvite(token, data)
+      persistSession(session)
+      return session
+    },
+    [persistSession]
+  )
+
+  const registerCarrierByInviteWithGoogle = useCallback(
+    async (token, data) => {
+      const session = await authService.registerCarrierByInviteWithGoogle(token, data)
+      persistSession(session)
+      return session
+    },
+    [persistSession]
+  )
+
   const setRole = useCallback((role) => {
     if (!VALID_ROLES.has(role)) {
       return
@@ -165,6 +183,8 @@ export function AuthProvider({ children }) {
       loginWithGoogle,
       registerContractor,
       registerContractorWithGoogle,
+      registerCarrierByInvite,
+      registerCarrierByInviteWithGoogle,
       logout,
       setRole,
       toggleRole,
@@ -177,6 +197,8 @@ export function AuthProvider({ children }) {
       loginWithGoogle,
       registerContractor,
       registerContractorWithGoogle,
+      registerCarrierByInvite,
+      registerCarrierByInviteWithGoogle,
       logout,
       setRole,
       toggleRole,

@@ -216,7 +216,8 @@ public partial class AuthService : IAuthService
             Id = Guid.NewGuid(),
             ContractorId = contractor.Id,
             CarrierId = carrier.Id,
-            Status = PartnershipStatus.Active
+            Status = PartnershipStatus.Active,
+            InitiatedBy = PartnershipInitiator.Contractor
         };
 
         invite.IsUsed = true;
@@ -384,7 +385,8 @@ public partial class AuthService : IAuthService
             Id = Guid.NewGuid(),
             ContractorId = contractor.Id,
             CarrierId = carrier.Id,
-            Status = PartnershipStatus.Active
+            Status = PartnershipStatus.Active,
+            InitiatedBy = PartnershipInitiator.Contractor
         };
 
         invite.IsUsed = true;
