@@ -28,5 +28,14 @@ public class Trip : BaseEntity
     /// <summary>Agreed total freight value taken from the winning bid.</summary>
     public decimal AgreedValue { get; set; }
 
+    /// <summary>Timestamp when the physical operation started (iniciadaEm). Null until pickup.</summary>
+    public DateTimeOffset? StartedAt { get; set; }
+
+    /// <summary>Timestamp when the trip finished (finalizadaEm). Null while in progress.</summary>
+    public DateTimeOffset? FinishedAt { get; set; }
+
+    /// <summary>Final ANTT freight floor locked for the trip (pisoAnttFinal). Null until settled.</summary>
+    public decimal? FinalAnttFloor { get; set; }
+
     public TripStatus Status { get; set; } = TripStatus.AwaitingPickup;
 }

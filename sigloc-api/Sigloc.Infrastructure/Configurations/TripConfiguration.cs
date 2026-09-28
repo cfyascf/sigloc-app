@@ -11,6 +11,7 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.AgreedValue).HasPrecision(18, 2);
+        builder.Property(t => t.FinalAnttFloor).HasPrecision(18, 2);
 
         // Persist the status enum as its string name for readability.
         builder.Property(t => t.Status)

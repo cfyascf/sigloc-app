@@ -20,6 +20,8 @@ public class SiglocDbContext : DbContext
     public DbSet<Auction> Auctions => Set<Auction>();
     public DbSet<Bid> Bids => Set<Bid>();
     public DbSet<Trip> Trips => Set<Trip>();
+    public DbSet<TripMonitoring> TripMonitorings => Set<TripMonitoring>();
+    public DbSet<BlockedBidAttempt> BlockedBidAttempts => Set<BlockedBidAttempt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
