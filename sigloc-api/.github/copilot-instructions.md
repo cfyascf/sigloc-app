@@ -53,6 +53,9 @@ Always strictly respect the separation of concerns. The solution is divided into
 * **Concurrency & Locks:** When dealing with vehicle allocation and overbooking validation, apply pessimistic locking (`SELECT ... FOR UPDATE`) to prevent race conditions during concurrent bid/auction scenarios.
 
 
+* **Parallel queries must NOT share the scoped `DbContext`:** `DbContext` is **not thread-safe**. Firing independent reads concurrently with `Task.WhenAll()` on the same injected `SiglocDbContext` throws `InvalidOperationException: A second operation was started on this context instance before a previous operation completed`. For BFF/aggregator services that fan out (e.g. the dashboard), inject `IDbContextFactory<SiglocDbContext>` and open a short-lived, isolated context per query (`await using var db = await _contextFactory.CreateDbContextAsync(ct);`). To let `AddDbContext<T>` and `AddDbContextFactory<T>` coexist for the same type, register the context with `optionsLifetime: ServiceLifetime.Singleton` (see `Sigloc.Infrastructure/DependencyInjection.cs`). Alternatively, if parallelism is not required, `await` the reads sequentially on the scoped context.
+
+
 * **No Redundant Data:** If a parent entity (like `Route`) aggregates data from children (`Segments`), calculate constraints dynamically via the API instead of duplicating columns, unless explicitly requested for cache optimization.
 
 
@@ -66,6 +69,9 @@ Always strictly respect the separation of concerns. The solution is divided into
 
 
 * **Tracking Mocking:** If requested to implement tracking/telemetry logic, default to an internal Mock generation if actual Traccar API endpoints are not provided.
+
+
+* **Parallel aggregation (`Task.WhenAll`):** Composing independent app-service reads in parallel is encouraged for aggregators, but the parallel branches must each use their **own** `DbContext` (see the "Parallel queries" rule in §3) — never `Task.WhenAll()` over queries on one shared context.
 
 
 **5. How to Respond to User Stories**

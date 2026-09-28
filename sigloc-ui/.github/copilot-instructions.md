@@ -145,6 +145,7 @@ When designing a screen for a Logistics Operator or Carrier, answer these questi
 3. Add/extend the service module in `src/services/*-service.js` with `toXxx` normalizers (see section 11).
 4. Wire the component with the `useAsyncAction` hook and the standard state machine.
 5. Adapt the component using these exact UI/UX rules (avoid bloated `p-8` paddings; favor `p-4` or `p-5`).
+6. **Validate with `npx vite build`, not ESLint.** `npm run lint` currently fails across untouched pages (the `eslint-plugin-react-hooks` "latest" config flags pre-existing `react-hooks/set-state-in-effect`, which then cascades into false-positive `no-unused-vars` for JSX identifiers). This is a **known repo-wide lint baseline issue** — do not chase those errors on files you didn't change. The authoritative gate that a screen compiles is a clean `vite build`. Still, write **new** effects in the rule-compliant form from §11 so you don't add to the baseline.
 
 ---
 
@@ -165,7 +166,7 @@ Follow the existing, battle-tested layering. **Never call `fetch` directly from 
 
 * **Standard data-screen state machine** (mirror `RouteSegmentManagement.jsx` / `FreightsOfferedOverview.jsx`):
   1. Local `useState` for the rendered collection/entity + a debounced search term (~350 ms) feeding a server-side `search` query param.
-  2. A `loadX` callback wrapped in `useCallback`, invoked from a `useEffect`, that calls `action.run(...)` and stores `result.data` on `ok`.
+  2. A `loadX` callback wrapped in `useCallback`, invoked from a `useEffect`, that calls `action.run(...)` and stores `result.data` on `ok`. **ESLint caveat (`react-hooks/set-state-in-effect`):** calling a `loadX` that synchronously triggers `setState` directly inside the effect is flagged by the current `eslint-plugin-react-hooks` config. To satisfy the rule, run the async call *inside* the effect and set state in its `.then(...)` behind a mounted flag, e.g. `useEffect(() => { let active = true; run().then(r => { if (active && r.ok) setData(r.data) }); return () => { active = false } }, [run])`. Keep a separate `useCallback` wrapper for the "Tentar novamente" (retry) button. (Older screens still use the plain `loadX()`-in-effect form and remain flagged — see the lint-baseline note below.)
   3. Render branches **in this order**: `pending` → spinner (`<Loader2 className="animate-spin" />` + "Carregando…"); `error` → `<FormAlert message={action.error.message} />` + a "Tentar novamente" button calling `loadX`; empty → dashed-border empty state; not-found (detail screens) → "não encontrada"; else the content.
   4. After a successful mutation (create/update/delete), either patch local state optimistically **or refetch** — prefer a **refetch** when the server computes derived/display fields (e.g. an itinerary-fallback name) so the UI matches the server.
   5. On mutations, disable the action buttons while `action.pending` and swap the label for a spinner; surface `action.error.message` inline near the control.
