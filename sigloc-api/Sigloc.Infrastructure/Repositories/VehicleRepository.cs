@@ -32,6 +32,7 @@ public class VehicleRepository : IVehicleRepository
     public async Task AddAsync(Vehicle product, CancellationToken cancellationToken = default)
     {
         await _dbContext.Vehicles.AddAsync(product, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(Vehicle vehicle, CancellationToken cancellationToken = default)
