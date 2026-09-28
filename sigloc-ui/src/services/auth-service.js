@@ -22,6 +22,22 @@ const ENDPOINTS = {
 }
 
 /**
+ * Extracts the raw invite token from either a full invite URL
+ * (e.g. `https://sigloc.app/invite/SIG-4821`) or a bare code the user pastes.
+ * Returns the trimmed input when no URL path segment is found.
+ */
+export function extractInviteToken(input) {
+  const value = (input ?? "").trim()
+  if (!value) {
+    return ""
+  }
+
+  const withoutQuery = value.split(/[?#]/)[0]
+  const segments = withoutQuery.split("/").filter(Boolean)
+  return segments.length > 0 ? segments[segments.length - 1] : value
+}
+
+/**
  * Normalizes the raw API auth payload into the session object consumed by the
  * app, attaching a derived `role`.
  */
@@ -134,6 +150,31 @@ export async function createInvite(data = {}, options) {
   return toInvite(payload)
 }
 
+/**
+ * Connects the authenticated carrier to the contractor that issued the invite,
+ * creating an active partnership. Accepts a full invite URL or a bare code.
+ * @param {string} tokenOrUrl
+ * @returns {Promise<{ connectionId, contractorName, status } | null>}
+ */
+export async function connectByInvite(tokenOrUrl, options) {
+  const token = extractInviteToken(tokenOrUrl)
+  const payload = await apiClient.post(
+    `${ENDPOINTS.invite}/${encodeURIComponent(token)}/connect`,
+    {},
+    options
+  )
+
+  if (!payload) {
+    return null
+  }
+
+  return {
+    connectionId: payload.conexaoId ?? null,
+    contractorName: payload.contratante ?? null,
+    status: payload.statusParceria ?? null,
+  }
+}
+
 export const authService = {
   login,
   loginWithGoogle,
@@ -141,4 +182,5 @@ export const authService = {
   registerContractorWithGoogle,
   getActiveInvite,
   createInvite,
+  connectByInvite,
 }

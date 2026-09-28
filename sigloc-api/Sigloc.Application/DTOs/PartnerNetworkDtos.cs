@@ -24,3 +24,25 @@ public record PartnerNetworkDto(
     [property: JsonPropertyName("totalAtivos")] int TotalActive,
     [property: JsonPropertyName("totalPendentes")] int TotalPending,
     [property: JsonPropertyName("parceiros")] List<PartnerDto> Partners);
+
+public record ContractorSummaryDto(
+    [property: JsonPropertyName("id")] Guid Id,
+    [property: JsonPropertyName("nomeFantasia")] string TradeName,
+    [property: JsonPropertyName("cnpj")] string Cnpj);
+
+public record CarrierNetworkPartnerDto(
+    [property: JsonPropertyName("conexaoId")] Guid ConnectionId,
+    [property: JsonPropertyName("statusParceria")] string PartnershipStatus,
+    [property: JsonPropertyName("contratante")] ContractorSummaryDto Contractor,
+    [property: JsonPropertyName("ultimaInteracao")] DateTimeOffset? LastInteraction);
+
+public record CarrierNetworkDto(
+    [property: JsonPropertyName("totalAtivos")] int TotalActive,
+    [property: JsonPropertyName("totalPendentes")] int TotalPending,
+    [property: JsonPropertyName("parceiros")] List<CarrierNetworkPartnerDto> Partners);
+
+/// <summary>Resposta para POST /api/auth/invite/{token}/connect.</summary>
+public record PartnerConnectionCreatedDto(
+    [property: JsonPropertyName("conexaoId")] Guid ConnectionId,
+    [property: JsonPropertyName("contratante")] string ContractorName,
+    [property: JsonPropertyName("statusParceria")] string PartnershipStatus);

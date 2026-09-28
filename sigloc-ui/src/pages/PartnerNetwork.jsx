@@ -21,7 +21,6 @@ import { useAsyncAction } from "@/hooks/use-async-action"
 import { ROLES } from "@/constants/roles"
 import { authService } from "@/services/auth-service"
 import { partnerService } from "@/services/partner-service"
-import { carrierPartnersMock } from "@/constants/partners-mock"
 
 const statusStyles = {
   Ativo: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -231,13 +230,24 @@ export default function PartnerNetwork() {
   const [partners, setPartners] = useState([])
   const [activeInvite, setActiveInvite] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [connectSuccess, setConnectSuccess] = useState(null)
 
   const networkAction = useAsyncAction(() => partnerService.getPartnerNetwork())
+  const carrierNetworkAction = useAsyncAction(() => partnerService.getCarrierNetwork())
   const activeInviteAction = useAsyncAction(() => authService.getActiveInvite())
   const createInviteAction = useAsyncAction(() => authService.createInvite())
+  const connectAction = useAsyncAction((token) => authService.connectByInvite(token))
 
   const loadNetwork = useCallback(async () => {
     const result = await networkAction.run()
+    if (result.ok) {
+      setPartners(result.data.partners)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const loadCarrierNetwork = useCallback(async () => {
+    const result = await carrierNetworkAction.run()
     if (result.ok) {
       setPartners(result.data.partners)
     }
@@ -254,13 +264,27 @@ export default function PartnerNetwork() {
 
   useEffect(() => {
     if (isCarrierView) {
-      setPartners(carrierPartnersMock)
+      loadCarrierNetwork()
       return
     }
 
     loadNetwork()
     loadActiveInvite()
-  }, [isCarrierView, loadNetwork, loadActiveInvite])
+  }, [isCarrierView, loadNetwork, loadCarrierNetwork, loadActiveInvite])
+
+  const handleConnect = useCallback(async () => {
+    if (!connectionValue.trim() || connectAction.pending) {
+      return
+    }
+
+    setConnectSuccess(null)
+    const result = await connectAction.run(connectionValue)
+    if (result.ok) {
+      setConnectSuccess(result.data?.contractorName ?? "novo embarcador")
+      setConnectionValue("")
+      loadCarrierNetwork()
+    }
+  }, [connectionValue, connectAction, loadCarrierNetwork])
 
   const handleCopyInvite = useCallback(async () => {
     if (!activeInvite?.link) {
@@ -285,6 +309,10 @@ export default function PartnerNetwork() {
 
   const filteredPartners = partners
 
+  const networkStatus = isCarrierView
+    ? { pending: carrierNetworkAction.pending, error: carrierNetworkAction.error, retry: loadCarrierNetwork }
+    : { pending: networkAction.pending, error: networkAction.error, retry: loadNetwork }
+
   return (
     <AppShell title="Rede de Parceiros">
       <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col gap-5 overflow-hidden">
@@ -301,11 +329,38 @@ export default function PartnerNetwork() {
                   <Input
                     value={connectionValue}
                     onChange={(event) => setConnectionValue(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        handleConnect()
+                      }
+                    }}
                     placeholder="Ex: https://sigloc.app/invite/SIG-4821"
                     className="h-10 border-slate-200 text-sm"
                   />
-                  <Button className="h-10 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700">Validar</Button>
+                  <Button
+                    onClick={handleConnect}
+                    disabled={!connectionValue.trim() || connectAction.pending}
+                    className="h-10 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700"
+                  >
+                    {connectAction.pending ? (
+                      <>
+                        <Loader2 size={14} className="mr-1.5 animate-spin" /> Conectando...
+                      </>
+                    ) : (
+                      "Conectar"
+                    )}
+                  </Button>
                 </div>
+                {connectAction.error && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-rose-600">
+                    <AlertCircle size={13} /> {connectAction.error.message}
+                  </p>
+                )}
+                {connectSuccess && !connectAction.error && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                    <Check size={13} /> Parceria com {connectSuccess} criada com sucesso!
+                  </p>
+                )}
               </>
             ) : (
               <>
@@ -327,17 +382,17 @@ export default function PartnerNetwork() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden">
-          {!isCarrierView && networkAction.pending ? (
+          {networkStatus.pending ? (
             <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-500">
               <Loader2 size={18} className="animate-spin" /> Carregando parceiros...
             </div>
-          ) : !isCarrierView && networkAction.error ? (
+          ) : networkStatus.error ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-500">
               <AlertCircle size={20} className="text-rose-500" />
-              <p>{networkAction.error.message}</p>
+              <p>{networkStatus.error.message}</p>
               <Button
                 variant="outline"
-                onClick={loadNetwork}
+                onClick={networkStatus.retry}
                 className="h-9 border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50"
               >
                 Tentar novamente
@@ -346,7 +401,11 @@ export default function PartnerNetwork() {
           ) : filteredPartners.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
               <p className="font-medium text-slate-600">Nenhum parceiro na sua rede ainda.</p>
-              <p className="text-xs">Gere um convite para conectar novas transportadoras.</p>
+              <p className="text-xs">
+                {isCarrierView
+                  ? "Use um convite para se conectar a um novo embarcador."
+                  : "Gere um convite para conectar novas transportadoras."}
+              </p>
             </div>
           ) : (
             <div className="grid gap-4 overflow-y-auto pr-2 pb-6 md:grid-cols-2 xl:grid-cols-3">

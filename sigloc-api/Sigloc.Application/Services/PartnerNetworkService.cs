@@ -34,6 +34,36 @@ public class PartnerNetworkService : IPartnerNetworkService
         return new PartnerNetworkDto(totalActive, totalPending, partners);
     }
 
+    public async Task<CarrierNetworkDto> GetCarrierNetworkAsync(Guid carrierId, CancellationToken cancellationToken = default)
+    {
+        var connections = (await _connections.GetByCarrierAsync(carrierId, cancellationToken)).ToList();
+
+        var totalActive = connections.Count(c => c.Status == PartnershipStatus.Active);
+        var totalPending = connections.Count(c => c.Status == PartnershipStatus.Pending);
+
+        var partners = connections
+            .Select(MontarContratanteDto)
+            .ToList();
+
+        return new CarrierNetworkDto(totalActive, totalPending, partners);
+    }
+
+    private static CarrierNetworkPartnerDto MontarContratanteDto(PartnerConnection connection)
+    {
+        var contractor = connection.Contractor;
+
+        var contractorDto = new ContractorSummaryDto(
+            contractor?.Id ?? connection.ContractorId,
+            contractor?.TradeName ?? contractor?.CompanyName ?? "(contratante não encontrado)",
+            contractor is not null ? CnpjFormatter.Format(contractor.Cnpj) : string.Empty);
+
+        return new CarrierNetworkPartnerDto(
+            connection.Id,
+            MapStatus(connection.Status),
+            contractorDto,
+            connection.UpdatedAt);
+    }
+
     private static PartnerDto MontarDto(PartnerConnection connection, Dictionary<Guid, int> freeVehicleCounts)
     {
         var carrier = connection.Carrier;

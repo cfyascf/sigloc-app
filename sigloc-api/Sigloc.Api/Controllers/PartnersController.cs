@@ -26,4 +26,14 @@ public class PartnersController : ControllerBase
         var result = await _partnerNetworkService.GetNetworkAsync(contractorId, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>GET /api/partnerships/carrier - rede de contratantes conectados à transportadora autenticada.</summary>
+    [HttpGet("carrier")]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> GetCarrierNetwork(CancellationToken cancellationToken)
+    {
+        var carrierId = User.GetCompanyId();
+        var result = await _partnerNetworkService.GetCarrierNetworkAsync(carrierId, cancellationToken);
+        return Ok(result);
+    }
 }

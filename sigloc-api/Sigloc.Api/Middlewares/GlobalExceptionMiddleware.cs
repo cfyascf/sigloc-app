@@ -167,6 +167,14 @@ public class GlobalExceptionHandlerMiddleware
                     message = invalidInvite.Message
                 }),
 
+            PartnershipAlreadyExistsException partnershipExists => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "PARCERIA_JA_EXISTE",
+                    message = partnershipExists.Message
+                }),
+
             InvalidCredentialsException invalidCredentials => (
                 (int)HttpStatusCode.Unauthorized,
                 new
