@@ -425,6 +425,18 @@ public class AuctionService : IAuctionService
 
         var fleet = await _vehicleRepository.GetAllAsync(carrierId, cancellationToken);
 
+        var myBid = await _bidRepository.GetByCarrierAndAuctionAsync(carrierId, auctionId, cancellationToken);
+        var myBidDto = myBid is null
+            ? null
+            : new CarrierAnalysisMyBidDto(
+                BidId: myBid.Id,
+                VehicleId: myBid.VehicleId,
+                NetFreightValue: myBid.NetFreightValue,
+                TollValue: myBid.TollValue,
+                TotalValue: myBid.TotalValue,
+                SubmittedAt: myBid.SubmittedAt,
+                Status: myBid.Status.ToWire());
+
         var physical = new CarrierAnalysisPhysicalRequirementsDto(
             RecommendedFleet: FormatVehicleRequirement(requirement),
             ConsolidatedWeightKg: detail.Route.TotalWeightKg,
@@ -454,7 +466,8 @@ public class AuctionService : IAuctionService
                 .ToList(),
             TravelPlan: stops
                 .Select(s => new CarrierAnalysisTravelStopDto(s.Order, s.CityState, s.ActionType))
-                .ToList());
+                .ToList(),
+            MyBid: myBidDto);
     }
 
     public async Task<PlaceBidResponseDto> PlaceBidAsync(
@@ -541,33 +554,50 @@ public class AuctionService : IAuctionService
             }
         }
 
-        // --- All travas passed: persist the bid ---------------------------------
+        // --- All travas passed: upsert the bid ----------------------------------
+        // A carrier holds a single bid per auction, so re-bidding overwrites the previous
+        // one (value, vehicle, toll, total, timestamp) instead of stacking new rows.
         var tollValue = detail.Segments.Sum(s => s.EstimatedTollCost);
         var totalValue = dto.ValorOferecido + tollValue;
         var submittedAt = DateTimeOffset.UtcNow;
 
-        var bid = new Bid
-        {
-            Id = Guid.NewGuid(),
-            AuctionId = auctionId,
-            CarrierId = carrierId,
-            VehicleId = dto.VeiculoId,
-            NetFreightValue = dto.ValorOferecido,
-            TollValue = tollValue,
-            TotalValue = totalValue,
-            SubmittedAt = submittedAt,
-            Status = BidStatus.Pending
-        };
+        var bid = await _bidRepository.GetTrackedByCarrierAndAuctionAsync(carrierId, auctionId, cancellationToken);
 
         await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            await _bidRepository.AddAsync(bid, ct);
+            if (bid is null)
+            {
+                bid = new Bid
+                {
+                    Id = Guid.NewGuid(),
+                    AuctionId = auctionId,
+                    CarrierId = carrierId,
+                    VehicleId = dto.VeiculoId,
+                    NetFreightValue = dto.ValorOferecido,
+                    TollValue = tollValue,
+                    TotalValue = totalValue,
+                    SubmittedAt = submittedAt,
+                    Status = BidStatus.Pending
+                };
+
+                await _bidRepository.AddAsync(bid, ct);
+            }
+            else
+            {
+                bid.VehicleId = dto.VeiculoId;
+                bid.NetFreightValue = dto.ValorOferecido;
+                bid.TollValue = tollValue;
+                bid.TotalValue = totalValue;
+                bid.SubmittedAt = submittedAt;
+                bid.Status = BidStatus.Pending;
+            }
+
             await _unitOfWork.SaveChangesAsync(ct);
             return true;
         }, cancellationToken);
 
         return new PlaceBidResponseDto(
-            BidId: bid.Id,
+            BidId: bid!.Id,
             AuctionId: auctionId,
             NetFreightValue: bid.NetFreightValue,
             TollValue: bid.TollValue,

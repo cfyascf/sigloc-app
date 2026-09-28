@@ -50,7 +50,9 @@ export default function BidAnalysis() {
         const data = await auctionService.getCarrierAnalysis(auctionId, { signal })
         if (signal?.aborted) return
         setAnalysis(data)
-        setBidValue(data?.competition?.auctionCeiling ?? "")
+        // Pre-fill with the carrier's own active bid when present, otherwise the ceiling.
+        setBidValue(data?.myBid?.netFreightValue ?? data?.competition?.auctionCeiling ?? "")
+        setSelectedVehicleId(data?.myBid?.vehicleId ?? null)
       } catch (error) {
         if (error?.name === "AbortError") return
         setLoadError(error instanceof ApiError ? error.message : "Não foi possível carregar a análise da rota.")
@@ -89,11 +91,12 @@ export default function BidAnalysis() {
       return
     }
 
+    const isUpdate = Boolean(analysis?.myBid)
     setSubmitting(true)
     try {
       const result = await auctionService.placeBid(auctionId, { valorOferecido: value, veiculoId: selectedVehicleId })
       toast.success(
-        "Lance enviado com sucesso!",
+        isUpdate ? "Lance atualizado com sucesso!" : "Lance enviado com sucesso!",
         `Valor total ${formatCurrency(result?.totalValue)} (frete ${formatCurrency(result?.netFreightValue)} + pedágio ${formatCurrency(result?.tollValue)}).`
       )
       await loadAnalysis()
@@ -131,7 +134,7 @@ export default function BidAnalysis() {
     )
   }
 
-  const { routeSummary, competition, physicalRequirements, carrierAvailableFleet, travelPlan } = analysis
+  const { routeSummary, competition, physicalRequirements, carrierAvailableFleet, travelPlan, myBid } = analysis
   const distanceToLeader = bestLeaderOffer != null ? Number(bidValue) - bestLeaderOffer : null
 
   return (
@@ -191,13 +194,31 @@ export default function BidAnalysis() {
                   <h3 className="font-bold text-slate-900 flex items-center gap-2 text-xs">
                     <Gavel size={14} className="text-blue-600" /> Formulário de Lance
                   </h3>
-                  <Badge variant="outline" className="border-blue-200 bg-white text-blue-700 text-[9px]">Teto: {formatCurrency(ceiling)}</Badge>
+                  <div className="flex items-center gap-1.5">
+                    {myBid && (
+                      <Badge className="bg-blue-600 text-white text-[9px] font-bold border-none uppercase hover:bg-blue-600">Lance Ativo</Badge>
+                    )}
+                    <Badge variant="outline" className="border-blue-200 bg-white text-blue-700 text-[9px]">Teto: {formatCurrency(ceiling)}</Badge>
+                  </div>
                 </div>
+
+                {myBid && (
+                  <div className="mb-3 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={16} className="text-blue-600" />
+                      <div>
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-blue-700/70">Seu lance atual</p>
+                        <p className="font-mono text-sm font-black text-blue-800">{formatCurrency(myBid.netFreightValue)}</p>
+                      </div>
+                    </div>
+                    <p className="text-[9px] font-medium text-blue-700/70">Enviado em {formatDateTime(myBid.submittedAt)}</p>
+                  </div>
+                )}
 
                 <div className="space-y-4">
                   {/* Input de Valor */}
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">Valor da Proposta</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">{myBid ? "Atualizar Valor da Proposta" : "Valor da Proposta"}</p>
                     <div className="bg-white border border-slate-300 rounded-lg p-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
                       <div className="flex items-center px-2">
                         <span className="text-xs font-bold text-slate-400">R$</span>
@@ -291,9 +312,9 @@ export default function BidAnalysis() {
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enviando lance...</>
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {myBid ? "Atualizando lance..." : "Enviando lance..."}</>
                     ) : selectedVehicle ? (
-                      `Confirmar Lance com ${selectedVehicle.plate}`
+                      `${myBid ? "Atualizar" : "Confirmar"} Lance com ${selectedVehicle.plate}`
                     ) : (
                       "Selecione um Veículo para Confirmar"
                     )}

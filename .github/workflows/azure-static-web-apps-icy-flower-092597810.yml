@@ -5,13 +5,16 @@ on:
     branches:
       - main
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
     branches:
       - main
 
 jobs:
+  # Deploy only happens on push to main (production). Pull requests no longer
+  # create Azure Static Web Apps staging environments, which was exhausting the
+  # per-app staging-environment quota. PRs are validated by build_pr_job below.
   build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
@@ -45,14 +48,29 @@ jobs:
           output_location: "dist" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
 
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+  # Pull requests are validated with a plain Vite build (no Azure deploy), so
+  # they never allocate a staging environment.
+  build_pr_job:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    name: Close Pull Request Job
+    name: Build PR Job
     steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
+      - uses: actions/checkout@v3
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ICY_FLOWER_092597810 }}
-          action: "close"
+          submodules: true
+          lfs: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Write production environment file
+        run: |
+          {
+            echo "VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}"
+            echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}"
+          } > sigloc-ui/.env.production
+      - name: Install dependencies
+        working-directory: ./sigloc-ui
+        run: npm ci
+      - name: Build
+        working-directory: ./sigloc-ui
+        run: npm run build
