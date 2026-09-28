@@ -1,45 +1,75 @@
-import { ArrowDownRight, ExternalLink, Scale, Trophy, Truck, Clock } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { ArrowDownRight, ExternalLink, Scale, Trophy, Truck, Clock, Loader2, AlertTriangle } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-
-// ==========================================
-// MOCKS ADAPTADOS PARA TRANSPORTADORA
-// ==========================================
-const kpis = [
-  { title: "Veículos Livres", value: "4", style: "text-amber-600"},
-  { title: "Lances Ativos", value: "12", style: "text-blue-600" },
-  { title: "Em Trânsito", value: "38", style: "text-emerald-600"},
-]
-
-const carrierPerformance = {
-  fleetActive: 88, // % de frota rodando
-  capacityUtilization: 92, // % de ocupação de peso/cubagem nos caminhoes ativos
-  winRate: 34, // % de vitorias nos ultimos leiloes
-}
-
-const activeBidsTracker = [
-  { id: "ROT-9921", auctionId: "TRC-201", label: "Curitiba → São Paulo", myBid: 4200, bestBid: 4200, status: "VENCENDO" },
-  { id: "ROT-9922", auctionId: "TRC-202", label: "Joinville → Campinas", myBid: 3680, bestBid: 3600, status: "PERDENDO" },
-  { id: "ROT-9923", auctionId: "TRC-203", label: "Londrina → Contagem", myBid: 3500, bestBid: 3200, status: "PERDENDO" },
-  { id: "ROT-9924", auctionId: "TRC-204", label: "Maringá → Serra", myBid: 4050, bestBid: 4050, status: "VENCENDO" },
-]
-
-const operationAlerts = [
-  { id: "TRC-1042", truck: "ABC-1234", action: "ATRASO NA COLETA", time: "- 15 min", critical: true },
-  { id: "TRC-1045", truck: "XYZ-9876", action: "PROX. COLETA", time: "1h 10m", critical: false },
-  { id: "TRC-1043", truck: "QWE-5544", action: "DESCARGA SLA", time: "2h 20m", critical: false },
-  { id: "TRC-1051", truck: "ASD-9988", action: "FIM DE JORNADA", time: "3h 00m", critical: false },
-]
+import { useAsyncAction } from "@/hooks/use-async-action"
+import { getCarrierDashboard } from "@/services/dashboard-service"
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value)
 }
 
+/** Formats a signed minute count into a compact countdown, e.g. "45 min", "1h 10m", "Atrasado". */
+function formatTimeRemaining(minutes) {
+  if (minutes <= 0) {
+    return "Atrasado"
+  }
+
+  if (minutes < 60) {
+    return `${minutes} min`
+  }
+
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
+}
+
+function formatPercentage(value) {
+  return `${Math.round(value)}%`
+}
+
 export default function CarrierDashboard() {
   const navigate = useNavigate()
+  const { run, pending, error } = useAsyncAction(getCarrierDashboard)
+  const [data, setData] = useState(null)
+
+  const load = useCallback(async () => {
+    const result = await run()
+    if (result.ok) {
+      setData(result.data)
+    }
+    return result
+  }, [run])
+
+  useEffect(() => {
+    let active = true
+    run().then((result) => {
+      if (active && result.ok) {
+        setData(result.data)
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [run])
+
+  const kpis = data?.kpis
+  const performance = data?.performance
+  const activeDisputes = data?.activeDisputes ?? []
+  const controlTower = data?.controlTower ?? []
+
+  const kpiCards = [
+    { title: "Veículos Livres", value: kpis?.availableVehicles ?? 0, style: "text-amber-600" },
+    { title: "Lances Ativos", value: kpis?.activeBids ?? 0, style: "text-blue-600" },
+    { title: "Em Trânsito", value: kpis?.inTransitTrips ?? 0, style: "text-emerald-600" },
+  ]
+
+  const fleetOperation = performance?.fleetOperationPercentage ?? 0
+  const capacityUtilization = performance?.capacityUtilizationPercentage ?? 0
+  const auctionSuccessRate = performance?.auctionSuccessRate ?? 0
 
   return (
     <AppShell title="Visão Geral" contentClassName="overflow-hidden" innerClassName="h-full min-h-0">
@@ -47,17 +77,28 @@ export default function CarrierDashboard() {
         
         {/* O GRANDE CARD BRANCO UNIFICADOR */}
         <div className="flex-1 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col min-h-0 overflow-hidden">
-          
+
+          {pending && !data ? (
+            <div className="flex flex-1 items-center justify-center gap-2 text-slate-400">
+              <Loader2 className="animate-spin" size={18} />
+              <span className="text-sm font-semibold">Carregando indicadores…</span>
+            </div>
+          ) : error && !data ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+              <AlertTriangle className="text-rose-500" size={28} />
+              <p className="text-sm font-semibold text-slate-700">Não foi possível carregar o painel.</p>
+              <p className="text-xs text-slate-400">{error.message}</p>
+              <Button variant="outline" size="sm" onClick={load}>Tentar novamente</Button>
+            </div>
+          ) : (
+            <>
           {/* SEÇÃO 1: LINHA DE CONTADORES (KPIs MACROS) */}
           <section className="flex items-center justify-between border-b border-slate-100 pb-5 mb-5">
             <div className="flex gap-16">
-              {kpis.map((kpi) => (
+              {kpiCards.map((kpi) => (
                 <div key={kpi.title}>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{kpi.title}</p>
-                  <div className="flex items-baseline gap-2 mt-0.5">
-                      <p className={`text-2xl font-black ${kpi.style}`}>{kpi.value}</p>
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase">{kpi.desc}</p>
-                  </div>
+                  <p className={`text-2xl font-black ${kpi.style} mt-0.5`}>{kpi.value}</p>
                 </div>
               ))}
             </div>
@@ -81,10 +122,10 @@ export default function CarrierDashboard() {
                 <div className="flex-1">
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-semibold text-slate-500">Frota em Operação</span>
-                    <span className="text-sm font-black text-slate-800">{carrierPerformance.fleetActive}%</span>
+                    <span className="text-sm font-black text-slate-800">{formatPercentage(fleetOperation)}</span>
                   </div>
                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                    <div className="bg-slate-700 h-full rounded-full" style={{ width: `${carrierPerformance.fleetActive}%` }} />
+                    <div className="bg-slate-700 h-full rounded-full" style={{ width: `${fleetOperation}%` }} />
                   </div>
                 </div>
               </div>
@@ -97,10 +138,10 @@ export default function CarrierDashboard() {
                 <div className="flex-1">
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-semibold text-slate-500">Ocupação (Peso/Vol)</span>
-                    <span className="text-sm font-black text-slate-800">{carrierPerformance.capacityUtilization}%</span>
+                    <span className="text-sm font-black text-slate-800">{formatPercentage(capacityUtilization)}</span>
                   </div>
                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                    <div className="bg-slate-700 h-full rounded-full" style={{ width: `${carrierPerformance.capacityUtilization}%` }} />
+                    <div className="bg-slate-700 h-full rounded-full" style={{ width: `${capacityUtilization}%` }} />
                   </div>
                 </div>
               </div>
@@ -113,10 +154,10 @@ export default function CarrierDashboard() {
                 <div className="flex-1">
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-semibold text-slate-500">Sucesso em Leilões</span>
-                    <span className="text-sm font-black text-emerald-600">{carrierPerformance.winRate}%</span>
+                    <span className="text-sm font-black text-emerald-600">{formatPercentage(auctionSuccessRate)}</span>
                   </div>
                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${carrierPerformance.winRate}%` }} />
+                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${auctionSuccessRate}%` }} />
                   </div>
                 </div>
               </div>
@@ -141,48 +182,51 @@ export default function CarrierDashboard() {
               </div>
               
               <div className="flex-1 divide-y divide-slate-100 overflow-hidden">
-                {activeBidsTracker.map((item) => {
-                  const isWinning = item.status === "VENCENDO"
-                  const diff = item.myBid - item.bestBid
+                {activeDisputes.length === 0 ? (
+                  <div className="flex h-full items-center justify-center py-8 text-xs font-semibold text-slate-400">
+                    Nenhuma disputa ativa no momento.
+                  </div>
+                ) : (
+                  activeDisputes.map((item) => {
+                    const isWinning = item.status === "VENCENDO"
 
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => navigate(`/bid-analysis/${item.auctionId}`)}
-                      className="flex w-full items-center justify-between rounded-lg py-3 px-2 text-left transition-colors hover:bg-slate-50"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-[10px] font-bold text-slate-400">{item.id}</span>
-                          <Badge variant="outline" className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0 border ${
-                              isWinning ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
-                          }`}>
-                              {item.status}
-                          </Badge>
+                    return (
+                      <div
+                        key={item.routeId}
+                        className="flex w-full items-center justify-between rounded-lg py-3 px-2 text-left"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-[10px] font-bold text-slate-400">{item.routeId}</span>
+                            <Badge variant="outline" className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0 border ${
+                                isWinning ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
+                            }`}>
+                                {item.status}
+                            </Badge>
+                          </div>
+                          <p className="text-sm font-bold text-slate-800">{item.itinerary}</p>
                         </div>
-                        <p className="text-sm font-bold text-slate-800">{item.label}</p>
-                      </div>
 
-                      <div className="text-right">
-                        <div className="flex justify-end gap-3 mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            <span>Meu Lance</span>
-                            <span>Líder</span>
+                        <div className="text-right">
+                          <div className="flex justify-end gap-3 mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              <span>Meu Lance</span>
+                              <span>Líder</span>
+                          </div>
+                          <div className="flex items-center justify-end gap-3">
+                              <span className="text-sm font-bold text-slate-900 font-mono">{formatCurrency(item.myBidAmount)}</span>
+                              <span className="text-sm font-bold text-slate-500 font-mono">{formatCurrency(item.leaderBidAmount)}</span>
+                          </div>
+
+                          {!isWinning && item.amountToCover > 0 && (
+                              <p className="text-[10px] font-bold text-rose-500 flex items-center justify-end gap-1 mt-1">
+                                  <ArrowDownRight size={12} /> {formatCurrency(item.amountToCover)} para cobrir
+                              </p>
+                          )}
                         </div>
-                        <div className="flex items-center justify-end gap-3">
-                            <span className="text-sm font-bold text-slate-900 font-mono">{formatCurrency(item.myBid)}</span>
-                            <span className="text-sm font-bold text-slate-500 font-mono">{formatCurrency(item.bestBid)}</span>
-                        </div>
-                        
-                        {!isWinning && diff > 0 && (
-                            <p className="text-[10px] font-bold text-rose-500 flex items-center justify-end gap-1 mt-1">
-                                <ArrowDownRight size={12} /> R$ {diff} para cobrir
-                            </p>
-                        )}
                       </div>
-                    </button>
-                  )
-                })}
+                    )
+                  })
+                )}
               </div>
             </div>
 
@@ -200,34 +244,42 @@ export default function CarrierDashboard() {
               </div>
 
               <div className="flex-1 divide-y divide-slate-100 overflow-hidden">
-                {operationAlerts.map((alert) => (
-                  <div key={alert.id} className="flex items-center justify-between py-3 px-2">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-2 w-2 rounded-full shrink-0 ${alert.critical ? "bg-rose-600 animate-pulse" : "bg-amber-500"}`} />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[10px] font-bold text-slate-400"><Truck size={10} className="inline mr-1"/>{alert.truck}</span>
-                          <span className="text-xs font-bold text-slate-800">{alert.id}</span>
+                {controlTower.length === 0 ? (
+                  <div className="flex h-full items-center justify-center py-8 text-xs font-semibold text-slate-400">
+                    Nenhuma viagem em rota no momento.
+                  </div>
+                ) : (
+                  controlTower.map((alert) => (
+                    <div key={alert.referenceCode} className="flex items-center justify-between py-3 px-2">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-2 w-2 rounded-full shrink-0 ${alert.isDelayed ? "bg-rose-600 animate-pulse" : "bg-amber-500"}`} />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] font-bold text-slate-400"><Truck size={10} className="inline mr-1"/>{alert.vehiclePlate}</span>
+                            <span className="text-xs font-bold text-slate-800">{alert.referenceCode}</span>
+                          </div>
+                          <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide uppercase ${
+                              alert.isDelayed ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"
+                          }`}>
+                            {alert.milestoneType}
+                          </span>
                         </div>
-                        <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide uppercase ${
-                            alert.critical ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"
-                        }`}>
-                          {alert.action}
-                        </span>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-black font-mono flex items-center justify-end gap-1 ${alert.isDelayed ? "text-rose-600" : "text-slate-700"}`}>
+                          <Clock size={12} /> {formatTimeRemaining(alert.timeRemainingMinutes)}
+                        </p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Prazo Restante</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-black font-mono flex items-center justify-end gap-1 ${alert.critical ? "text-rose-600" : "text-slate-700"}`}>
-                        <Clock size={12} /> {alert.time}
-                      </p>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Prazo Restante</p>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
           </div>
+            </>
+          )}
 
         </div>
       </div>
