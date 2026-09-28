@@ -8,9 +8,9 @@ Your goal is to create modern, high-density, clean, and highly usable interfaces
 
 ### 1. Architecture & Source of Truth
 * **Backend is King:** The backend is the single source of truth for all data contracts, schemas, and business rules. Frontend state and forms must adapt to backend contracts, never the reverse.
-* **Scalar API Integration:** Check `https://sigloc-api-hbfzcfd6ghephmcc.centralus-01.azurewebsites.net/scalar/v1` for exact endpoints, HTTP verbs, payload shapes, and status codes. Align all TypeScript interfaces with these contracts.
+* **Scalar API Integration:** Check `https://sigloc-api-hbfzcfd6ghephmcc.centralus-01.azurewebsites.net/scalar/v1` (or `.../openapi/v1.json`) for exact endpoints and HTTP verbs. **Caveat:** the OpenAPI doc often only declares `200 OK` with no response schema, and older `api-mappings/*.md` docs use a fictional `/api/v1/...` prefix. **The real routes are unversioned** — e.g. `GET /api/auctions`, `GET|PUT|DELETE /api/auctions/{id}`. When the response shape is not in the OpenAPI doc, derive it from the C# DTOs in `sigloc-api/**/DTOs/*.cs` and mirror it in the service normalizer.
 * **Modularity:** Extract duplicated table columns, status badges, formatters (currency, dates, weights), and dialogs into shared components. Use custom hooks (e.g., `useAuctions`) to decouple data fetching from presentation.
-* **Language Convention:** All source code (variables, functions, files) **MUST** be in **English**. All UI text displayed to the user **MUST** be in **Portuguese (pt-BR)**.
+* **Language Convention:** All source code (variables, functions, files) **MUST** be in **English**. All UI text displayed to the user **MUST** be in **Portuguese (pt-BR)**. Note: this codebase is currently **JavaScript (JSX), not TypeScript** — use JSDoc typedefs for contracts rather than `.ts` interfaces, and follow the existing file conventions.
 
 ---
 
@@ -140,8 +140,38 @@ When designing a screen for a Logistics Operator or Carrier, answer these questi
 
 * **Ask Before Guessing:** If a backend contract differs from a prototype screen, or if you face multiple viable UX approaches, **STOP and ASK**. Present trade-offs and wait for confirmation before generating code.
 * **Step-by-Step Protocol:**
-1. Identify the entity and target endpoints from Scalar.
+1. Identify the entity and target endpoints (real unversioned paths; confirm DTO shapes from the C# DTOs when OpenAPI is thin).
 2. Ask clarifying questions if needed.
-3. Define TypeScript interfaces.
-4. Implement the API service/custom hook.
+3. Add/extend the service module in `src/services/*-service.js` with `toXxx` normalizers (see section 11).
+4. Wire the component with the `useAsyncAction` hook and the standard state machine.
 5. Adapt the component using these exact UI/UX rules (avoid bloated `p-8` paddings; favor `p-4` or `p-5`).
+
+---
+
+### 11. API Integration Playbook (Proven Patterns)
+
+Follow the existing, battle-tested layering. **Never call `fetch` directly from a component.**
+
+* **HTTP layer — `src/lib/api-client.js`:** All requests go through `apiClient.get/post/put/patch/delete`. It prefixes the base URL (`src/config/env.js`, `VITE_API_BASE_URL`), serializes JSON, attaches the bearer token (registered once via `setAuthTokenProvider` in the auth layer), and normalizes **every** failure into an `ApiError { message, code, status, details }` — including RFC 9457 `problem+json` and the domain `{ error, message, details:[{field,reason}] }` shape. Import `ApiError` when you need to branch on failures.
+
+* **Service layer — `src/services/<entity>-service.js`:** One module per backend resource. Export:
+  * Named async functions that call `apiClient` and return **plain, normalized objects** (never raw DTOs).
+  * A `toXxx(dto)` normalizer per response shape that null-coalesces every field (e.g. `metrics.totalBids ?? 0`). This is the FE's contract mirror — keep it in sync with the C# DTO.
+  * A `BASE` constant with the real path (e.g. `const BASE = "/api/auctions"`).
+  * A `toIso(value)` helper to convert `Date`/`datetime-local` values to ISO before sending; only include optional fields in the payload when the caller provided them (partial updates).
+  * Also export a grouped `entityService` object for convenience.
+
+* **Component layer — the `useAsyncAction` hook (`src/hooks/use-async-action.js`):** Wrap each API call: `const listAction = useAsyncAction((q) => listAuctions(q))`. It exposes `run(...args)` (returns `{ ok, data }` / `{ ok:false, error }`), `pending`, `error` (normalized), `fieldErrors` (map for inline form errors), and `reset()`. It also guards against setting state after unmount.
+
+* **Standard data-screen state machine** (mirror `RouteSegmentManagement.jsx` / `FreightsOfferedOverview.jsx`):
+  1. Local `useState` for the rendered collection/entity + a debounced search term (~350 ms) feeding a server-side `search` query param.
+  2. A `loadX` callback wrapped in `useCallback`, invoked from a `useEffect`, that calls `action.run(...)` and stores `result.data` on `ok`.
+  3. Render branches **in this order**: `pending` → spinner (`<Loader2 className="animate-spin" />` + "Carregando…"); `error` → `<FormAlert message={action.error.message} />` + a "Tentar novamente" button calling `loadX`; empty → dashed-border empty state; not-found (detail screens) → "não encontrada"; else the content.
+  4. After a successful mutation (create/update/delete), either patch local state optimistically **or refetch** — prefer a **refetch** when the server computes derived/display fields (e.g. an itinerary-fallback name) so the UI matches the server.
+  5. On mutations, disable the action buttons while `action.pending` and swap the label for a spinner; surface `action.error.message` inline near the control.
+
+* **Reading route params:** use `useParams()`; a route's `:id`/`:loadId` param is passed straight to `getById(id)`.
+
+* **Dates:** send ISO (UTC) via the service `toIso`; for editing, use `<input type="datetime-local">` and convert both directions with small pad-based helpers (see `toDateTimeLocal` in `FreightsOfferedOverview.jsx`). Format for display with `Intl.DateTimeFormat("pt-BR", …)`.
+
+* **Validation before shipping:** run **`npm run build`** (Vite) — it is the reliable gate. **`npm run lint` is currently misconfigured repo-wide** (it flags obviously-used imports via `no-unused-vars` even in untouched files), so a failing lint is not a signal your change is broken; do not "fix" unrelated files to satisfy it.
