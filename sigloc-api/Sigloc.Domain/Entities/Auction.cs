@@ -13,6 +13,13 @@ public class Auction : BaseEntity
     /// <summary>Consolidated route being auctioned (1:1).</summary>
     public Guid RouteId { get; set; }
 
+    /// <summary>
+    /// Optional custom label for the auction. When set it overrides the itinerary-derived
+    /// name shown in the listing and detail; when null the name falls back to the route
+    /// itinerary summary.
+    /// </summary>
+    public string? Name { get; set; }
+
     /// <summary>Timestamp when the auction was opened.</summary>
     public DateTimeOffset OpenedAt { get; set; }
 

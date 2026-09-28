@@ -181,11 +181,44 @@ export async function getAuctionById(id, options) {
   return toAuctionDetail(payload)
 }
 
+/**
+ * Updates an auction's editable metadata (custom name and/or bid deadline). Only the
+ * provided fields are sent.
+ * @param {string} id
+ * @param {{ name?: string, expiresAt?: string|Date }} changes
+ */
+export async function updateAuction(id, { name, expiresAt } = {}, options) {
+  const payload = {}
+  if (name !== undefined) {
+    payload.name = name
+  }
+  if (expiresAt !== undefined) {
+    payload.expiresAt = toIso(expiresAt)
+  }
+
+  const dto = await apiClient.put(`${BASE}/${id}`, payload, options)
+  return dto
+    ? {
+        id: dto.id ?? id,
+        name: dto.name ?? null,
+        expiresAt: dto.expiresAt ?? null,
+      }
+    : null
+}
+
+/** Deletes an auction by id. */
+export async function deleteAuction(id, options) {
+  await apiClient.delete(`${BASE}/${id}`, options)
+  return { id }
+}
+
 export const auctionService = {
   createAuction,
   toCreateAuctionResult,
   listAuctions,
   getAuctionById,
+  updateAuction,
+  deleteAuction,
   toAuctionListItem,
   toAuctionDetail,
 }

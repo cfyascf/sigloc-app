@@ -39,4 +39,20 @@ public interface IAuctionRepository
         Guid id,
         Guid contractorId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads a single tracked auction scoped to the contractor (via its consolidated
+    /// route), or null when it does not exist or belongs to another contractor. The
+    /// returned entity is change-tracked so mutations can be persisted.
+    /// </summary>
+    Task<Auction?> GetTrackedByIdAsync(
+        Guid id,
+        Guid contractorId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Persists changes made to a tracked auction.</summary>
+    Task UpdateAsync(Auction auction, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes an auction. The consolidated route cascade is left untouched.</summary>
+    Task DeleteAsync(Auction auction, CancellationToken cancellationToken = default);
 }

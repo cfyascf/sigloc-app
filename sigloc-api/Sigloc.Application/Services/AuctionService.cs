@@ -151,11 +151,16 @@ public class AuctionService : IAuctionService
             var risk = AuctionRiskCalculator.Evaluate(
                 earliestPickup, item.Auction.ExpiresAt, item.Auction.Status, totalBids, now);
 
+            var itinerarySummary = ItineraryFormatter.Summary(cities);
+            var displayName = string.IsNullOrWhiteSpace(item.Auction.Name)
+                ? itinerarySummary
+                : item.Auction.Name!;
+
             return new AuctionListItemDto(
                 Id: item.Auction.Id,
                 RouteId: item.Route.Id,
                 Status: item.Auction.Status.ToWire(),
-                ItinerarySummary: ItineraryFormatter.Summary(cities),
+                ItinerarySummary: displayName,
                 ItineraryWithStates: ItineraryFormatter.WithStates(cities),
                 LinkedSegments: item.Segments.Select(s => s.Id).ToList(),
                 RiskIndicator: risk,
@@ -197,10 +202,13 @@ public class AuctionService : IAuctionService
             FinancialCeiling: s.BudgetCeiling)).ToList();
 
         var route = detail.Route;
+        var displayName = string.IsNullOrWhiteSpace(detail.Auction.Name)
+            ? FormatRouteName(stops)
+            : detail.Auction.Name!;
         var routeDto = new AuctionDetailRouteDto(
             Id: route.Id,
             Status: route.Status.ToWire(),
-            FormattedName: FormatRouteName(stops),
+            FormattedName: displayName,
             TotalDistanceKm: route.TotalDistanceKm,
             TotalWeightKg: route.TotalWeightKg,
             TotalVolumeM3: route.TotalVolumeM3,
@@ -215,6 +223,35 @@ public class AuctionService : IAuctionService
             BidMetrics: new DetailBidMetricsDto(totalBids, bestBidDto),
             TravelPlan: stops,
             Segments: segments);
+    }
+
+    public async Task<UpdateAuctionResponseDto> UpdateAsync(Guid contractorId, Guid id, UpdateAuctionRequestDto dto, CancellationToken cancellationToken = default)
+    {
+        var auction = await _auctionRepository.GetTrackedByIdAsync(id, contractorId, cancellationToken)
+            ?? throw new AuctionNotFoundException(id);
+
+        if (dto.Name is not null)
+        {
+            var trimmed = dto.Name.Trim();
+            auction.Name = trimmed.Length == 0 ? null : trimmed;
+        }
+
+        if (dto.ExpiresAt is not null)
+        {
+            auction.ExpiresAt = ValidateExpiry(dto.ExpiresAt);
+        }
+
+        await _auctionRepository.UpdateAsync(auction, cancellationToken);
+
+        return new UpdateAuctionResponseDto(auction.Id, auction.Name, auction.ExpiresAt);
+    }
+
+    public async Task DeleteAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default)
+    {
+        var auction = await _auctionRepository.GetTrackedByIdAsync(id, contractorId, cancellationToken)
+            ?? throw new AuctionNotFoundException(id);
+
+        await _auctionRepository.DeleteAsync(auction, cancellationToken);
     }
 
     private static AuctionStatus ParseStatus(string? status)

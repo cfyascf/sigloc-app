@@ -108,4 +108,31 @@ public class AuctionRepository : IAuctionRepository
 
         return new AuctionWithRoute(row.auction, row.route, segments);
     }
+
+    public async Task<Auction?> GetTrackedByIdAsync(
+        Guid id,
+        Guid contractorId,
+        CancellationToken cancellationToken = default)
+    {
+        // Tracked query scoped to the contractor via the consolidated route.
+        return await (
+            from auction in _dbContext.Auctions
+            join route in _dbContext.ConsolidatedRoutes.AsNoTracking()
+                on auction.RouteId equals route.Id
+            where auction.Id == id && route.ContractorId == contractorId
+            select auction)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(Auction auction, CancellationToken cancellationToken = default)
+    {
+        _dbContext.Auctions.Update(auction);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteAsync(Auction auction, CancellationToken cancellationToken = default)
+    {
+        _dbContext.Auctions.Remove(auction);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

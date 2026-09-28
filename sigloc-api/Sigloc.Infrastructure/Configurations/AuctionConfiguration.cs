@@ -10,6 +10,10 @@ public class AuctionConfiguration : IEntityTypeConfiguration<Auction>
     {
         builder.HasKey(a => a.Id);
 
+        // Optional custom label; null falls back to the itinerary-derived name.
+        builder.Property(a => a.Name)
+            .HasMaxLength(200);
+
         // Persist the status enum as its string name for readability.
         builder.Property(a => a.Status)
             .HasConversion<string>()
