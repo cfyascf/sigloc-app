@@ -12,6 +12,17 @@ public sealed record AuctionWithRoute(
     ConsolidatedRoute Route,
     IReadOnlyList<RouteSegment> Segments);
 
+/// <summary>
+/// An auction visible to a carrier on the opportunity board, paired with its consolidated
+/// route, the linked segments (with products), and the owning contractor's public name.
+/// Only auctions from contractors with an active partnership are ever projected here.
+/// </summary>
+public sealed record CarrierAuctionWithRoute(
+    Auction Auction,
+    ConsolidatedRoute Route,
+    IReadOnlyList<RouteSegment> Segments,
+    string ContractorName);
+
 public interface IAuctionRepository
 {
     /// <summary>Stages a new auction. Does not persist until the unit of work is saved.</summary>
@@ -55,4 +66,29 @@ public interface IAuctionRepository
 
     /// <summary>Deletes an auction. The consolidated route cascade is left untouched.</summary>
     Task DeleteAsync(Auction auction, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Opportunity board (Mural de Fretes): open, non-expired auctions whose owning
+    /// contractor has an <c>Active</c> partnership with the carrier. Joined to the
+    /// consolidated route and its linked segments (with products) and ordered by
+    /// <c>ExpiresAt</c> ascending (closest to expiring first).
+    /// </summary>
+    Task<(IReadOnlyList<CarrierAuctionWithRoute> Items, int TotalItems)> SearchAvailableForCarrierAsync(
+        Guid carrierId,
+        string? search,
+        DateTimeOffset now,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads a single opportunity-board auction scoped to the carrier's active
+    /// partnerships (open and non-expired), or null when it does not exist, is not open,
+    /// has expired, or belongs to a contractor the carrier is not partnered with.
+    /// </summary>
+    Task<CarrierAuctionWithRoute?> GetAvailableForCarrierAsync(
+        Guid auctionId,
+        Guid carrierId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default);
 }

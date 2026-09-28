@@ -191,6 +191,10 @@ public class GlobalExceptionHandlerMiddleware
                 (int)HttpStatusCode.Conflict,
                 new { error = "AUCTION_NOT_OPEN", message = auctionNotOpen.Message }),
 
+            OfferNotFoundException offerNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new { error = "OFFER_NOT_FOUND", message = offerNotFound.Message }),
+
             KeyNotFoundException => (
                 (int)HttpStatusCode.NotFound,
                 new { error = "NOT_FOUND", message = exception.Message }),
