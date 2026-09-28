@@ -21,6 +21,8 @@ public class AuctionsController : ControllerBase
 
     private Guid GetContractorId() => User.GetCompanyId();
 
+    private Guid GetCarrierId() => User.GetCompanyId();
+
     [HttpPost]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Create([FromBody] CreateAuctionRequestDto dto, CancellationToken cancellationToken)
@@ -78,6 +80,24 @@ public class AuctionsController : ControllerBase
     public async Task<IActionResult> Award(Guid id, [FromBody] AwardAuctionRequestDto dto, CancellationToken cancellationToken)
     {
         var result = await _auctionService.AwardAsync(GetContractorId(), id, dto, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
+
+    /// <summary>Carrier bid workspace (Workspace de Lance): deep route data, competition and fleet.</summary>
+    [HttpGet("{id:guid}/carrier-analysis")]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> GetCarrierAnalysis(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _auctionService.GetCarrierAnalysisAsync(GetCarrierId(), id, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Submits a carrier bid after running the Constraint Engine (Hard Block).</summary>
+    [HttpPost("{id:guid}/bids")]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> PlaceBid(Guid id, [FromBody] PlaceBidRequestDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _auctionService.PlaceBidAsync(GetCarrierId(), id, dto, cancellationToken);
         return StatusCode(StatusCodes.Status201Created, result);
     }
 }

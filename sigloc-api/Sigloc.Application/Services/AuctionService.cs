@@ -18,6 +18,8 @@ public class AuctionService : IAuctionService
     private readonly IAuctionRepository _auctionRepository;
     private readonly IBidRepository _bidRepository;
     private readonly ITripRepository _tripRepository;
+    private readonly IVehicleRepository _vehicleRepository;
+    private readonly IBlockedBidAttemptRepository _blockedBidAttemptRepository;
     private readonly IRouteGeocodingService _geocodingService;
     private readonly IAuctionNotifier _notifier;
     private readonly IUnitOfWork _unitOfWork;
@@ -28,6 +30,8 @@ public class AuctionService : IAuctionService
         IAuctionRepository auctionRepository,
         IBidRepository bidRepository,
         ITripRepository tripRepository,
+        IVehicleRepository vehicleRepository,
+        IBlockedBidAttemptRepository blockedBidAttemptRepository,
         IRouteGeocodingService geocodingService,
         IAuctionNotifier notifier,
         IUnitOfWork unitOfWork)
@@ -37,6 +41,8 @@ public class AuctionService : IAuctionService
         _auctionRepository = auctionRepository;
         _bidRepository = bidRepository;
         _tripRepository = tripRepository;
+        _vehicleRepository = vehicleRepository;
+        _blockedBidAttemptRepository = blockedBidAttemptRepository;
         _geocodingService = geocodingService;
         _notifier = notifier;
         _unitOfWork = unitOfWork;
@@ -380,6 +386,299 @@ public class AuctionService : IAuctionService
             WinningBidId: winner.Id,
             AuctionStatus: auction.Status.ToWire(),
             RouteStatus: route.Status.ToWire());
+    }
+
+    public async Task<CarrierBidAnalysisDto> GetCarrierAnalysisAsync(
+        Guid carrierId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        var detail = await _auctionRepository.GetForCarrierAnalysisAsync(auctionId, cancellationToken)
+            ?? throw new AuctionNotFoundException(auctionId);
+
+        var stops = TravelPlanBuilder.Build(detail.Segments);
+        var cities = TravelPlanBuilder.OrderedCities(stops);
+
+        var firstPickup = detail.Segments.Count > 0
+            ? detail.Segments.Min(s => s.PickupDeadline)
+            : (DateTimeOffset?)null;
+        var lastDelivery = detail.Segments.Count > 0
+            ? detail.Segments.Max(s => s.DeliveryDeadline)
+            : (DateTimeOffset?)null;
+
+        var totalBids = (await _bidRepository.GetMetricsForAuctionsAsync(new[] { auctionId }, cancellationToken))
+            .FirstOrDefault()?.TotalBids ?? 0;
+        var bestBid = await _bidRepository.GetBestBidWithCarrierAsync(auctionId, cancellationToken);
+
+        var products = detail.Segments
+            .SelectMany(s => s.Items)
+            .Where(i => i.Product is not null)
+            .Select(i => i.Product!)
+            .ToList();
+        var requirement = ConsolidatedVehicleRequirement.From(products);
+
+        var displayName = string.IsNullOrWhiteSpace(detail.Auction.Name)
+            ? FormatRouteName(stops)
+            : detail.Auction.Name!;
+
+        var fleet = await _vehicleRepository.GetAllAsync(carrierId, cancellationToken);
+
+        var physical = new CarrierAnalysisPhysicalRequirementsDto(
+            RecommendedFleet: FormatVehicleRequirement(requirement),
+            ConsolidatedWeightKg: detail.Route.TotalWeightKg,
+            VolumeM3: detail.Route.TotalVolumeM3,
+            RequiredTemperature: ResolveRequiredTemperature(products, requirement),
+            HandlingRestrictions: ResolveHandlingRestrictions(products));
+
+        return new CarrierBidAnalysisDto(
+            AuctionId: detail.Auction.Id,
+            RouteSummary: new CarrierAnalysisRouteSummaryDto(
+                ReferenceCode: FormatReferenceCode(detail.Route.Id),
+                ShortItinerary: displayName,
+                Sla: new CarrierAnalysisSlaDto(firstPickup, lastDelivery)),
+            Competition: new CarrierAnalysisCompetitionDto(
+                ActiveBids: totalBids,
+                BestLeaderOffer: bestBid?.TotalValue,
+                AuctionCeiling: detail.Route.ConsolidatedCeiling),
+            PhysicalRequirements: physical,
+            CarrierAvailableFleet: fleet
+                .Select(v => new CarrierAnalysisVehicleDto(
+                    VehicleId: v.Id,
+                    Plate: v.Plate,
+                    Model: v.Model,
+                    CapacityWeightKg: v.CapacityWeight,
+                    CapacityVolumeM3: v.CapacityVolume,
+                    Specifications: BuildVehicleSpecifications(v)))
+                .ToList(),
+            TravelPlan: stops
+                .Select(s => new CarrierAnalysisTravelStopDto(s.Order, s.CityState, s.ActionType))
+                .ToList());
+    }
+
+    public async Task<PlaceBidResponseDto> PlaceBidAsync(
+        Guid carrierId,
+        Guid auctionId,
+        PlaceBidRequestDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var detail = await _auctionRepository.GetForCarrierAnalysisAsync(auctionId, cancellationToken)
+            ?? throw new AuctionNotFoundException(auctionId);
+
+        if (detail.Auction.Status != AuctionStatus.Open)
+        {
+            throw new AuctionNotOpenException(auctionId);
+        }
+
+        var route = detail.Route;
+
+        // --- 1. Financial trava --------------------------------------------------
+        if (dto.ValorOferecido <= 0)
+        {
+            throw new BidRejectedException(
+                BidRejectionCode.InvalidValue,
+                "O valor oferecido deve ser maior que zero.");
+        }
+
+        if (dto.ValorOferecido > route.ConsolidatedCeiling)
+        {
+            throw new BidRejectedException(
+                BidRejectionCode.AboveCeiling,
+                $"Valor acima do teto do leilão ({route.ConsolidatedCeiling:C}).");
+        }
+
+        // The vehicle must belong to the carrier placing the bid.
+        var vehicle = await _vehicleRepository.GetByIdAsync(dto.VeiculoId, carrierId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Veículo {dto.VeiculoId} não encontrado para esta transportadora.");
+
+        // --- 2. Physical trava: weight ------------------------------------------
+        if ((decimal)route.TotalWeightKg > vehicle.CapacityWeight)
+        {
+            var excess = (decimal)route.TotalWeightKg - vehicle.CapacityWeight;
+            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Weight, cancellationToken);
+            throw new BidRejectedException(
+                BidRejectionCode.Overweight,
+                $"Excesso de Peso: a carga excede a capacidade do veículo em {excess:N0} kg.");
+        }
+
+        // --- 3. Physical trava: volume ------------------------------------------
+        if ((decimal)route.TotalVolumeM3 > vehicle.CapacityVolume)
+        {
+            var excess = (decimal)route.TotalVolumeM3 - vehicle.CapacityVolume;
+            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Volume, cancellationToken);
+            throw new BidRejectedException(
+                BidRejectionCode.Overvolume,
+                $"Excesso de Volume: a carga excede a capacidade do veículo em {excess:N0} m³.");
+        }
+
+        // --- 4. Equipment / compliance trava ------------------------------------
+        var products = detail.Segments
+            .SelectMany(s => s.Items)
+            .Where(i => i.Product is not null)
+            .Select(i => i.Product!)
+            .ToList();
+        var requirement = ConsolidatedVehicleRequirement.From(products);
+
+        var equipmentRejection = VehicleCompatibilityEvaluator.Evaluate(vehicle, requirement);
+        if (equipmentRejection is not null)
+        {
+            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Equipment, cancellationToken);
+            throw equipmentRejection;
+        }
+
+        // --- 5. Temporal trava: anti-overbooking --------------------------------
+        var newWindowStart = detail.Segments.Count > 0 ? detail.Segments.Min(s => s.PickupDeadline) : (DateTimeOffset?)null;
+        var newWindowEnd = detail.Segments.Count > 0 ? detail.Segments.Max(s => s.DeliveryDeadline) : (DateTimeOffset?)null;
+
+        if (newWindowStart is not null && newWindowEnd is not null)
+        {
+            var occupiedWindows = await _tripRepository.GetActiveWindowsForVehicleAsync(dto.VeiculoId, cancellationToken);
+            var overlaps = occupiedWindows.Any(w => w.Start <= newWindowEnd.Value && newWindowStart.Value <= w.End);
+            if (overlaps)
+            {
+                await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Sla, cancellationToken);
+                throw new BidRejectedException(
+                    BidRejectionCode.Overbooked,
+                    "Overbooking: o veículo já possui uma viagem ativa que se sobrepõe à janela desta rota.");
+            }
+        }
+
+        // --- All travas passed: persist the bid ---------------------------------
+        var tollValue = detail.Segments.Sum(s => s.EstimatedTollCost);
+        var totalValue = dto.ValorOferecido + tollValue;
+        var submittedAt = DateTimeOffset.UtcNow;
+
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            AuctionId = auctionId,
+            CarrierId = carrierId,
+            VehicleId = dto.VeiculoId,
+            NetFreightValue = dto.ValorOferecido,
+            TollValue = tollValue,
+            TotalValue = totalValue,
+            SubmittedAt = submittedAt,
+            Status = BidStatus.Pending
+        };
+
+        await _unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            await _bidRepository.AddAsync(bid, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+            return true;
+        }, cancellationToken);
+
+        return new PlaceBidResponseDto(
+            BidId: bid.Id,
+            AuctionId: auctionId,
+            NetFreightValue: bid.NetFreightValue,
+            TollValue: bid.TollValue,
+            TotalValue: bid.TotalValue,
+            SubmittedAt: bid.SubmittedAt,
+            Status: bid.Status.ToWire());
+    }
+
+    private Task LogBlockedAttemptAsync(
+        Guid contractorId,
+        Guid auctionId,
+        Guid carrierId,
+        BlockedReason reason,
+        CancellationToken cancellationToken)
+    {
+        return _blockedBidAttemptRepository.AddAsync(new BlockedBidAttempt
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = contractorId,
+            AuctionId = auctionId,
+            CarrierId = carrierId,
+            Reason = reason,
+            AttemptedAt = DateTimeOffset.UtcNow
+        }, cancellationToken);
+    }
+
+    /// <summary>Human-friendly reference code derived from a route id (e.g. ROT-XXXXXXXX).</summary>
+    private static string FormatReferenceCode(Guid routeId)
+        => $"ROT-{routeId.ToString("N")[..8].ToUpperInvariant()}";
+
+    /// <summary>Required temperature label built from the cargo environment and min/max temps.</summary>
+    private static string ResolveRequiredTemperature(IReadOnlyList<Product> products, ConsolidatedVehicleRequirement requirement)
+    {
+        if (string.Equals(requirement.MinRefrigerationLevel, "Nenhuma", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Ambiente (Sem refrigeração)";
+        }
+
+        var mins = products.Where(p => p.TempMin.HasValue).Select(p => p.TempMin!.Value).ToList();
+        var maxes = products.Where(p => p.TempMax.HasValue).Select(p => p.TempMax!.Value).ToList();
+
+        if (mins.Count > 0 || maxes.Count > 0)
+        {
+            var min = mins.Count > 0 ? mins.Min() : maxes.Min();
+            var max = maxes.Count > 0 ? maxes.Max() : mins.Max();
+            var range = Math.Abs(min - max) < 0.0001
+                ? $"{min:0.#}°C"
+                : $"{min:0.#}°C a {max:0.#}°C";
+            return $"{range} ({requirement.MinRefrigerationLevel})";
+        }
+
+        return requirement.MinRefrigerationLevel;
+    }
+
+    /// <summary>Distinct handling restrictions inherited from the cargo (packaging/fragile/dangerous/notes).</summary>
+    private static IReadOnlyList<string> ResolveHandlingRestrictions(IReadOnlyList<Product> products)
+    {
+        var restrictions = new List<string>();
+
+        if (products.Any(p => p.PackagingType == PackagingType.Palletized))
+        {
+            restrictions.Add("Carga Paletizada");
+        }
+
+        if (products.Any(p => p.Fragile))
+        {
+            restrictions.Add("Não Empilhar");
+        }
+
+        if (products.Any(p => p.Dangerous))
+        {
+            restrictions.Add("Carga Perigosa (MOPP)");
+        }
+
+        foreach (var note in products
+            .Select(p => p.HandlingRestriction)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!restrictions.Contains(note, StringComparer.OrdinalIgnoreCase))
+            {
+                restrictions.Add(note);
+            }
+        }
+
+        return restrictions;
+    }
+
+    /// <summary>Specification tags of a vehicle shown in the fleet dropdown.</summary>
+    private static IReadOnlyList<string> BuildVehicleSpecifications(Vehicle vehicle)
+    {
+        var specs = new List<string> { BodyTypeLabel(vehicle.BodyType) };
+
+        if (vehicle.RefrigerationLevel != RefrigerationLevel.Nenhuma)
+        {
+            specs.Add(vehicle.RefrigerationLevel.ToString());
+        }
+
+        if (vehicle.HasMopp)
+        {
+            specs.Add("MOPP");
+        }
+
+        if (vehicle.HasCargoSecuring)
+        {
+            specs.Add("Fixação de Carga");
+        }
+
+        return specs;
     }
 
     private static AuctionStatus ParseStatus(string? status)

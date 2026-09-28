@@ -44,4 +44,19 @@ public interface IAuctionService
     /// creates the trip (Viagem) that starts the physical operation.
     /// </summary>
     Task<AwardAuctionResponseDto> AwardAsync(Guid contractorId, Guid auctionId, AwardAuctionRequestDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Builds the carrier bid workspace (Workspace de Lance): the deep route data, the
+    /// competition snapshot, the cargo-inherited physical/compliance requirements and the
+    /// carrier's full available fleet.
+    /// </summary>
+    Task<CarrierBidAnalysisDto> GetCarrierAnalysisAsync(Guid carrierId, Guid auctionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Submits a carrier bid after running the Constraint Engine (Hard Block): financial,
+    /// weight, volume, equipment/compliance and anti-overbooking travas. Rejected attempts
+    /// throw a <see cref="Sigloc.Application.Exceptions.BidRejectedException"/> and are logged
+    /// for audit; a valid bid is persisted and returned (201).
+    /// </summary>
+    Task<PlaceBidResponseDto> PlaceBidAsync(Guid carrierId, Guid auctionId, PlaceBidRequestDto dto, CancellationToken cancellationToken = default);
 }
