@@ -23,6 +23,11 @@ public class PartnerConnectionConfiguration : IEntityTypeConfiguration<PartnerCo
             .HasForeignKey(c => c.CarrierId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(c => c.Contractor)
+            .WithMany()
+            .HasForeignKey(c => c.ContractorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // A contractor and a carrier can only be linked once.
         builder.HasIndex(c => new { c.ContractorId, c.CarrierId }).IsUnique();
     }

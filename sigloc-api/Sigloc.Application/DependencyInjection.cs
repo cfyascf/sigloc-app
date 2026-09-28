@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddScoped<IRouteSegmentService, RouteSegmentService>();
         services.AddScoped<IRoutePreviewService, RoutePreviewService>();
         services.AddScoped<IAuctionService, AuctionService>();
+        services.AddScoped<IFreightOfferService, FreightOfferService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IPartnerNetworkService, PartnerNetworkService>();
         services.AddScoped<IDashboardService, DashboardService>();

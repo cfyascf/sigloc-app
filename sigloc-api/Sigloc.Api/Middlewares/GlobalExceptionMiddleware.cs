@@ -167,6 +167,14 @@ public class GlobalExceptionHandlerMiddleware
                     message = invalidInvite.Message
                 }),
 
+            PartnershipAlreadyExistsException partnershipExists => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "PARCERIA_JA_EXISTE",
+                    message = partnershipExists.Message
+                }),
+
             InvalidCredentialsException invalidCredentials => (
                 (int)HttpStatusCode.Unauthorized,
                 new
@@ -194,6 +202,10 @@ public class GlobalExceptionHandlerMiddleware
             BidRejectedException bidRejected => (
                 (int)HttpStatusCode.BadRequest,
                 new { error = bidRejected.Code.ToString(), message = bidRejected.Message }),
+            
+            OfferNotFoundException offerNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new { error = "OFFER_NOT_FOUND", message = offerNotFound.Message }),
 
             KeyNotFoundException => (
                 (int)HttpStatusCode.NotFound,

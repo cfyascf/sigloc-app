@@ -25,4 +25,7 @@ public class PartnerConnection : BaseEntity
 
     /// <summary>Navigation property - só vem preenchida quando o repositório faz .Include(c => c.Carrier).</summary>
     public Carrier? Carrier { get; set; }
+
+    /// <summary>Navigation property - só vem preenchida quando o repositório faz .Include(c => c.Contractor).</summary>
+    public Contractor? Contractor { get; set; }
 }

@@ -30,6 +30,15 @@ public class PartnerConnectionRepository : IPartnerConnectionRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IEnumerable<PartnerConnection>> GetByCarrierAsync(Guid carrierId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.PartnerConnections
+            .AsNoTracking()
+            .Where(c => c.CarrierId == carrierId)
+            .Include(c => c.Contractor)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(PartnerConnection connection, CancellationToken cancellationToken = default)
     {
         await _dbContext.PartnerConnections.AddAsync(connection, cancellationToken);

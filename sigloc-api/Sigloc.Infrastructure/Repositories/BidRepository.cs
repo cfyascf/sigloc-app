@@ -83,4 +83,45 @@ public class BidRepository : IBidRepository
             .Where(b => b.AuctionId == auctionId)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyDictionary<Guid, BidStatus>> GetCarrierBidStatusesAsync(
+        Guid carrierId,
+        IReadOnlyCollection<Guid> auctionIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (auctionIds.Count == 0)
+        {
+            return new Dictionary<Guid, BidStatus>();
+        }
+
+        // A carrier holds a single active bid per auction; if several exist, keep the most
+        // relevant one (Winner > Winning > Losing > Pending) via descending enum order.
+        var rows = await _dbContext.Bids
+            .AsNoTracking()
+            .Where(b => b.CarrierId == carrierId
+                && auctionIds.Contains(b.AuctionId)
+                && b.Status != BidStatus.Withdrawn)
+            .Select(b => new { b.AuctionId, b.Status })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(r => r.AuctionId)
+            .ToDictionary(g => g.Key, g => g.Max(r => r.Status));
+    }
+
+    public async Task<BidStatus?> GetCarrierBidStatusAsync(
+        Guid carrierId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        var statuses = await _dbContext.Bids
+            .AsNoTracking()
+            .Where(b => b.CarrierId == carrierId
+                && b.AuctionId == auctionId
+                && b.Status != BidStatus.Withdrawn)
+            .Select(b => b.Status)
+            .ToListAsync(cancellationToken);
+
+        return statuses.Count == 0 ? null : statuses.Max();
+    }
 }

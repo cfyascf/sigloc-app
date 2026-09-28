@@ -35,6 +35,31 @@ function logoLetterFrom(name) {
   return trimmed ? trimmed[0].toUpperCase() : "?"
 }
 
+/**
+ * Normalizes a single carrier-network `CarrierNetworkPartnerDto` (the contractor
+ * side, from the carrier's point of view) into a plain object for the UI.
+ *
+ * Metrics like open offers / active lanes are not modeled in the domain yet, so
+ * they default to 0. The contractor CNPJ doubles as the connection code shown on
+ * the card.
+ */
+function toContractorPartner(dto) {
+  const contractor = dto?.contratante ?? {}
+  const name = contractor.nomeFantasia ?? "(contratante não encontrado)"
+
+  return {
+    id: dto?.conexaoId ?? null,
+    name,
+    logoLetter: logoLetterFrom(name),
+    status: partnershipStatusLabel(dto?.statusParceria),
+    cnpj: contractor.cnpj ?? "",
+    lastInteraction: dto?.ultimaInteracao ?? null,
+    openOffers: 0,
+    currentLanes: 0,
+    inviteCode: contractor.cnpj ?? "—",
+  }
+}
+
 /** Normalizes a single `PartnerDto` into a plain object for the UI. */
 function toPartner(dto) {
   const carrier = dto?.transportadora ?? {}
@@ -69,7 +94,22 @@ export async function getPartnerNetwork(options) {
   }
 }
 
+/**
+ * Fetches the authenticated carrier's partner network (connected contractors).
+ * @returns {Promise<{ totalActive, totalPending, partners: object[] }>}
+ */
+export async function getCarrierNetwork(options) {
+  const payload = await apiClient.get(`${BASE}/carrier`, options)
+
+  return {
+    totalActive: payload?.totalAtivos ?? 0,
+    totalPending: payload?.totalPendentes ?? 0,
+    partners: (payload?.parceiros ?? []).map(toContractorPartner),
+  }
+}
+
 export const partnerService = {
   getPartnerNetwork,
+  getCarrierNetwork,
   partnershipStatusLabel,
 }

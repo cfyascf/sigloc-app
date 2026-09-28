@@ -354,6 +354,30 @@ public static class DatabaseSeeder
         await dbContext.Set<Vehicle>().AddRangeAsync(new[] { vehicleFrio, vehicleRapido }, cancellationToken);
         await dbContext.Set<Bid>().AddRangeAsync(new[] { bidFrio, bidRapido }, cancellationToken);
 
+        // --- Carrier login + active partnership so the opportunity board (Mural de Fretes)
+        //     is non-empty end-to-end. Expresso Frio partners with the seeded contractor. ---
+        var carrierUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "carrier@sigloc.dev",
+            PasswordHash = passwordHasher.Hash(DefaultPassword),
+            AuthProvider = AuthProvider.Local,
+            ProfileType = ProfileType.Transportador,
+            CompanyId = carrierFrio.Id
+        };
+
+        var activePartnership = new PartnerConnection
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = contractor.Id,
+            CarrierId = carrierFrio.Id,
+            Status = PartnershipStatus.Active,
+            InitiatedBy = PartnershipInitiator.Contractor
+        };
+
+        await dbContext.Set<User>().AddAsync(carrierUser, cancellationToken);
+        await dbContext.Set<PartnerConnection>().AddAsync(activePartnership, cancellationToken);
+
         // --- An in-transit trip (Viagem EM_CURSO) so the executive dashboard renders live
         //     network efficiency and SLA milestones. The route consolidates two segments to
         //     count as a Continuous Move success. ---
