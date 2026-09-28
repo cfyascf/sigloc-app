@@ -182,16 +182,12 @@ export async function getAuctionById(id, options) {
 }
 
 /**
- * Updates an auction's editable metadata (custom name and/or bid deadline). Only the
- * provided fields are sent.
+ * Updates an auction's bid deadline. The deadline is only sent when provided.
  * @param {string} id
- * @param {{ name?: string, expiresAt?: string|Date }} changes
+ * @param {{ expiresAt?: string|Date }} changes
  */
-export async function updateAuction(id, { name, expiresAt } = {}, options) {
+export async function updateAuction(id, { expiresAt } = {}, options) {
   const payload = {}
-  if (name !== undefined) {
-    payload.name = name
-  }
   if (expiresAt !== undefined) {
     payload.expiresAt = toIso(expiresAt)
   }
@@ -200,7 +196,6 @@ export async function updateAuction(id, { name, expiresAt } = {}, options) {
   return dto
     ? {
         id: dto.id ?? id,
-        name: dto.name ?? null,
         expiresAt: dto.expiresAt ?? null,
       }
     : null
