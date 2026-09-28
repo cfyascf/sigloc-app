@@ -53,6 +53,33 @@ export function toVehicle(dto) {
 }
 
 /**
+ * Builds a `CreateVehicleDto` from the RegisterVehicle form model. Enum labels
+ * are converted to their integer wire values. Fields the form does not expose
+ * (axleCount, refrigerationLevel, hasMopp, hasCargoSecuring) default to neutral
+ * values; the create endpoint does not accept an initial status.
+ */
+export function toCreateDto(form) {
+  const toNumber = (value) =>
+    value === "" || value === null || value === undefined ? 0 : Number(value)
+
+  const plate = (form.plate ?? "").trim().replace(/[\s-]/g, "").toUpperCase()
+
+  return {
+    plate: plate || null,
+    model: form.model?.trim() || null,
+    axleCount: toNumber(form.axleCount),
+    capacityWeight: toNumber(form.weightKg),
+    capacityVolume: toNumber(form.volumeM3),
+    bodyType: bodyTypeValue(form.bodyType),
+    refrigerationLevel: 0,
+    hasMopp: false,
+    hasCargoSecuring: false,
+    driver: form.driver?.trim() || "",
+    currentLocation: form.location?.trim() || "",
+  }
+}
+
+/**
  * Builds an `UpdateVehicleDto` from the UI vehicle model. `plate` is
  * intentionally omitted — the backend does not allow changing it on update.
  * Enum labels are converted back to their integer wire values.
@@ -88,6 +115,12 @@ export async function getVehicle(id, options) {
   return toVehicle(payload)
 }
 
+/** Creates a vehicle from the RegisterVehicle form model. */
+export async function createVehicle(form, options) {
+  const payload = await apiClient.post(BASE, toCreateDto(form), options)
+  return toVehicle(payload)
+}
+
 /**
  * Updates an existing vehicle from the UI model. Resolves to void on success
  * (the endpoint returns 204 No Content).
@@ -104,8 +137,10 @@ export async function deleteVehicle(id, options) {
 export const vehicleService = {
   listVehicles,
   getVehicle,
+  createVehicle,
   updateVehicle,
   deleteVehicle,
   toVehicle,
+  toCreateDto,
   toUpdateDto,
 }

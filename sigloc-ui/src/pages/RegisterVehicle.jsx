@@ -1,15 +1,17 @@
 import { useState } from "react"
-import { ArrowLeft, Truck, MapPin, User, Activity, Scale, Box, Save, X, Info } from "lucide-react"
+import { ArrowLeft, Truck, MapPin, User, Activity, Scale, Box, Save, X, Info, AlertCircle, Loader2 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAsyncAction } from "@/hooks/use-async-action"
+import { vehicleService } from "@/services/vehicle-service"
 
 export default function RegisterVehicle() {
   const navigate = useNavigate()
-  
+
   // Estado espelhado aos campos do modo "update" da tela anterior
   const [formData, setFormData] = useState({
     plate: "",
@@ -21,6 +23,15 @@ export default function RegisterVehicle() {
     bodyType: "",
     status: ""
   })
+
+  const createAction = useAsyncAction(vehicleService.createVehicle)
+
+  const handleSave = async () => {
+    const result = await createAction.run(formData)
+    if (result.ok) {
+      navigate("/fleet-management")
+    }
+  }
 
   return (
     <AppShell title="Cadastro de Veículo">
@@ -39,11 +50,18 @@ export default function RegisterVehicle() {
             <Button asChild variant="outline" className="h-9 border-slate-200 text-xs font-semibold text-slate-700 bg-white">
               <Link to="/fleet-management"><X size={14} className="mr-1.5" /> Cancelar</Link>
             </Button>
-            <Button className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700">
-              <Save size={14} className="mr-1.5" /> Salvar Veículo
+            <Button onClick={handleSave} disabled={createAction.pending} className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700">
+              {createAction.pending ? <><Loader2 size={14} className="mr-1.5 animate-spin" /> Salvando...</> : <><Save size={14} className="mr-1.5" /> Salvar Veículo</>}
             </Button>
           </div>
         </div>
+
+        {/* FEEDBACK DE ERRO */}
+        {createAction.error && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50/70 px-4 py-3 text-xs font-semibold text-rose-700">
+            <AlertCircle size={14} /> {createAction.error.message}
+          </div>
+        )}
 
         {/* Double Div (Container Blindado do Formulário) */}
         <div className="min-h-0 flex-1 overflow-hidden">
@@ -187,8 +205,8 @@ export default function RegisterVehicle() {
                         <SelectContent>
                           <SelectItem value="Carga Seca">Carga Seca Padrão</SelectItem>
                           <SelectItem value="Baú Sider">Baú Sider (Abertura Lateral)</SelectItem>
-                          <SelectItem value="Frigorífico">Baú Frigorífico</SelectItem>
-                          <SelectItem value="Refrigerado">Baú Refrigerado</SelectItem>
+                          <SelectItem value="Grade Baixa">Grade Baixa</SelectItem>
+                          <SelectItem value="Frigorífico">Baú Refrigerado</SelectItem>
                           <SelectItem value="Carreta Prancha">Carreta Prancha / Aberta</SelectItem>
                         </SelectContent>
                       </Select>
