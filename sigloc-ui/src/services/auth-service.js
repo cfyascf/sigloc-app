@@ -17,6 +17,8 @@ const ENDPOINTS = {
   loginGoogle: "/api/auth/login/google",
   registerContractor: "/api/auth/register/contratante",
   registerContractorGoogle: "/api/auth/register/contratante/google",
+  invite: "/api/auth/invite",
+  activeInvite: "/api/auth/invite/active",
 }
 
 /**
@@ -96,9 +98,47 @@ export async function registerContractorWithGoogle(data, options) {
   return toSession(payload)
 }
 
+/**
+ * Normalizes an invite payload (`ActiveInviteDto` or `InviteCreatedDto`) into a
+ * single UI shape. The two backend DTOs differ slightly, so we read both spellings.
+ */
+function toInvite(payload) {
+  if (!payload) {
+    return null
+  }
+
+  return {
+    id: payload.id ?? null,
+    code: payload.codigo ?? payload.token ?? null,
+    link: payload.linkCompleto ?? payload.inviteLink ?? null,
+    expiresAt: payload.expiraEm ?? payload.expiresAt ?? null,
+    hoursRemaining: payload.horasRestantes ?? null,
+  }
+}
+
+/**
+ * Fetches the contractor's most recent active (not expired, not used) invite.
+ * Resolves to `null` when the backend returns 204 (no active invite).
+ */
+export async function getActiveInvite(options) {
+  const payload = await apiClient.get(ENDPOINTS.activeInvite, options)
+  return toInvite(payload)
+}
+
+/**
+ * Creates a new smart invite for the authenticated contractor.
+ * @param {{ inviteeEmail?: string, expiresInDays?: number }} [data]
+ */
+export async function createInvite(data = {}, options) {
+  const payload = await apiClient.post(ENDPOINTS.invite, data, options)
+  return toInvite(payload)
+}
+
 export const authService = {
   login,
   loginWithGoogle,
   registerContractor,
   registerContractorWithGoogle,
+  getActiveInvite,
+  createInvite,
 }

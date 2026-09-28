@@ -1,5 +1,15 @@
-import { useMemo, useState } from "react"
-import { ArrowRight, Copy, Link2, Plus } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  Copy,
+  Link2,
+  Loader2,
+  Plus,
+  ShieldCheck,
+  Star,
+} from "lucide-react"
 import { Link } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
@@ -7,17 +17,54 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/contexts/AuthContext"
+import { useAsyncAction } from "@/hooks/use-async-action"
 import { ROLES } from "@/constants/roles"
-import {
-  carrierPartnersMock,
-  contractorInviteTemplate,
-  contractorPartnersMock,
-} from "@/constants/partners-mock"
+import { authService } from "@/services/auth-service"
+import { partnerService } from "@/services/partner-service"
+import { carrierPartnersMock } from "@/constants/partners-mock"
 
 const statusStyles = {
   Ativo: "border-emerald-200 bg-emerald-50 text-emerald-700",
   "Pendente de Aceite": "border-amber-200 bg-amber-50 text-amber-700",
   Encerrado: "border-slate-200 bg-slate-100 text-slate-600",
+}
+
+const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+})
+
+function formatDateTime(value) {
+  if (!value) {
+    return "Sem interações"
+  }
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? "Sem interações" : dateFormatter.format(date)
+}
+
+function formatRating(rating) {
+  return typeof rating === "number" ? rating.toFixed(1) : "—"
+}
+
+/** Humanizes the remaining lifetime of an invite for display. */
+function formatExpiry({ hoursRemaining, expiresAt } = {}) {
+  if (hoursRemaining === null || hoursRemaining === undefined) {
+    return expiresAt ? "Expira em breve" : "Não expira"
+  }
+
+  if (hoursRemaining <= 0) {
+    return "Expirado"
+  }
+
+  if (hoursRemaining < 24) {
+    return `Expira em ${Math.ceil(hoursRemaining)}h`
+  }
+
+  return `Expira em ${Math.ceil(hoursRemaining / 24)} dia(s)`
 }
 
 function PartnerCard({ partner, isCarrierView }) {
@@ -32,7 +79,9 @@ function PartnerCard({ partner, isCarrierView }) {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-900">{partner.name}</p>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">{partner.id}</p>
+            <p className="truncate font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              {isCarrierView ? partner.id : partner.cnpj}
+            </p>
           </div>
         </div>
 
@@ -56,43 +105,121 @@ function PartnerCard({ partner, isCarrierView }) {
         ) : (
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Veículos prontos</p>
-              <p className="mt-1 text-lg font-black text-slate-900">{partner.fleetReady}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Veículos livres</p>
+              <p className="mt-1 text-lg font-black text-slate-900">{partner.freeVehicles}</p>
             </div>
             <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Corredores cobertos</p>
-              <p className="mt-1 text-lg font-black text-slate-900">{partner.lanesCovered}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Viagens conosco</p>
+              <p className="mt-1 text-lg font-black text-slate-900">{partner.activeTripsWithUs}</p>
             </div>
           </div>
         )}
 
-        <div className="rounded-lg border border-slate-100 bg-white p-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            {isCarrierView ? "Código de conexão" : "Última interação"}
-          </p>
-          <p className="mt-1 text-sm font-bold text-slate-800">
-            {isCarrierView ? partner.inviteCode : partner.lastFreight}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            {isCarrierView ? "Use esse código para validar o convite recebido." : partner.avgResponseTime}
-          </p>
-        </div>
+        {isCarrierView ? (
+          <div className="rounded-lg border border-slate-100 bg-white p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Código de conexão</p>
+            <p className="mt-1 text-sm font-bold text-slate-800">{partner.inviteCode}</p>
+            <p className="mt-1 text-xs text-slate-500">Use esse código para validar o convite recebido.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white p-3">
+                <Star size={14} className="shrink-0 text-amber-500" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nota média</p>
+                  <p className="mt-0.5 text-sm font-bold text-slate-800">{formatRating(partner.averageRating)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white p-3">
+                <ShieldCheck
+                  size={14}
+                  className={`shrink-0 ${partner.hasActiveInsurancePolicy ? "text-emerald-600" : "text-slate-300"}`}
+                />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Seguro</p>
+                  <p className="mt-0.5 text-sm font-bold text-slate-800">
+                    {partner.hasActiveInsurancePolicy ? "Ativo" : "Inativo"}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-        <div className="mt-auto pt-1">
-          {isCarrierView ? (
+            <div className="rounded-lg border border-slate-100 bg-white p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Última interação</p>
+              <p className="mt-1 text-sm font-bold text-slate-800">{formatDateTime(partner.lastInteraction)}</p>
+            </div>
+          </div>
+        )}
+
+        {isCarrierView && (
+          <div className="mt-auto pt-1">
             <Button asChild className="h-9 w-full bg-slate-900 text-xs font-bold text-white hover:bg-slate-800">
               <Link to={`/freights-offers-overview?partner=${encodeURIComponent(partner.name)}`}>
                 Ver Ofertas Disponíveis <ArrowRight size={14} className="ml-1.5" />
               </Link>
             </Button>
-          ) : (
-            <Button variant="outline" className="h-9 w-full border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50">
-              <Link2 size={14} className="mr-1.5" /> Gerar Novo Convite
-            </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </article>
+  )
+}
+
+function ActiveInviteBlock({ invite, pending, error, onCopy, onGenerate, copied }) {
+  if (pending) {
+    return (
+      <div className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+        <Loader2 size={16} className="animate-spin" /> Carregando convite...
+      </div>
+    )
+  }
+
+  if (!invite) {
+    return (
+      <div className="mt-4 space-y-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
+        <p className="text-xs text-slate-500">Nenhum convite ativo no momento.</p>
+        {error && (
+          <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-rose-600">
+            <AlertCircle size={13} /> {error.message}
+          </p>
+        )}
+        <Button
+          onClick={onGenerate}
+          className="h-9 w-full bg-blue-600 text-xs font-bold text-white hover:bg-blue-700"
+        >
+          <Plus size={14} className="mr-1.5" /> Gerar Convite
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Convite ativo</p>
+      <p className="break-all text-sm font-bold text-slate-900">{invite.link}</p>
+      <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+        <span>
+          Código: <span className="font-mono font-bold text-slate-700">{invite.code}</span>
+        </span>
+        <span>{formatExpiry(invite)}</span>
+      </div>
+      <Button
+        variant="outline"
+        onClick={onCopy}
+        className="mt-1 h-9 w-full border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50"
+      >
+        {copied ? (
+          <>
+            <Check size={14} className="mr-1.5 text-emerald-600" /> Link Copiado!
+          </>
+        ) : (
+          <>
+            <Copy size={14} className="mr-1.5" /> Copiar Link de Convite
+          </>
+        )}
+      </Button>
+    </div>
   )
 }
 
@@ -100,17 +227,63 @@ export default function PartnerNetwork() {
   const { user } = useAuth()
   const isCarrierView = user.role === ROLES.CARRIER
   const [connectionValue, setConnectionValue] = useState("")
-  const searchTerm = ""
 
-  const partners = isCarrierView ? carrierPartnersMock : contractorPartnersMock
-  const filteredPartners = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase()
-    if (!term) {
-      return partners
+  const [partners, setPartners] = useState([])
+  const [activeInvite, setActiveInvite] = useState(null)
+  const [copied, setCopied] = useState(false)
+
+  const networkAction = useAsyncAction(() => partnerService.getPartnerNetwork())
+  const activeInviteAction = useAsyncAction(() => authService.getActiveInvite())
+  const createInviteAction = useAsyncAction(() => authService.createInvite())
+
+  const loadNetwork = useCallback(async () => {
+    const result = await networkAction.run()
+    if (result.ok) {
+      setPartners(result.data.partners)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const loadActiveInvite = useCallback(async () => {
+    const result = await activeInviteAction.run()
+    if (result.ok) {
+      setActiveInvite(result.data)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (isCarrierView) {
+      setPartners(carrierPartnersMock)
+      return
     }
 
-    return partners.filter((partner) => [partner.name, partner.id, partner.status].join(" ").toLowerCase().includes(term))
-  }, [partners, searchTerm])
+    loadNetwork()
+    loadActiveInvite()
+  }, [isCarrierView, loadNetwork, loadActiveInvite])
+
+  const handleCopyInvite = useCallback(async () => {
+    if (!activeInvite?.link) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(activeInvite.link)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }, [activeInvite])
+
+  const handleGenerateInvite = useCallback(async () => {
+    const result = await createInviteAction.run()
+    if (result.ok) {
+      setActiveInvite(result.data)
+    }
+  }, [createInviteAction])
+
+  const filteredPartners = partners
 
   return (
     <AppShell title="Rede de Parceiros">
@@ -140,28 +313,48 @@ export default function PartnerNetwork() {
                   <Link2 size={16} className="text-blue-600" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Convite inteligente</h2>
                 </div>
-                <div className="mt-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Convite ativo</p>
-                  <p className="text-sm font-bold text-slate-900">{contractorInviteTemplate.link}</p>
-                  <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
-                    <span>Código: <span className="font-mono font-bold text-slate-700">{contractorInviteTemplate.code}</span></span>
-                    <span>{contractorInviteTemplate.expiresAt}</span>
-                  </div>
-                  <Button variant="outline" className="mt-1 h-9 w-full border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50">
-                    <Copy size={14} className="mr-1.5" /> Copiar Link de Convite
-                  </Button>
-                </div>
+                <ActiveInviteBlock
+                  invite={activeInvite}
+                  pending={activeInviteAction.pending || createInviteAction.pending}
+                  error={createInviteAction.error}
+                  copied={copied}
+                  onCopy={handleCopyInvite}
+                  onGenerate={handleGenerateInvite}
+                />
               </>
             )}
           </section>
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden">
-          <div className="grid gap-4 overflow-y-auto pr-2 pb-6 md:grid-cols-2 xl:grid-cols-3">
-            {filteredPartners.map((partner) => (
-              <PartnerCard key={partner.id} partner={partner} isCarrierView={isCarrierView} />
-            ))}
-          </div>
+          {!isCarrierView && networkAction.pending ? (
+            <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-500">
+              <Loader2 size={18} className="animate-spin" /> Carregando parceiros...
+            </div>
+          ) : !isCarrierView && networkAction.error ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-500">
+              <AlertCircle size={20} className="text-rose-500" />
+              <p>{networkAction.error.message}</p>
+              <Button
+                variant="outline"
+                onClick={loadNetwork}
+                className="h-9 border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          ) : filteredPartners.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
+              <p className="font-medium text-slate-600">Nenhum parceiro na sua rede ainda.</p>
+              <p className="text-xs">Gere um convite para conectar novas transportadoras.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 overflow-y-auto pr-2 pb-6 md:grid-cols-2 xl:grid-cols-3">
+              {filteredPartners.map((partner) => (
+                <PartnerCard key={partner.id} partner={partner} isCarrierView={isCarrierView} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </AppShell>
