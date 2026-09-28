@@ -1,36 +1,3 @@
-export const contractorPartnersMock = [
-  {
-    id: "PRC-201",
-    name: "Expresso Sul Ltda",
-    logoLetter: "E",
-    status: "Ativo",
-    fleetReady: 14,
-    lanesCovered: 8,
-    avgResponseTime: "12 min",
-    lastFreight: "Hoje, 09:20",
-  },
-  {
-    id: "PRC-202",
-    name: "Rota Norte Logística",
-    logoLetter: "R",
-    status: "Pendente de Aceite",
-    fleetReady: 9,
-    lanesCovered: 5,
-    avgResponseTime: "Aguardando aceite",
-    lastFreight: "Convite enviado há 2h",
-  },
-  {
-    id: "PRC-203",
-    name: "TransVale Transportes",
-    logoLetter: "T",
-    status: "Encerrado",
-    fleetReady: 0,
-    lanesCovered: 2,
-    avgResponseTime: "Desativado",
-    lastFreight: "Última operação em 18/05",
-  },
-]
-
 export const carrierPartnersMock = [
   {
     id: "EMB-301",
@@ -70,10 +37,3 @@ export const carrierInviteInboxMock = [
     corridor: "Joinville -> Campinas",
   },
 ]
-
-export const contractorInviteTemplate = {
-  contractor: "Sigma Foods",
-  code: "SIG-4821",
-  link: "https://sigloc.app/invite/SIG-4821",
-  expiresAt: "Expira em 48h",
-}

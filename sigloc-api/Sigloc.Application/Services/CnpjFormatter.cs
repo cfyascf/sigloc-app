@@ -2,7 +2,7 @@ namespace Sigloc.Application.Services;
 
 /// <summary>
 /// O Cnpj é guardado no banco só com dígitos (ex: "12345678000199"), mas a spec do
-/// GET /api/parcerias exige o formato mascarado ("12.345.678/0001-90"). Método puro,
+/// GET /api/partnerships exige o formato mascarado ("12.345.678/0001-90"). Método puro,
 /// fácil de testar isoladamente.
 /// </summary>
 public static class CnpjFormatter

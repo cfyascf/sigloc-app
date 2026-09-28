@@ -7,7 +7,7 @@ using Sigloc.Api.Extensions;
 namespace Sigloc.Api.Controllers;
 
 [ApiController]
-[Route("api/parcerias")]
+[Route("api/partnerships")]
 [Authorize(Policy = Policies.RequireShipperAccess)] // história é do Operador Logístico (Contratante)
 public class PartnersController : ControllerBase
 {
@@ -18,7 +18,7 @@ public class PartnersController : ControllerBase
         _partnerNetworkService = partnerNetworkService;
     }
 
-    /// <summary>GET /api/parcerias - listagem analítica da rede de transportadoras parceiras.</summary>
+    /// <summary>GET /api/partnerships - listagem analítica da rede de transportadoras parceiras.</summary>
     [HttpGet]
     public async Task<IActionResult> GetNetwork(CancellationToken cancellationToken)
     {
