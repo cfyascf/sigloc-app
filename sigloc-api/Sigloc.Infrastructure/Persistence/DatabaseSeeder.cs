@@ -354,6 +354,129 @@ public static class DatabaseSeeder
         await dbContext.Set<Vehicle>().AddRangeAsync(new[] { vehicleFrio, vehicleRapido }, cancellationToken);
         await dbContext.Set<Bid>().AddRangeAsync(new[] { bidFrio, bidRapido }, cancellationToken);
 
+        // --- An in-transit trip (Viagem EM_CURSO) so the executive dashboard renders live
+        //     network efficiency and SLA milestones. The route consolidates two segments to
+        //     count as a Continuous Move success. ---
+        var transitRoute = new ConsolidatedRoute
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = contractor.Id,
+            Status = RouteStatus.InTransit,
+            TotalDistanceKm = 504.0,
+            EstimatedTimeHours = 7.0,
+            ConsolidatedCeiling = 4100.00m,
+            EstimatedAnttFloor = 4000.00m,
+            TotalWeightKg = 23800, // ~88% of the 27.000 kg vehicle capacity
+            TotalVolumeM3 = 67     // ~74% of the 90 m³ vehicle capacity
+        };
+
+        var transitSegment1 = new RouteSegment
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = contractor.Id,
+            RouteId = transitRoute.Id,
+            OriginAddress = "Curitiba, PR",
+            DestinationAddress = "São Paulo, SP",
+            OriginCoordinate = "-49.273252,-25.429595",
+            DestinationCoordinate = "-46.633308,-23.550520",
+            DistanceKm = 408.0,
+            EstimatedTimeHours = 5.5,
+            BudgetCeiling = 3200.00m,
+            EstimatedTollCost = 180.00m,
+            PickupDeadline = now.AddMinutes(45),   // imminent COLETA → critical SLA milestone
+            DeliveryDeadline = now.AddHours(9),
+            Status = SegmentStatus.Routed,
+            Items =
+            {
+                new ProductRouteSegment { Id = Guid.NewGuid(), ProductId = palletized.Id, Quantity = 14 }
+            }
+        };
+
+        var transitSegment2 = new RouteSegment
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = contractor.Id,
+            RouteId = transitRoute.Id,
+            OriginAddress = "São Paulo, SP",
+            DestinationAddress = "Campinas, SP",
+            OriginCoordinate = "-46.633308,-23.550520",
+            DestinationCoordinate = "-47.061580,-22.905833",
+            DistanceKm = 96.0,
+            EstimatedTimeHours = 1.5,
+            BudgetCeiling = 900.00m,
+            EstimatedTollCost = 62.00m,
+            PickupDeadline = now.AddHours(3),
+            DeliveryDeadline = now.AddHours(11),
+            Status = SegmentStatus.Routed,
+            Items =
+            {
+                new ProductRouteSegment { Id = Guid.NewGuid(), ProductId = frozen.Id, Quantity = 6 }
+            }
+        };
+
+        var transitAuction = new Auction
+        {
+            Id = Guid.NewGuid(),
+            RouteId = transitRoute.Id,
+            OpenedAt = now.AddDays(-2),
+            ExpiresAt = now.AddDays(-1),
+            AutomaticAward = true,
+            Status = AuctionStatus.Closed
+        };
+
+        var transitBid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            AuctionId = transitAuction.Id,
+            CarrierId = carrierFrio.Id,
+            VehicleId = vehicleFrio.Id,
+            NetFreightValue = 4080.00m,
+            TollValue = 200.00m,
+            TotalValue = 4280.00m, // above the 4.100 ceiling → over-budget cost deviation
+            SubmittedAt = now.AddDays(-2).AddHours(1),
+            Status = BidStatus.Winner
+        };
+
+        var transitTrip = new Trip
+        {
+            Id = Guid.NewGuid(),
+            RouteId = transitRoute.Id,
+            AuctionId = transitAuction.Id,
+            CarrierId = carrierFrio.Id,
+            VehicleId = vehicleFrio.Id,
+            BidId = transitBid.Id,
+            AgreedValue = transitBid.TotalValue,
+            StartedAt = now.AddHours(-2),
+            Status = TripStatus.InTransit
+        };
+
+        var transitMonitoring = new TripMonitoring
+        {
+            Id = Guid.NewGuid(),
+            TripId = transitTrip.Id,
+            LastProgressPercentage = 35,
+            LastCalculatedEta = now.AddHours(1), // ETA later than the 45-min pickup deadline
+            LastPingAt = now.AddMinutes(-5)
+        };
+
+        var blockedAttempt = new BlockedBidAttempt
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = contractor.Id,
+            AuctionId = auction.Id,
+            CarrierId = carrierRapido.Id,
+            Reason = BlockedReason.Volume,
+            AttemptedAt = now.AddDays(-3)
+        };
+
+        await dbContext.Set<ConsolidatedRoute>().AddAsync(transitRoute, cancellationToken);
+        await dbContext.Set<RouteSegment>().AddRangeAsync(new[] { transitSegment1, transitSegment2 }, cancellationToken);
+        await dbContext.Set<Auction>().AddAsync(transitAuction, cancellationToken);
+        await dbContext.Set<Bid>().AddAsync(transitBid, cancellationToken);
+        await dbContext.Set<Trip>().AddAsync(transitTrip, cancellationToken);
+        await dbContext.Set<TripMonitoring>().AddAsync(transitMonitoring, cancellationToken);
+        await dbContext.Set<BlockedBidAttempt>().AddAsync(blockedAttempt, cancellationToken);
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
