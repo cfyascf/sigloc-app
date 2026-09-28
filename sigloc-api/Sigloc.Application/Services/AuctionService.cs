@@ -393,8 +393,10 @@ public class AuctionService : IAuctionService
         Guid auctionId,
         CancellationToken cancellationToken = default)
     {
-        var detail = await _auctionRepository.GetForCarrierAnalysisAsync(auctionId, cancellationToken)
-            ?? throw new AuctionNotFoundException(auctionId);
+        // Scoped to the carrier's active partnerships (open, non-expired), mirroring the
+        // opportunity board: a partner carrier can analyse the offer; others get a 404.
+        var detail = await _auctionRepository.GetAvailableForCarrierAsync(auctionId, carrierId, DateTimeOffset.UtcNow, cancellationToken)
+            ?? throw new OfferNotFoundException(auctionId);
 
         var stops = TravelPlanBuilder.Build(detail.Segments);
         var cities = TravelPlanBuilder.OrderedCities(stops);
@@ -461,13 +463,10 @@ public class AuctionService : IAuctionService
         PlaceBidRequestDto dto,
         CancellationToken cancellationToken = default)
     {
-        var detail = await _auctionRepository.GetForCarrierAnalysisAsync(auctionId, cancellationToken)
-            ?? throw new AuctionNotFoundException(auctionId);
-
-        if (detail.Auction.Status != AuctionStatus.Open)
-        {
-            throw new AuctionNotOpenException(auctionId);
-        }
+        // Scoped to the carrier's active partnerships (open, non-expired). A non-partner
+        // carrier, a closed or an expired auction all resolve to a 404 offer-not-found.
+        var detail = await _auctionRepository.GetAvailableForCarrierAsync(auctionId, carrierId, DateTimeOffset.UtcNow, cancellationToken)
+            ?? throw new OfferNotFoundException(auctionId);
 
         var route = detail.Route;
 

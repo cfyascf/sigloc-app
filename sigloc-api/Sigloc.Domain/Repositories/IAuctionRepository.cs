@@ -61,16 +61,6 @@ public interface IAuctionRepository
         Guid contractorId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Loads a single auction with its consolidated route and linked segments (including
-    /// products) for the carrier bid workspace. Unlike <see cref="GetDetailAsync"/> this
-    /// is NOT scoped to a contractor, since any carrier can analyse an open auction.
-    /// Returns null when the auction does not exist.
-    /// </summary>
-    Task<AuctionWithRoute?> GetForCarrierAnalysisAsync(
-        Guid id,
-        CancellationToken cancellationToken = default);
-
     /// <summary>Persists changes made to a tracked auction.</summary>
     Task UpdateAsync(Auction auction, CancellationToken cancellationToken = default);
 
