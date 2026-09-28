@@ -1,14 +1,60 @@
-import { useState } from "react"
-import { Search, Clock, TrendingDown, ArrowRight, SlidersHorizontal, Pencil, Trash2, Check, X, AlertCircle } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { Search, Clock, TrendingDown, ArrowRight, SlidersHorizontal, Pencil, Trash2, X, AlertCircle, Loader2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import AppShell from "@/components/app-shell"
+import { FormAlert } from "@/components/auth/FormAlert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { segmentPlansMock } from "@/constants/logistics-mock"
+import { useAsyncAction } from "@/hooks/use-async-action"
+import { listAuctions } from "@/services/auction-service"
 import { RISK } from "@/constants/risk"
 
+const SEARCH_DEBOUNCE_MS = 350
+const PAGE_SIZE = 50
+
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value)
+
+const formatDeadline = (value) => {
+  if (!value) {
+    return "Sem prazo"
+  }
+
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return "Sem prazo"
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date)
+}
+
+/** Splits the itinerary summary ("A → B → C") into individual stops. */
+const toStops = (summary) => {
+  if (!summary) {
+    return []
+  }
+
+  return summary
+    .split(/\s*(?:➔|→|->|,)\s*/)
+    .map((stop) => stop.trim())
+    .filter(Boolean)
+}
+
+/** Maps an auction list item DTO to the card view model used by the JSX. */
+const toCardModel = (item) => ({
+  id: item.id,
+  name: item.itinerarySummary || item.itineraryWithStates || item.id,
+  stops: toStops(item.itineraryWithStates || item.itinerarySummary),
+  bestBid: item.bidMetrics?.bestBid ?? null,
+  totalBids: item.bidMetrics?.totalBids ?? 0,
+  bidDeadline: formatDeadline(item.expiresAt),
+  risk: item.riskIndicator || RISK.NORMAL,
+})
 
 const getRiskBadge = (risk) => {
   const styles = {
@@ -20,11 +66,39 @@ const getRiskBadge = (risk) => {
 }
 
 export default function FreightsOfferedOverview() {
-  const [leiloes, setLeiloes] = useState(segmentPlansMock.filter((s) => s.status !== "Em montagem"))
+  const [leiloes, setLeiloes] = useState([])
   const [deletingId, setDeletingId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+
+  const listAction = useAsyncAction((query) => listAuctions(query))
+  const listPending = listAction.pending
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setDebouncedSearch(searchTerm.trim()),
+      SEARCH_DEBOUNCE_MS
+    )
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const loadList = useCallback(async () => {
+    const result = await listAction.run({
+      search: debouncedSearch || undefined,
+      page: 1,
+      pageSize: PAGE_SIZE,
+    })
+    if (result.ok) {
+      setLeiloes(result.data.items.map(toCardModel))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch])
+
+  useEffect(() => {
+    loadList()
+  }, [loadList])
 
   const handleDelete = (id) => {
     setLeiloes(prev => prev.filter(l => l.id !== id))
@@ -42,10 +116,7 @@ export default function FreightsOfferedOverview() {
     setEditForm(null)
   }
 
-  const filteredLeiloes = leiloes.filter((l) => {
-    const term = searchTerm.toLowerCase()
-    return l.id.toLowerCase().includes(term) || l.name.toLowerCase().includes(term)
-  })
+  const filteredLeiloes = leiloes
 
   return (
     <AppShell title="Painel de Leilões">
@@ -74,7 +145,28 @@ export default function FreightsOfferedOverview() {
 
         <div className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto pr-2 pb-6">
-            
+
+            {listPending ? (
+              <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-500">
+                <Loader2 size={16} className="animate-spin" /> Carregando leilões...
+              </div>
+            ) : listAction.error ? (
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-6">
+                <FormAlert message={listAction.error.message} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadList}
+                  className="h-8 text-xs font-semibold"
+                >
+                  Tentar novamente
+                </Button>
+              </div>
+            ) : filteredLeiloes.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+                Nenhum leilão encontrado.
+              </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredLeiloes.map((l) => {
                 const isEditing = editingId === l.id
@@ -173,6 +265,7 @@ export default function FreightsOfferedOverview() {
                 )
               })}
             </div>
+            )}
           </div>
         </div>
       </div>
