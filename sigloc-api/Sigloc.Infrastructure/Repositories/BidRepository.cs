@@ -58,4 +58,29 @@ public class BidRepository : IBidRepository
 
         return best;
     }
+
+    public async Task<IReadOnlyList<RankedBid>> GetRankedBidsAsync(
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        var ranked = await (
+            from bid in _dbContext.Bids.AsNoTracking()
+            where bid.AuctionId == auctionId && bid.Status != BidStatus.Withdrawn
+            join carrier in _dbContext.Carriers.AsNoTracking() on bid.CarrierId equals carrier.Id
+            join vehicle in _dbContext.Vehicles.AsNoTracking() on bid.VehicleId equals vehicle.Id
+            orderby bid.TotalValue, carrier.AverageRating descending
+            select new RankedBid(bid, carrier, vehicle))
+            .ToListAsync(cancellationToken);
+
+        return ranked;
+    }
+
+    public async Task<IReadOnlyList<Bid>> GetTrackedByAuctionAsync(
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Bids
+            .Where(b => b.AuctionId == auctionId)
+            .ToListAsync(cancellationToken);
+    }
 }

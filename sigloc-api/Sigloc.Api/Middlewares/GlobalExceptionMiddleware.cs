@@ -183,6 +183,14 @@ public class GlobalExceptionHandlerMiddleware
                     message = invalidGoogle.Message
                 }),
 
+            BidNotFoundException bidNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new { error = "BID_NOT_FOUND", message = bidNotFound.Message }),
+
+            AuctionNotOpenException auctionNotOpen => (
+                (int)HttpStatusCode.Conflict,
+                new { error = "AUCTION_NOT_OPEN", message = auctionNotOpen.Message }),
+
             KeyNotFoundException => (
                 (int)HttpStatusCode.NotFound,
                 new { error = "NOT_FOUND", message = exception.Message }),

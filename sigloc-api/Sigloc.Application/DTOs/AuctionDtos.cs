@@ -161,3 +161,73 @@ public record UpdateAuctionRequestDto(
 public record UpdateAuctionResponseDto(
     Guid Id,
     DateTimeOffset ExpiresAt);
+
+// ---------------------------------------------------------------------------
+// Bid ranking (Análise de Lances) — GET /api/auctions/{id}/bids
+// ---------------------------------------------------------------------------
+
+/// <summary>Route summary block shown above the bid ranking.</summary>
+public record BidRankingRouteSummaryDto(
+    Guid RouteId,
+    string ItinerarySummary,
+    string ItineraryWithStates,
+    int SegmentCount,
+    Guid? FirstSegmentId,
+    IReadOnlyList<Guid> LinkedSegmentIds,
+    DateTimeOffset? FirstPickupDeadline,
+    DateTimeOffset? LastDeliveryDeadline,
+    FinancialScenarioDto FinancialScenario);
+
+/// <summary>Carrier reliability data shown on each ranking row.</summary>
+public record BidRankingCarrierDto(
+    Guid Id,
+    string TradeName,
+    double? AverageRating,
+    int OnTimeDeliveryRate,
+    bool HasActiveInsurancePolicy);
+
+/// <summary>Vehicle data shown on each ranking row.</summary>
+public record BidRankingVehicleDto(
+    string Plate,
+    string BodyType);
+
+/// <summary>Financial breakdown and savings of a ranked bid.</summary>
+public record BidRankingFinancialsDto(
+    decimal TotalValue,
+    decimal NetFreightValue,
+    decimal TollValue,
+    decimal SavingsValue,
+    double SavingsPercentage);
+
+/// <summary>A single ranked bid row.</summary>
+public record BidRankingItemDto(
+    int Rank,
+    Guid BidId,
+    string Status,
+    DateTimeOffset SubmittedAt,
+    BidRankingCarrierDto Carrier,
+    BidRankingVehicleDto Vehicle,
+    BidRankingFinancialsDto Financials);
+
+/// <summary>Full response for the bid ranking endpoint.</summary>
+public record BidRankingDto(
+    Guid AuctionId,
+    string Status,
+    BidRankingRouteSummaryDto Route,
+    IReadOnlyList<BidRankingItemDto> Bids);
+
+// ---------------------------------------------------------------------------
+// Award (Adjudicação) — POST /api/auctions/{id}/award
+// ---------------------------------------------------------------------------
+
+/// <summary>Request body for awarding an auction to the winning bid.</summary>
+public record AwardAuctionRequestDto(
+    Guid WinningBidId);
+
+/// <summary>Response returned after a successful award, carrying the created trip id.</summary>
+public record AwardAuctionResponseDto(
+    Guid TripId,
+    Guid AuctionId,
+    Guid WinningBidId,
+    string AuctionStatus,
+    string RouteStatus);

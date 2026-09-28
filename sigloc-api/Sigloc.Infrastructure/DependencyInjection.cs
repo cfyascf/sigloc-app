@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IConsolidatedRouteRepository, ConsolidatedRouteRepository>();
         services.AddScoped<IAuctionRepository, AuctionRepository>();
         services.AddScoped<IBidRepository, BidRepository>();
+        services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<IAuctionNotifier, LoggingAuctionNotifier>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IContractorRepository, ContractorRepository>();

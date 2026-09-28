@@ -275,6 +275,7 @@ public static class DatabaseSeeder
             CompanyName = "Expresso Frio Ltda",
             TradeName = "Expresso Frio",
             AverageRating = 4.7,
+            OnTimeDeliveryRate = 98,
             HasActiveInsurancePolicy = true
         };
 
@@ -285,6 +286,7 @@ public static class DatabaseSeeder
             CompanyName = "Rápido Sul Transportes",
             TradeName = "Rápido Sul",
             AverageRating = 4.2,
+            OnTimeDeliveryRate = 95,
             HasActiveInsurancePolicy = true
         };
 

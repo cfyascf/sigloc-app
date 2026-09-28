@@ -18,4 +18,9 @@ public class ConsolidatedRouteRepository : IConsolidatedRouteRepository
         // Staged only; the caller commits through the unit of work transaction.
         await _dbContext.ConsolidatedRoutes.AddAsync(route, cancellationToken);
     }
+
+    public async Task<ConsolidatedRoute?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ConsolidatedRoutes.FindAsync(new object[] { id }, cancellationToken);
+    }
 }

@@ -62,4 +62,22 @@ public class AuctionsController : ControllerBase
         await _auctionService.DeleteAsync(GetContractorId(), id, cancellationToken);
         return NoContent();
     }
+
+    /// <summary>Ranked list of active bids (Motor de Ranking) for the auction.</summary>
+    [HttpGet("{id:guid}/bids")]
+    [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> GetBidRanking(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _auctionService.GetBidRankingAsync(GetContractorId(), id, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Awards the auction to the chosen bid (Adjudicação), creating the trip.</summary>
+    [HttpPost("{id:guid}/award")]
+    [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> Award(Guid id, [FromBody] AwardAuctionRequestDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _auctionService.AwardAsync(GetContractorId(), id, dto, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
 }

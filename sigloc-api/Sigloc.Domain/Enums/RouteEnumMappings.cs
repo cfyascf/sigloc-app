@@ -11,6 +11,7 @@ public static class RouteEnumMappings
     {
         [RouteStatus.Planned] = "PLANNED",
         [RouteStatus.InAuction] = "IN_AUCTION",
+        [RouteStatus.AwaitingPickup] = "AWAITING_PICKUP",
         [RouteStatus.InTransit] = "IN_TRANSIT",
         [RouteStatus.Completed] = "COMPLETED"
     };
