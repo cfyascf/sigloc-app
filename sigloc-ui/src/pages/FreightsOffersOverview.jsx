@@ -200,7 +200,7 @@ export default function FreightsOffersOverview() {
                       <Button asChild variant={hasBid ? "outline" : "default"} className={`w-full font-bold h-8 text-xs ${
                           hasBid ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "bg-slate-900 hover:bg-slate-800 text-white"
                       }`}>
-                        <Link to={`/bid-analysis/${o.segmentId}`}>
+                        <Link to={`/bid-analysis/${o.id}`}>
                             {hasBid ? "Ver Detalhes do Lance" : "Analisar e Dar Lance"}
                         </Link>
                       </Button>

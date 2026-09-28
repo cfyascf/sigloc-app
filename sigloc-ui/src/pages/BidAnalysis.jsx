@@ -31,7 +31,7 @@ function getStopBadgeClass(index, totalStops) {
 
 export default function BidAnalysis() {
   const navigate = useNavigate()
-  const { segmentId: auctionId } = useParams()
+  const { auctionId } = useParams()
   const toast = useToast()
 
   const [analysis, setAnalysis] = useState(null)

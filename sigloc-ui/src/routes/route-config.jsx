@@ -135,7 +135,7 @@ export const ROUTES = [
     access: [ROLES.CARRIER],
     nav: true,
   },
-  { path: "/bid-analysis/:segmentId", element: <BidAnalysis />, access: [ROLES.CARRIER], nav: false },
+  { path: "/bid-analysis/:auctionId", element: <BidAnalysis />, access: [ROLES.CARRIER], nav: false },
   {
     path: "/fleet-management",
     element: <FleetManagement />,
