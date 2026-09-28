@@ -79,9 +79,9 @@ export default function AuctionBids() {
           </Link>
 
           <div className="flex items-center gap-3">
-            {routeSummary?.firstSegmentId && (
+            {auctionId && (
               <Button asChild variant="outline" className="h-9 border-slate-200 text-xs font-semibold text-slate-700 bg-white">
-                <Link to={`/route-segment-details/${routeSummary.firstSegmentId}`}>
+                <Link to={`/route-segment-details/${auctionId}`}>
                   <ExternalLink size={14} className="mr-1.5" /> Detalhes da Rota
                 </Link>
               </Button>
