@@ -1,12 +1,16 @@
-import { useState } from "react"
-import { Search, Box, SlidersHorizontal, TrendingDown, Clock } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { Search, Box, SlidersHorizontal, TrendingDown, Clock, AlertCircle, Loader2 } from "lucide-react"
 import { Link, useSearchParams } from "react-router-dom"
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { freightOffersMock } from "@/constants/logistics-mock"
+import { useAsyncAction } from "@/hooks/use-async-action"
+import { listFreightOffers } from "@/services/freight-offer-service"
 import { RISK } from "@/constants/risk"
+
+const SEARCH_DEBOUNCE_MS = 350
+const PAGE_SIZE = 50
 
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value)
 
@@ -29,12 +33,38 @@ const getRequirementBadge = (req) => {
 export default function FreightsOffersOverview() {
   const [searchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get("partner") || "")
-  const ofertas = freightOffersMock
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm.trim())
+  const [ofertas, setOfertas] = useState([])
 
-  const filteredOfertas = ofertas.filter((o) => {
-    const term = searchTerm.toLowerCase()
-    return o.segmentName.toLowerCase().includes(term) || o.contractor.toLowerCase().includes(term)
-  })
+  const listAction = useAsyncAction((query) => listFreightOffers(query))
+  const { run: runList } = listAction
+  const listPending = listAction.pending
+  const listError = listAction.error
+
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setDebouncedSearch(searchTerm.trim()),
+      SEARCH_DEBOUNCE_MS
+    )
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const loadOffers = useCallback(async () => {
+    const result = await runList({
+      search: debouncedSearch || undefined,
+      page: 1,
+      pageSize: PAGE_SIZE,
+    })
+    if (result.ok) {
+      setOfertas(result.data.items)
+    }
+  }, [runList, debouncedSearch])
+
+  useEffect(() => {
+    loadOffers()
+  }, [loadOffers])
+
+  const isEmpty = !listPending && !listError && ofertas.length === 0
 
   return (
     <AppShell title="Mural de Fretes">
@@ -65,9 +95,39 @@ export default function FreightsOffersOverview() {
         {/* GRID DE OFERTAS */}
         <div className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto pr-2 pb-6">
+
+            {listPending && (
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
+                <Loader2 size={20} className="animate-spin text-slate-400" />
+                <p>Carregando oportunidades...</p>
+              </div>
+            )}
+
+            {!listPending && listError && (
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-500">
+                <AlertCircle size={20} className="text-rose-500" />
+                <p>{listError.message}</p>
+                <Button
+                  variant="outline"
+                  className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700"
+                  onClick={loadOffers}
+                >
+                  Tentar novamente
+                </Button>
+              </div>
+            )}
+
+            {isEmpty && (
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
+                <Box size={20} className="text-slate-400" />
+                <p>Nenhuma oportunidade disponível no momento.</p>
+              </div>
+            )}
+
+            {!listPending && !listError && ofertas.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
-              {filteredOfertas.map((o) => {
+              {ofertas.map((o) => {
                 const hasBid = !!o.bidStatus;
                 
                 return (
@@ -149,6 +209,7 @@ export default function FreightsOffersOverview() {
                 )
               })}
             </div>
+            )}
           </div>
         </div>
       </div>

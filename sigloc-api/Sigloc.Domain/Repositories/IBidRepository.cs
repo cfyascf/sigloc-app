@@ -1,4 +1,5 @@
 using Sigloc.Domain.Entities;
+using Sigloc.Domain.Enums;
 
 namespace Sigloc.Domain.Repositories;
 
@@ -51,6 +52,25 @@ public interface IBidRepository
 
     /// <summary>Loads all tracked bids of an auction so their status can be updated in a transaction.</summary>
     Task<IReadOnlyList<Bid>> GetTrackedByAuctionAsync(
+        Guid auctionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Maps each requested auction to the carrier's own current bid status, considering only
+    /// non-withdrawn bids owned by the carrier. Auctions where the carrier has not bid are
+    /// omitted. Drives the "Lance Ativo" badge on the opportunity board.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, BidStatus>> GetCarrierBidStatusesAsync(
+        Guid carrierId,
+        IReadOnlyCollection<Guid> auctionIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the carrier's own current bid status on the auction (non-withdrawn), or null
+    /// when the carrier has not bid on it.
+    /// </summary>
+    Task<BidStatus?> GetCarrierBidStatusAsync(
+        Guid carrierId,
         Guid auctionId,
         CancellationToken cancellationToken = default);
 }
