@@ -21,6 +21,33 @@ public class BidRepository : IBidRepository
         await _dbContext.Bids.AddAsync(bid, cancellationToken);
     }
 
+    public async Task<Bid?> GetTrackedByCarrierAndAuctionAsync(
+        Guid carrierId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Bids
+            .Where(b => b.CarrierId == carrierId
+                && b.AuctionId == auctionId
+                && b.Status != BidStatus.Withdrawn)
+            .OrderByDescending(b => b.SubmittedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<Bid?> GetByCarrierAndAuctionAsync(
+        Guid carrierId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Bids
+            .AsNoTracking()
+            .Where(b => b.CarrierId == carrierId
+                && b.AuctionId == auctionId
+                && b.Status != BidStatus.Withdrawn)
+            .OrderByDescending(b => b.SubmittedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<AuctionBidMetrics>> GetMetricsForAuctionsAsync(
         IReadOnlyCollection<Guid> auctionIds,
         CancellationToken cancellationToken = default)

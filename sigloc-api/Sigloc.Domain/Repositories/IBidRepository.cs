@@ -24,6 +24,25 @@ public interface IBidRepository
     Task AddAsync(Bid bid, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Loads the carrier's existing (non-withdrawn) tracked bid on the auction, or null when
+    /// the carrier has not bid yet. Tracked so it can be updated in place: a carrier holds a
+    /// single bid per auction, so re-bidding overwrites the previous one instead of stacking.
+    /// </summary>
+    Task<Bid?> GetTrackedByCarrierAndAuctionAsync(
+        Guid carrierId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Read-only load of the carrier's current (non-withdrawn) bid on the auction, or null
+    /// when the carrier has not bid yet. Drives the "my active bid" section of the workspace.
+    /// </summary>
+    Task<Bid?> GetByCarrierAndAuctionAsync(
+        Guid carrierId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns the best (minimum <c>TotalValue</c>) bid and the total bid count for each
     /// requested auction. Auctions with no bids are omitted; callers default them to
     /// (null, 0).

@@ -276,6 +276,19 @@ public record CarrierAnalysisTravelStopDto(
     string City,
     string Action);
 
+/// <summary>
+/// The carrier's own current bid on the auction, when one exists. Lets the workspace
+/// pre-fill the proposal value and highlight the active bid instead of showing the ceiling.
+/// </summary>
+public record CarrierAnalysisMyBidDto(
+    Guid BidId,
+    Guid VehicleId,
+    decimal NetFreightValue,
+    decimal TollValue,
+    decimal TotalValue,
+    DateTimeOffset SubmittedAt,
+    string Status);
+
 /// <summary>Full carrier bid workspace returned by GET /api/auctions/{id}/carrier-analysis.</summary>
 public record CarrierBidAnalysisDto(
     Guid AuctionId,
@@ -283,7 +296,8 @@ public record CarrierBidAnalysisDto(
     CarrierAnalysisCompetitionDto Competition,
     CarrierAnalysisPhysicalRequirementsDto PhysicalRequirements,
     IReadOnlyList<CarrierAnalysisVehicleDto> CarrierAvailableFleet,
-    IReadOnlyList<CarrierAnalysisTravelStopDto> TravelPlan);
+    IReadOnlyList<CarrierAnalysisTravelStopDto> TravelPlan,
+    CarrierAnalysisMyBidDto? MyBid);
 
 // ---------------------------------------------------------------------------
 // Place bid (Submissão do Lance) — POST /api/auctions/{id}/bids

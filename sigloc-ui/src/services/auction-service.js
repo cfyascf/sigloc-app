@@ -340,6 +340,17 @@ export function toCarrierAnalysis(dto) {
       city: stop.city ?? "",
       action: stop.action ?? "",
     })),
+    myBid: dto.myBid
+      ? {
+          bidId: dto.myBid.bidId ?? null,
+          vehicleId: dto.myBid.vehicleId ?? null,
+          netFreightValue: dto.myBid.netFreightValue ?? 0,
+          tollValue: dto.myBid.tollValue ?? 0,
+          totalValue: dto.myBid.totalValue ?? 0,
+          submittedAt: dto.myBid.submittedAt ?? null,
+          status: dto.myBid.status ?? null,
+        }
+      : null,
   }
 }
 
