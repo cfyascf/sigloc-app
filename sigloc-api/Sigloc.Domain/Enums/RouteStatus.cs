@@ -7,6 +7,7 @@ public enum RouteStatus
 {
     Planned,
     InAuction,
+    AwaitingPickup,
     InTransit,
     Completed
 }

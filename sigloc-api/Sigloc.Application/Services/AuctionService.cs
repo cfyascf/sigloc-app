@@ -17,6 +17,7 @@ public class AuctionService : IAuctionService
     private readonly IConsolidatedRouteRepository _routeRepository;
     private readonly IAuctionRepository _auctionRepository;
     private readonly IBidRepository _bidRepository;
+    private readonly ITripRepository _tripRepository;
     private readonly IRouteGeocodingService _geocodingService;
     private readonly IAuctionNotifier _notifier;
     private readonly IUnitOfWork _unitOfWork;
@@ -26,6 +27,7 @@ public class AuctionService : IAuctionService
         IConsolidatedRouteRepository routeRepository,
         IAuctionRepository auctionRepository,
         IBidRepository bidRepository,
+        ITripRepository tripRepository,
         IRouteGeocodingService geocodingService,
         IAuctionNotifier notifier,
         IUnitOfWork unitOfWork)
@@ -34,6 +36,7 @@ public class AuctionService : IAuctionService
         _routeRepository = routeRepository;
         _auctionRepository = auctionRepository;
         _bidRepository = bidRepository;
+        _tripRepository = tripRepository;
         _geocodingService = geocodingService;
         _notifier = notifier;
         _unitOfWork = unitOfWork;
@@ -248,6 +251,137 @@ public class AuctionService : IAuctionService
         await _auctionRepository.DeleteAsync(auction, cancellationToken);
     }
 
+    public async Task<BidRankingDto> GetBidRankingAsync(Guid contractorId, Guid auctionId, CancellationToken cancellationToken = default)
+    {
+        // Loading the detail also enforces the contractor scope (404 otherwise).
+        var detail = await _auctionRepository.GetDetailAsync(auctionId, contractorId, cancellationToken)
+            ?? throw new AuctionNotFoundException(auctionId);
+
+        var stops = TravelPlanBuilder.Build(detail.Segments);
+        var cities = TravelPlanBuilder.OrderedCities(stops);
+
+        var firstPickup = detail.Segments.Count > 0
+            ? detail.Segments.Min(s => s.PickupDeadline)
+            : (DateTimeOffset?)null;
+        var lastDelivery = detail.Segments.Count > 0
+            ? detail.Segments.Max(s => s.DeliveryDeadline)
+            : (DateTimeOffset?)null;
+
+        var ceiling = detail.Route.ConsolidatedCeiling;
+
+        var orderedSegments = detail.Segments
+            .OrderBy(s => s.PickupDeadline)
+            .ToList();
+        var linkedSegmentIds = orderedSegments.Select(s => s.Id).ToList();
+
+        var routeSummary = new BidRankingRouteSummaryDto(
+            RouteId: detail.Route.Id,
+            ItinerarySummary: ItineraryFormatter.Summary(cities),
+            ItineraryWithStates: ItineraryFormatter.WithStates(cities),
+            SegmentCount: detail.Segments.Count,
+            FirstSegmentId: linkedSegmentIds.Count > 0 ? linkedSegmentIds[0] : null,
+            LinkedSegmentIds: linkedSegmentIds,
+            FirstPickupDeadline: firstPickup,
+            LastDeliveryDeadline: lastDelivery,
+            FinancialScenario: new FinancialScenarioDto(ceiling, detail.Route.EstimatedAnttFloor));
+
+        var ranked = await _bidRepository.GetRankedBidsAsync(auctionId, cancellationToken);
+
+        var bids = ranked.Select((r, index) =>
+        {
+            var savingsValue = ceiling - r.Bid.TotalValue;
+            var savingsPercentage = ceiling > 0
+                ? Math.Round((double)(savingsValue / ceiling) * 100, 1)
+                : 0d;
+
+            return new BidRankingItemDto(
+                Rank: index + 1,
+                BidId: r.Bid.Id,
+                Status: r.Bid.Status.ToWire(),
+                SubmittedAt: r.Bid.SubmittedAt,
+                Carrier: new BidRankingCarrierDto(
+                    Id: r.Carrier.Id,
+                    TradeName: string.IsNullOrWhiteSpace(r.Carrier.TradeName) ? r.Carrier.CompanyName : r.Carrier.TradeName!,
+                    AverageRating: r.Carrier.AverageRating,
+                    OnTimeDeliveryRate: r.Carrier.OnTimeDeliveryRate,
+                    HasActiveInsurancePolicy: r.Carrier.HasActiveInsurancePolicy),
+                Vehicle: new BidRankingVehicleDto(
+                    Plate: r.Vehicle.Plate,
+                    BodyType: BodyTypeLabel(r.Vehicle.BodyType)),
+                Financials: new BidRankingFinancialsDto(
+                    TotalValue: r.Bid.TotalValue,
+                    NetFreightValue: r.Bid.NetFreightValue,
+                    TollValue: r.Bid.TollValue,
+                    SavingsValue: savingsValue,
+                    SavingsPercentage: savingsPercentage));
+        }).ToList();
+
+        return new BidRankingDto(
+            AuctionId: detail.Auction.Id,
+            Status: detail.Auction.Status.ToWire(),
+            Route: routeSummary,
+            Bids: bids);
+    }
+
+    public async Task<AwardAuctionResponseDto> AwardAsync(Guid contractorId, Guid auctionId, AwardAuctionRequestDto dto, CancellationToken cancellationToken = default)
+    {
+        var auction = await _auctionRepository.GetTrackedByIdAsync(auctionId, contractorId, cancellationToken)
+            ?? throw new AuctionNotFoundException(auctionId);
+
+        if (auction.Status != AuctionStatus.Open)
+        {
+            throw new AuctionNotOpenException(auctionId);
+        }
+
+        var bids = await _bidRepository.GetTrackedByAuctionAsync(auctionId, cancellationToken);
+        var winner = bids.FirstOrDefault(b => b.Id == dto.WinningBidId)
+            ?? throw new BidNotFoundException(dto.WinningBidId);
+
+        var route = await _routeRepository.GetTrackedByIdAsync(auction.RouteId, cancellationToken)
+            ?? throw new AuctionNotFoundException(auctionId);
+
+        var trip = await _unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            // 1 & 2. Elect the winner and mark every other bid as a loser.
+            foreach (var bid in bids)
+            {
+                bid.Status = bid.Id == winner.Id ? BidStatus.Winner : BidStatus.Losing;
+            }
+
+            // 3. Close the auction.
+            auction.Status = AuctionStatus.Closed;
+
+            // 4. Move the consolidated route to awaiting pickup.
+            route.Status = RouteStatus.AwaitingPickup;
+
+            // 5. Create the trip (Viagem) that starts the physical operation.
+            var newTrip = new Trip
+            {
+                Id = Guid.NewGuid(),
+                RouteId = route.Id,
+                AuctionId = auction.Id,
+                CarrierId = winner.CarrierId,
+                VehicleId = winner.VehicleId,
+                BidId = winner.Id,
+                AgreedValue = winner.TotalValue,
+                Status = TripStatus.AwaitingPickup
+            };
+
+            await _tripRepository.AddAsync(newTrip, ct);
+
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            return newTrip;
+        }, cancellationToken);
+
+        return new AwardAuctionResponseDto(
+            TripId: trip.Id,
+            AuctionId: auction.Id,
+            WinningBidId: winner.Id,
+            AuctionStatus: auction.Status.ToWire(),
+            RouteStatus: route.Status.ToWire());
+    }
+
     private static AuctionStatus ParseStatus(string? status)
     {
         if (string.IsNullOrWhiteSpace(status))
@@ -295,6 +429,18 @@ public class AuctionService : IAuctionService
     {
         var comma = cityState.IndexOf(',');
         return (comma >= 0 ? cityState[..comma] : cityState).Trim();
+    }
+
+    /// <summary>Human-friendly label of a vehicle body type, from its [Description] attribute.</summary>
+    private static string BodyTypeLabel(VehicleBodyType bodyType)
+    {
+        var field = typeof(VehicleBodyType).GetField(bodyType.ToString());
+        var description = field?
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .Cast<System.ComponentModel.DescriptionAttribute>()
+            .FirstOrDefault();
+
+        return description?.Description ?? bodyType.ToString();
     }
 
     /// <summary>Condenses the consolidated vehicle requirement into a single display string.</summary>

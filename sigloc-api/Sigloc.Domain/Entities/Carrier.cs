@@ -24,4 +24,10 @@ public class Carrier : BaseEntity
 
     /// <summary>Whether the carrier currently has an active cargo insurance policy on file.</summary>
     public bool HasActiveInsurancePolicy { get; set; }
+
+    /// <summary>
+    /// On-time delivery rate (taxaEntregaNoPrazo), as a percentage (0-100). In production this
+    /// would be a view computed from the Trip history; for now it is stored directly.
+    /// </summary>
+    public int OnTimeDeliveryRate { get; set; }
 }

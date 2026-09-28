@@ -30,4 +30,18 @@ public interface IAuctionService
 
     /// <summary>Deletes the auction for the owning contractor.</summary>
     Task DeleteAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the ranked list of active bids for the auction (menor valor primeiro; empate
+    /// desempatado pela nota média), with the real-time savings calculated against the
+    /// consolidated ceiling and the carrier reliability data.
+    /// </summary>
+    Task<BidRankingDto> GetBidRankingAsync(Guid contractorId, Guid auctionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Awards the auction to the chosen bid inside a single atomic transaction: marks the
+    /// winner and the losers, closes the auction, moves the route to awaiting pickup and
+    /// creates the trip (Viagem) that starts the physical operation.
+    /// </summary>
+    Task<AwardAuctionResponseDto> AwardAsync(Guid contractorId, Guid auctionId, AwardAuctionRequestDto dto, CancellationToken cancellationToken = default);
 }

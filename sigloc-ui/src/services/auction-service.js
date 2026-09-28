@@ -207,6 +207,93 @@ export async function deleteAuction(id, options) {
   return { id }
 }
 
+/** Normalizes a `BidRankingDto` into a plain object for the bid-analysis screen. */
+export function toBidRanking(dto) {
+  if (!dto) {
+    return null
+  }
+
+  const route = dto.route ?? {}
+  const scenario = route.financialScenario ?? {}
+
+  return {
+    auctionId: dto.auctionId ?? null,
+    status: dto.status ?? null,
+    route: {
+      routeId: route.routeId ?? null,
+      itinerarySummary: route.itinerarySummary ?? "",
+      itineraryWithStates: route.itineraryWithStates ?? "",
+      segmentCount: route.segmentCount ?? 0,
+      firstSegmentId: route.firstSegmentId ?? null,
+      linkedSegmentIds: route.linkedSegmentIds ?? [],
+      firstPickupDeadline: route.firstPickupDeadline ?? null,
+      lastDeliveryDeadline: route.lastDeliveryDeadline ?? null,
+      financialScenario: {
+        consolidatedCeiling: scenario.consolidatedCeiling ?? 0,
+        estimatedAnttFloor: scenario.estimatedAnttFloor ?? 0,
+      },
+    },
+    bids: (dto.bids ?? []).map((bid) => {
+      const carrier = bid.carrier ?? {}
+      const vehicle = bid.vehicle ?? {}
+      const financials = bid.financials ?? {}
+
+      return {
+        rank: bid.rank ?? 0,
+        bidId: bid.bidId ?? null,
+        status: bid.status ?? null,
+        submittedAt: bid.submittedAt ?? null,
+        carrier: {
+          id: carrier.id ?? null,
+          tradeName: carrier.tradeName ?? "",
+          averageRating: carrier.averageRating ?? null,
+          onTimeDeliveryRate: carrier.onTimeDeliveryRate ?? 0,
+          hasActiveInsurancePolicy: Boolean(carrier.hasActiveInsurancePolicy),
+        },
+        vehicle: {
+          plate: vehicle.plate ?? "",
+          bodyType: vehicle.bodyType ?? "",
+        },
+        financials: {
+          totalValue: financials.totalValue ?? 0,
+          netFreightValue: financials.netFreightValue ?? 0,
+          tollValue: financials.tollValue ?? 0,
+          savingsValue: financials.savingsValue ?? 0,
+          savingsPercentage: financials.savingsPercentage ?? 0,
+        },
+      }
+    }),
+  }
+}
+
+/** Fetches the ranked list of bids for an auction (Motor de Ranking). */
+export async function getBidRanking(auctionId, options) {
+  const payload = await apiClient.get(`${BASE}/${auctionId}/bids`, options)
+  return toBidRanking(payload)
+}
+
+/**
+ * Awards the auction to the chosen bid (Adjudicação). Returns the created trip id.
+ * @param {string} auctionId
+ * @param {string} winningBidId
+ */
+export async function awardAuction(auctionId, winningBidId, options) {
+  const dto = await apiClient.post(
+    `${BASE}/${auctionId}/award`,
+    { winningBidId },
+    options
+  )
+  return dto
+    ? {
+        tripId: dto.tripId ?? null,
+        auctionId: dto.auctionId ?? auctionId,
+        winningBidId: dto.winningBidId ?? winningBidId,
+        auctionStatus: dto.auctionStatus ?? null,
+        routeStatus: dto.routeStatus ?? null,
+      }
+    : null
+}
+
 export const auctionService = {
   createAuction,
   toCreateAuctionResult,
@@ -216,4 +303,7 @@ export const auctionService = {
   deleteAuction,
   toAuctionListItem,
   toAuctionDetail,
+  getBidRanking,
+  toBidRanking,
+  awardAuction,
 }
