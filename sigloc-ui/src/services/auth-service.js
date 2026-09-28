@@ -151,6 +151,58 @@ export async function createInvite(data = {}, options) {
 }
 
 /**
+ * Validates an invite token and returns the inviting contractor context.
+ * Public endpoint — no auth required. Accepts a full invite URL or a bare code.
+ * @param {string} tokenOrUrl
+ * @returns {Promise<{ valid: boolean, contractorName: string|null, message: string }>}
+ */
+export async function validateInvite(tokenOrUrl, options) {
+  const token = extractInviteToken(tokenOrUrl)
+  const payload = await apiClient.get(
+    `${ENDPOINTS.invite}/${encodeURIComponent(token)}`,
+    { auth: false, ...options }
+  )
+
+  return {
+    valid: Boolean(payload?.valid),
+    contractorName: payload?.contractorName ?? null,
+    message: payload?.message ?? "",
+  }
+}
+
+/**
+ * Registers a brand-new carrier through an invite link and creates the active
+ * partnership with the inviting contractor. Returns a normalized session.
+ * @param {string} tokenOrUrl
+ * @param {{ cnpj, companyName, tradeName, email, password }} data
+ */
+export async function registerCarrierByInvite(tokenOrUrl, data, options) {
+  const token = extractInviteToken(tokenOrUrl)
+  const payload = await apiClient.post(
+    `${ENDPOINTS.invite}/${encodeURIComponent(token)}/register`,
+    data,
+    { auth: false, ...options }
+  )
+  return toSession(payload)
+}
+
+/**
+ * Registers a brand-new carrier through an invite link using a Google-issued
+ * idToken. Company data is still required.
+ * @param {string} tokenOrUrl
+ * @param {{ idToken, cnpj, companyName, tradeName }} data
+ */
+export async function registerCarrierByInviteWithGoogle(tokenOrUrl, data, options) {
+  const token = extractInviteToken(tokenOrUrl)
+  const payload = await apiClient.post(
+    `${ENDPOINTS.invite}/${encodeURIComponent(token)}/register/google`,
+    data,
+    { auth: false, ...options }
+  )
+  return toSession(payload)
+}
+
+/**
  * Connects the authenticated carrier to the contractor that issued the invite,
  * creating an active partnership. Accepts a full invite URL or a bare code.
  * @param {string} tokenOrUrl
@@ -182,5 +234,8 @@ export const authService = {
   registerContractorWithGoogle,
   getActiveInvite,
   createInvite,
+  validateInvite,
+  registerCarrierByInvite,
+  registerCarrierByInviteWithGoogle,
   connectByInvite,
 }
