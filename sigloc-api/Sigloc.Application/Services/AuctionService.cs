@@ -230,12 +230,6 @@ public class AuctionService : IAuctionService
         var auction = await _auctionRepository.GetTrackedByIdAsync(id, contractorId, cancellationToken)
             ?? throw new AuctionNotFoundException(id);
 
-        if (dto.Name is not null)
-        {
-            var trimmed = dto.Name.Trim();
-            auction.Name = trimmed.Length == 0 ? null : trimmed;
-        }
-
         if (dto.ExpiresAt is not null)
         {
             auction.ExpiresAt = ValidateExpiry(dto.ExpiresAt);
@@ -243,7 +237,7 @@ public class AuctionService : IAuctionService
 
         await _auctionRepository.UpdateAsync(auction, cancellationToken);
 
-        return new UpdateAuctionResponseDto(auction.Id, auction.Name, auction.ExpiresAt);
+        return new UpdateAuctionResponseDto(auction.Id, auction.ExpiresAt);
     }
 
     public async Task DeleteAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default)

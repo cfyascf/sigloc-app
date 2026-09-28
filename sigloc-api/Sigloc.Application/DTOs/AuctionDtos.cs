@@ -151,15 +151,13 @@ public record AuctionDetailDto(
 // ---------------------------------------------------------------------------
 
 /// <summary>
-/// Request body for editing the auction's custom name and/or bid deadline. Both fields
-/// are optional; only the ones provided are updated.
+/// Request body for editing the auction's bid deadline. The field is optional; the
+/// deadline is only updated when it is provided.
 /// </summary>
 public record UpdateAuctionRequestDto(
-    string? Name,
     DateTimeOffset? ExpiresAt);
 
 /// <summary>Auction snapshot returned after a successful edit.</summary>
 public record UpdateAuctionResponseDto(
     Guid Id,
-    string? Name,
     DateTimeOffset ExpiresAt);

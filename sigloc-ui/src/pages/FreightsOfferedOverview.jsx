@@ -129,7 +129,7 @@ export default function FreightsOfferedOverview() {
   const startEditing = (l) => {
     updateAction.reset()
     setEditingId(l.id)
-    setEditForm({ name: l.name, deadline: toDateTimeLocal(l.expiresAt) })
+    setEditForm({ deadline: toDateTimeLocal(l.expiresAt) })
   }
 
   const cancelEditing = () => {
@@ -144,7 +144,6 @@ export default function FreightsOfferedOverview() {
     }
 
     const changes = {
-      name: editForm.name?.trim() ?? "",
       expiresAt: editForm.deadline ? new Date(editForm.deadline) : undefined,
     }
 
@@ -152,8 +151,7 @@ export default function FreightsOfferedOverview() {
     if (result.ok) {
       setEditingId(null)
       setEditForm(null)
-      // Refetch so the card reflects the server's name fallback (itinerary summary
-      // when the custom name is cleared) and the normalized deadline.
+      // Refetch so the card reflects the normalized deadline.
       await loadList()
     }
   }
@@ -261,10 +259,6 @@ export default function FreightsOfferedOverview() {
                         </div>
                       ) : isEditing ? (
                         <div className="p-4 space-y-3 bg-white animate-in fade-in duration-200 h-full flex flex-col">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase text-slate-500">Nome do Leilão</label>
-                            <Input value={editForm.name ?? ""} onChange={(e) => setEditForm({...editForm, name: e.target.value})} placeholder="Nome do itinerário" className="h-8 text-xs border-slate-200" />
-                          </div>
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold uppercase text-slate-500">Prazo (Deadline)</label>
                             <Input type="datetime-local" value={editForm.deadline ?? ""} onChange={(e) => setEditForm({...editForm, deadline: e.target.value})} className="h-8 text-xs border-slate-200" />
