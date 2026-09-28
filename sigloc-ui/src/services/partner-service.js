@@ -1,10 +1,11 @@
 /**
  * Partner service — the single boundary between the UI and the Sigloc partner
- * network API. Maps `GET /api/partnerships` (`PartnerNetworkDto`) into a plain,
- * UI-friendly shape.
+ * network API. Maps the role-aware `GET /api/partnerships` endpoint into a plain,
+ * UI-friendly shape: contractors receive the carrier network, carriers receive
+ * the contractor network.
  *
- * All calls are authenticated (bearer token attached by the api-client) and
- * require contractor/shipper access on the backend.
+ * All calls are authenticated (bearer token attached by the api-client); the
+ * backend derives the caller's role from the JWT.
  */
 
 import { apiClient } from "@/lib/api-client"
@@ -81,7 +82,7 @@ function toPartner(dto) {
 }
 
 /**
- * Fetches the authenticated contractor's partner network.
+ * Fetches the authenticated contractor's partner network (connected carriers).
  * @returns {Promise<{ totalActive, totalPending, partners: object[] }>}
  */
 export async function getPartnerNetwork(options) {
@@ -96,10 +97,12 @@ export async function getPartnerNetwork(options) {
 
 /**
  * Fetches the authenticated carrier's partner network (connected contractors).
+ * Hits the same role-aware endpoint as {@link getPartnerNetwork}; the backend
+ * returns the contractor-side payload for carriers, so only the mapper differs.
  * @returns {Promise<{ totalActive, totalPending, partners: object[] }>}
  */
 export async function getCarrierNetwork(options) {
-  const payload = await apiClient.get(`${BASE}/carrier`, options)
+  const payload = await apiClient.get(BASE, options)
 
   return {
     totalActive: payload?.totalAtivos ?? 0,

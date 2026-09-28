@@ -8,7 +8,7 @@ namespace Sigloc.Api.Controllers;
 
 [ApiController]
 [Route("api/partnerships")]
-[Authorize(Policy = Policies.RequireShipperAccess)] // história é do Operador Logístico (Contratante)
+[Authorize] // acessível a ambos os lados da parceria; a rede retornada depende do papel
 public class PartnersController : ControllerBase
 {
     private readonly IPartnerNetworkService _partnerNetworkService;
@@ -18,22 +18,23 @@ public class PartnersController : ControllerBase
         _partnerNetworkService = partnerNetworkService;
     }
 
-    /// <summary>GET /api/partnerships - listagem analítica da rede de transportadoras parceiras.</summary>
+    /// <summary>
+    /// GET /api/partnerships - rede de parceiros do usuário autenticado.
+    /// Contratante recebe a rede de transportadoras; transportadora recebe a rede
+    /// de contratantes. O papel é lido do JWT, então um único endpoint atende os dois.
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetNetwork(CancellationToken cancellationToken)
     {
-        var contractorId = User.GetCompanyId();
-        var result = await _partnerNetworkService.GetNetworkAsync(contractorId, cancellationToken);
-        return Ok(result);
-    }
+        var companyId = User.GetCompanyId();
 
-    /// <summary>GET /api/partnerships/carrier - rede de contratantes conectados à transportadora autenticada.</summary>
-    [HttpGet("carrier")]
-    [Authorize(Policy = Policies.RequireCarrierAccess)]
-    public async Task<IActionResult> GetCarrierNetwork(CancellationToken cancellationToken)
-    {
-        var carrierId = User.GetCompanyId();
-        var result = await _partnerNetworkService.GetCarrierNetworkAsync(carrierId, cancellationToken);
+        if (User.IsInRole(Roles.Carrier))
+        {
+            var carrierNetwork = await _partnerNetworkService.GetCarrierNetworkAsync(companyId, cancellationToken);
+            return Ok(carrierNetwork);
+        }
+
+        var result = await _partnerNetworkService.GetNetworkAsync(companyId, cancellationToken);
         return Ok(result);
     }
 }
