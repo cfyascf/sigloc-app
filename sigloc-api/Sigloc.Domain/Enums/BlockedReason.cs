@@ -13,5 +13,8 @@ public enum BlockedReason
     Volume,
 
     /// <summary>Attempt rejected because the vehicle weight capacity was exceeded.</summary>
-    Weight
+    Weight,
+
+    /// <summary>Attempt rejected because the vehicle did not meet the cargo equipment/compliance requirement.</summary>
+    Equipment
 }

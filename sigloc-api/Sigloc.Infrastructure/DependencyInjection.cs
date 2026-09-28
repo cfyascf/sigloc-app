@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<IAuctionRepository, AuctionRepository>();
         services.AddScoped<IBidRepository, BidRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
+        services.AddScoped<IBlockedBidAttemptRepository, BlockedBidAttemptRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IAuctionNotifier, LoggingAuctionNotifier>();
         services.AddScoped<IUserRepository, UserRepository>();

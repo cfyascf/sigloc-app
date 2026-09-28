@@ -109,6 +109,33 @@ public class AuctionRepository : IAuctionRepository
         return new AuctionWithRoute(row.auction, row.route, segments);
     }
 
+    public async Task<AuctionWithRoute?> GetForCarrierAnalysisAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var row = await (
+            from auction in _dbContext.Auctions.AsNoTracking()
+            join route in _dbContext.ConsolidatedRoutes.AsNoTracking()
+                on auction.RouteId equals route.Id
+            where auction.Id == id
+            select new { auction, route })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (row is null)
+        {
+            return null;
+        }
+
+        var segments = await _dbContext.RouteSegments
+            .AsNoTracking()
+            .Where(s => s.RouteId == row.route.Id)
+            .Include(s => s.Items)
+                .ThenInclude(i => i.Product)
+            .ToListAsync(cancellationToken);
+
+        return new AuctionWithRoute(row.auction, row.route, segments);
+    }
+
     public async Task<Auction?> GetTrackedByIdAsync(
         Guid id,
         Guid contractorId,

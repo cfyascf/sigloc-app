@@ -231,3 +231,75 @@ public record AwardAuctionResponseDto(
     Guid WinningBidId,
     string AuctionStatus,
     string RouteStatus);
+
+// ---------------------------------------------------------------------------
+// Carrier bid workspace (Workspace de Lance) — GET /api/auctions/{id}/carrier-analysis
+// ---------------------------------------------------------------------------
+
+/// <summary>SLA window of the consolidated route: first pickup and last delivery deadlines.</summary>
+public record CarrierAnalysisSlaDto(
+    DateTimeOffset? FirstPickup,
+    DateTimeOffset? LastDelivery);
+
+/// <summary>Short route summary shown at the top of the carrier bid workspace.</summary>
+public record CarrierAnalysisRouteSummaryDto(
+    string ReferenceCode,
+    string ShortItinerary,
+    CarrierAnalysisSlaDto Sla);
+
+/// <summary>Competition snapshot: active bids, leader offer and auction ceiling.</summary>
+public record CarrierAnalysisCompetitionDto(
+    int ActiveBids,
+    decimal? BestLeaderOffer,
+    decimal AuctionCeiling);
+
+/// <summary>Consolidated physical/compliance requirements inherited from the cargo.</summary>
+public record CarrierAnalysisPhysicalRequirementsDto(
+    string RecommendedFleet,
+    double ConsolidatedWeightKg,
+    double VolumeM3,
+    string RequiredTemperature,
+    IReadOnlyList<string> HandlingRestrictions);
+
+/// <summary>A single vehicle of the carrier's fleet offered in the bid dropdown.</summary>
+public record CarrierAnalysisVehicleDto(
+    Guid VehicleId,
+    string Plate,
+    string Model,
+    decimal CapacityWeightKg,
+    decimal CapacityVolumeM3,
+    IReadOnlyList<string> Specifications);
+
+/// <summary>A single stop of the Milking Run travel plan for the carrier workspace.</summary>
+public record CarrierAnalysisTravelStopDto(
+    int Order,
+    string City,
+    string Action);
+
+/// <summary>Full carrier bid workspace returned by GET /api/auctions/{id}/carrier-analysis.</summary>
+public record CarrierBidAnalysisDto(
+    Guid AuctionId,
+    CarrierAnalysisRouteSummaryDto RouteSummary,
+    CarrierAnalysisCompetitionDto Competition,
+    CarrierAnalysisPhysicalRequirementsDto PhysicalRequirements,
+    IReadOnlyList<CarrierAnalysisVehicleDto> CarrierAvailableFleet,
+    IReadOnlyList<CarrierAnalysisTravelStopDto> TravelPlan);
+
+// ---------------------------------------------------------------------------
+// Place bid (Submissão do Lance) — POST /api/auctions/{id}/bids
+// ---------------------------------------------------------------------------
+
+/// <summary>Request body for a carrier submitting a bid against an auction.</summary>
+public record PlaceBidRequestDto(
+    decimal ValorOferecido,
+    Guid VeiculoId);
+
+/// <summary>Response returned after a successful bid submission (201 Created).</summary>
+public record PlaceBidResponseDto(
+    Guid BidId,
+    Guid AuctionId,
+    decimal NetFreightValue,
+    decimal TollValue,
+    decimal TotalValue,
+    DateTimeOffset SubmittedAt,
+    string Status);

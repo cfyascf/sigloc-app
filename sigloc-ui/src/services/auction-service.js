@@ -294,6 +294,89 @@ export async function awardAuction(auctionId, winningBidId, options) {
     : null
 }
 
+/** Normalizes a `CarrierBidAnalysisDto` into a plain object for the bid workspace. */
+export function toCarrierAnalysis(dto) {
+  if (!dto) {
+    return null
+  }
+
+  const summary = dto.routeSummary ?? {}
+  const sla = summary.sla ?? {}
+  const competition = dto.competition ?? {}
+  const physical = dto.physicalRequirements ?? {}
+
+  return {
+    auctionId: dto.auctionId ?? null,
+    routeSummary: {
+      referenceCode: summary.referenceCode ?? "",
+      shortItinerary: summary.shortItinerary ?? "",
+      sla: {
+        firstPickup: sla.firstPickup ?? null,
+        lastDelivery: sla.lastDelivery ?? null,
+      },
+    },
+    competition: {
+      activeBids: competition.activeBids ?? 0,
+      bestLeaderOffer: competition.bestLeaderOffer ?? null,
+      auctionCeiling: competition.auctionCeiling ?? 0,
+    },
+    physicalRequirements: {
+      recommendedFleet: physical.recommendedFleet ?? "",
+      consolidatedWeightKg: physical.consolidatedWeightKg ?? 0,
+      volumeM3: physical.volumeM3 ?? 0,
+      requiredTemperature: physical.requiredTemperature ?? "",
+      handlingRestrictions: physical.handlingRestrictions ?? [],
+    },
+    carrierAvailableFleet: (dto.carrierAvailableFleet ?? []).map((v) => ({
+      vehicleId: v.vehicleId ?? null,
+      plate: v.plate ?? "",
+      model: v.model ?? "",
+      capacityWeightKg: v.capacityWeightKg ?? 0,
+      capacityVolumeM3: v.capacityVolumeM3 ?? 0,
+      specifications: v.specifications ?? [],
+    })),
+    travelPlan: (dto.travelPlan ?? []).map((stop) => ({
+      order: stop.order ?? 0,
+      city: stop.city ?? "",
+      action: stop.action ?? "",
+    })),
+  }
+}
+
+/** Fetches the carrier bid workspace (Workspace de Lance) for an auction. */
+export async function getCarrierAnalysis(auctionId, options) {
+  const payload = await apiClient.get(
+    `${BASE}/${auctionId}/carrier-analysis`,
+    options
+  )
+  return toCarrierAnalysis(payload)
+}
+
+/**
+ * Submits a carrier bid. The backend runs the Constraint Engine and either persists
+ * the bid (201) or rejects it (400) with an `ApiError` carrying the exact motive.
+ * @param {string} auctionId
+ * @param {{ valorOferecido: number, veiculoId: string }} bid
+ */
+export async function placeBid(auctionId, { valorOferecido, veiculoId } = {}, options) {
+  const dto = await apiClient.post(
+    `${BASE}/${auctionId}/bids`,
+    { valorOferecido, veiculoId },
+    options
+  )
+  return dto
+    ? {
+        bidId: dto.bidId ?? null,
+        auctionId: dto.auctionId ?? auctionId,
+        netFreightValue: dto.netFreightValue ?? 0,
+        tollValue: dto.tollValue ?? 0,
+        totalValue: dto.totalValue ?? 0,
+        submittedAt: dto.submittedAt ?? null,
+        status: dto.status ?? null,
+      }
+    : null
+}
+
 export const auctionService = {
   createAuction,
   toCreateAuctionResult,
@@ -306,4 +389,7 @@ export const auctionService = {
   getBidRanking,
   toBidRanking,
   awardAuction,
+  getCarrierAnalysis,
+  toCarrierAnalysis,
+  placeBid,
 }

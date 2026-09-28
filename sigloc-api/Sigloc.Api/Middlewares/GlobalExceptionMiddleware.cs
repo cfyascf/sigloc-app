@@ -199,6 +199,10 @@ public class GlobalExceptionHandlerMiddleware
                 (int)HttpStatusCode.Conflict,
                 new { error = "AUCTION_NOT_OPEN", message = auctionNotOpen.Message }),
 
+            BidRejectedException bidRejected => (
+                (int)HttpStatusCode.BadRequest,
+                new { error = bidRejected.Code.ToString(), message = bidRejected.Message }),
+            
             OfferNotFoundException offerNotFound => (
                 (int)HttpStatusCode.NotFound,
                 new { error = "OFFER_NOT_FOUND", message = offerNotFound.Message }),
