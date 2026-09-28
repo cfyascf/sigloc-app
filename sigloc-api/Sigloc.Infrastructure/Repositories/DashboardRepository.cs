@@ -9,11 +9,11 @@ public class DashboardRepository : IDashboardRepository
 {
     private const string Arrow = " \u2192 "; // " → "
 
-    private readonly SiglocDbContext _dbContext;
+    private readonly IDbContextFactory<SiglocDbContext> _contextFactory;
 
-    public DashboardRepository(SiglocDbContext dbContext)
+    public DashboardRepository(IDbContextFactory<SiglocDbContext> contextFactory)
     {
-        _dbContext = dbContext;
+        _contextFactory = contextFactory;
     }
 
     public async Task<DashboardKpis> GetKpisAsync(
@@ -21,25 +21,27 @@ public class DashboardRepository : IDashboardRepository
         DateTimeOffset monthStartUtc,
         CancellationToken cancellationToken = default)
     {
-        var unassignedSegments = await _dbContext.RouteSegments
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var unassignedSegments = await db.RouteSegments
             .AsNoTracking()
             .CountAsync(s => s.ContractorId == contractorId && s.Status == SegmentStatus.Available, cancellationToken);
 
         var activeAuctions = await (
-            from auction in _dbContext.Auctions.AsNoTracking()
-            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on auction.RouteId equals route.Id
+            from auction in db.Auctions.AsNoTracking()
+            join route in db.ConsolidatedRoutes.AsNoTracking() on auction.RouteId equals route.Id
             where route.ContractorId == contractorId && auction.Status == AuctionStatus.Open
             select auction.Id)
             .CountAsync(cancellationToken);
 
         var inTransitTrips = await (
-            from trip in _dbContext.Trips.AsNoTracking()
-            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
+            from trip in db.Trips.AsNoTracking()
+            join route in db.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
             where route.ContractorId == contractorId && trip.Status == TripStatus.InTransit
             select trip.Id)
             .CountAsync(cancellationToken);
 
-        var blockedOverbookings = await _dbContext.BlockedBidAttempts
+        var blockedOverbookings = await db.BlockedBidAttempts
             .AsNoTracking()
             .CountAsync(a => a.ContractorId == contractorId && a.AttemptedAt >= monthStartUtc, cancellationToken);
 
@@ -50,10 +52,12 @@ public class DashboardRepository : IDashboardRepository
         Guid contractorId,
         CancellationToken cancellationToken = default)
     {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+
         var rows = await (
-            from trip in _dbContext.Trips.AsNoTracking()
-            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
-            join vehicle in _dbContext.Vehicles.AsNoTracking() on trip.VehicleId equals vehicle.Id
+            from trip in db.Trips.AsNoTracking()
+            join route in db.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
+            join vehicle in db.Vehicles.AsNoTracking() on trip.VehicleId equals vehicle.Id
             where route.ContractorId == contractorId && trip.Status == TripStatus.InTransit
             select new
             {
@@ -72,7 +76,7 @@ public class DashboardRepository : IDashboardRepository
 
         // Segment counts per route in one round-trip; used for the Continuous Move indicator.
         var routeIds = rows.Select(r => r.RouteId).Distinct().ToList();
-        var segmentCounts = await _dbContext.RouteSegments
+        var segmentCounts = await db.RouteSegments
             .AsNoTracking()
             .Where(s => s.RouteId != null && routeIds.Contains(s.RouteId.Value))
             .GroupBy(s => s.RouteId!.Value)
@@ -93,10 +97,12 @@ public class DashboardRepository : IDashboardRepository
         Guid contractorId,
         CancellationToken cancellationToken = default)
     {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+
         // Active or recently-closed auctions with at least one active bid.
         var auctions = await (
-            from auction in _dbContext.Auctions.AsNoTracking()
-            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on auction.RouteId equals route.Id
+            from auction in db.Auctions.AsNoTracking()
+            join route in db.ConsolidatedRoutes.AsNoTracking() on auction.RouteId equals route.Id
             where route.ContractorId == contractorId
                 && (auction.Status == AuctionStatus.Open || auction.Status == AuctionStatus.Closed)
             select new
@@ -114,7 +120,7 @@ public class DashboardRepository : IDashboardRepository
 
         var auctionIds = auctions.Select(a => a.AuctionId).ToList();
 
-        var bestBids = await _dbContext.Bids
+        var bestBids = await db.Bids
             .AsNoTracking()
             .Where(b => auctionIds.Contains(b.AuctionId) && b.Status != BidStatus.Withdrawn)
             .GroupBy(b => b.AuctionId)
@@ -122,6 +128,7 @@ public class DashboardRepository : IDashboardRepository
             .ToDictionaryAsync(x => x.AuctionId, x => x.BestBid, cancellationToken);
 
         var itineraries = await BuildItinerariesAsync(
+            db,
             auctions.ToDictionary(a => a.AuctionId, a => a.RouteId),
             cancellationToken);
 
@@ -148,11 +155,13 @@ public class DashboardRepository : IDashboardRepository
         Guid contractorId,
         CancellationToken cancellationToken = default)
     {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+
         var trips = await (
-            from trip in _dbContext.Trips.AsNoTracking()
-            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
+            from trip in db.Trips.AsNoTracking()
+            join route in db.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
             where route.ContractorId == contractorId && trip.Status == TripStatus.InTransit
-            join monitoring in _dbContext.TripMonitorings.AsNoTracking() on trip.Id equals monitoring.TripId into mon
+            join monitoring in db.TripMonitorings.AsNoTracking() on trip.Id equals monitoring.TripId into mon
             from monitoring in mon.DefaultIfEmpty()
             select new
             {
@@ -170,7 +179,7 @@ public class DashboardRepository : IDashboardRepository
         var routeIds = trips.Select(t => t.RouteId).Distinct().ToList();
 
         // Earliest-deadline pending segment per route defines the next milestone.
-        var segments = await _dbContext.RouteSegments
+        var segments = await db.RouteSegments
             .AsNoTracking()
             .Where(s => s.RouteId != null && routeIds.Contains(s.RouteId.Value))
             .Select(s => new
@@ -220,13 +229,14 @@ public class DashboardRepository : IDashboardRepository
         return result;
     }
 
-    private async Task<Dictionary<Guid, string>> BuildItinerariesAsync(
+    private static async Task<Dictionary<Guid, string>> BuildItinerariesAsync(
+        SiglocDbContext db,
         IReadOnlyDictionary<Guid, Guid> auctionToRoute,
         CancellationToken cancellationToken)
     {
         var routeIds = auctionToRoute.Values.Distinct().ToList();
 
-        var segments = await _dbContext.RouteSegments
+        var segments = await db.RouteSegments
             .AsNoTracking()
             .Where(s => s.RouteId != null && routeIds.Contains(s.RouteId.Value))
             .Select(s => new { RouteId = s.RouteId!.Value, s.OriginAddress, s.DestinationAddress, s.PickupDeadline })

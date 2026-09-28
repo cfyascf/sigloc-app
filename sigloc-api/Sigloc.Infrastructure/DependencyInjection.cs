@@ -19,12 +19,22 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
 
-        services.AddDbContext<SiglocDbContext>(options =>
+        void ConfigureDbContext(DbContextOptionsBuilder options) =>
             options.UseNpgsql(connectionString, npgsqlOptions =>
                 npgsqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(10),
-                    errorCodesToAdd: null)));
+                    errorCodesToAdd: null));
+
+        // Register the scoped DbContext with singleton-scoped options so it can coexist
+        // with the DbContext factory below (EF requires the options lifetime to be
+        // singleton when both are registered for the same context type).
+        services.AddDbContext<SiglocDbContext>(ConfigureDbContext, optionsLifetime: ServiceLifetime.Singleton);
+
+        // Factory used by services that fan out independent queries in parallel
+        // (e.g. the dashboard aggregator), so each concurrent query gets its own
+        // short-lived DbContext instead of sharing the scoped one (which is not thread-safe).
+        services.AddDbContextFactory<SiglocDbContext>(ConfigureDbContext, lifetime: ServiceLifetime.Scoped);
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
