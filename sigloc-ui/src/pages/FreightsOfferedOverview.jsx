@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAsyncAction } from "@/hooks/use-async-action"
-import { listAuctions } from "@/services/auction-service"
+import { listAuctions, updateAuction, deleteAuction } from "@/services/auction-service"
 import { RISK } from "@/constants/risk"
 
 const SEARCH_DEBOUNCE_MS = 350
@@ -53,8 +53,24 @@ const toCardModel = (item) => ({
   bestBid: item.bidMetrics?.bestBid ?? null,
   totalBids: item.bidMetrics?.totalBids ?? 0,
   bidDeadline: formatDeadline(item.expiresAt),
+  expiresAt: item.expiresAt ?? null,
   risk: item.riskIndicator || RISK.NORMAL,
 })
+
+/** Converts an ISO timestamp to the value accepted by an `<input type="datetime-local">`. */
+const toDateTimeLocal = (value) => {
+  if (!value) {
+    return ""
+  }
+
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ""
+  }
+
+  const pad = (n) => String(n).padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 
 const getRiskBadge = (risk) => {
   const styles = {
@@ -74,6 +90,8 @@ export default function FreightsOfferedOverview() {
   const [debouncedSearch, setDebouncedSearch] = useState("")
 
   const listAction = useAsyncAction((query) => listAuctions(query))
+  const updateAction = useAsyncAction(({ id, changes }) => updateAuction(id, changes))
+  const deleteAction = useAsyncAction((id) => deleteAuction(id))
   const listPending = listAction.pending
 
   useEffect(() => {
@@ -100,20 +118,44 @@ export default function FreightsOfferedOverview() {
     loadList()
   }, [loadList])
 
-  const handleDelete = (id) => {
-    setLeiloes(prev => prev.filter(l => l.id !== id))
-    setDeletingId(null)
+  const handleDelete = async (id) => {
+    const result = await deleteAction.run(id)
+    if (result.ok) {
+      setLeiloes(prev => prev.filter(l => l.id !== id))
+      setDeletingId(null)
+    }
   }
 
   const startEditing = (l) => {
+    updateAction.reset()
     setEditingId(l.id)
-    setEditForm({ ...l })
+    setEditForm({ name: l.name, deadline: toDateTimeLocal(l.expiresAt) })
   }
 
-  const saveEdit = () => {
-    setLeiloes(prev => prev.map(l => l.id === editingId ? { ...l, ...editForm } : l))
+  const cancelEditing = () => {
+    updateAction.reset()
     setEditingId(null)
     setEditForm(null)
+  }
+
+  const saveEdit = async () => {
+    if (!editForm) {
+      return
+    }
+
+    const changes = {
+      name: editForm.name?.trim() ?? "",
+      expiresAt: editForm.deadline ? new Date(editForm.deadline) : undefined,
+    }
+
+    const result = await updateAction.run({ id: editingId, changes })
+    if (result.ok) {
+      setEditingId(null)
+      setEditForm(null)
+      // Refetch so the card reflects the server's name fallback (itinerary summary
+      // when the custom name is cleared) and the normalized deadline.
+      await loadList()
+    }
   }
 
   const filteredLeiloes = leiloes
@@ -182,8 +224,10 @@ export default function FreightsOfferedOverview() {
                         {isDeleting ? (
                           <div className="absolute inset-0 flex items-center gap-2 animate-in fade-in">
                             <span className="text-[10px] font-bold text-rose-600">Excluir?</span>
-                            <button onClick={() => setDeletingId(null)} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>
-                            <button onClick={() => handleDelete(l.id)} className="text-rose-600 hover:text-rose-700 font-bold text-[10px]">Sim</button>
+                            <button onClick={() => setDeletingId(null)} disabled={deleteAction.pending} className="text-slate-400 hover:text-slate-600 disabled:opacity-50"><X size={14}/></button>
+                            <button onClick={() => handleDelete(l.id)} disabled={deleteAction.pending} className="flex items-center text-rose-600 hover:text-rose-700 font-bold text-[10px] disabled:opacity-50">
+                              {deleteAction.pending ? <Loader2 size={12} className="animate-spin" /> : "Sim"}
+                            </button>
                           </div>
                         ) : (
                           <>
@@ -209,22 +253,30 @@ export default function FreightsOfferedOverview() {
                     {/* CORPO DO CARD - Altura mínima fixa para estabilidade */}
                     <div className="flex-1 min-h-[220px] flex flex-col">
                       {isDeleting ? (
-                        <div className="flex-1 p-6 flex items-center justify-center text-rose-500 bg-rose-50/30">
+                        <div className="flex-1 p-6 flex flex-col items-center justify-center gap-2 text-rose-500 bg-rose-50/30">
                           <AlertCircle size={32} />
+                          {deletingId === l.id && deleteAction.error && (
+                            <p className="text-[10px] font-semibold text-rose-600 text-center">{deleteAction.error.message}</p>
+                          )}
                         </div>
                       ) : isEditing ? (
                         <div className="p-4 space-y-3 bg-white animate-in fade-in duration-200 h-full flex flex-col">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold uppercase text-slate-500">Nome do Leilão</label>
-                            <Input value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} className="h-8 text-xs border-slate-200" />
+                            <Input value={editForm.name ?? ""} onChange={(e) => setEditForm({...editForm, name: e.target.value})} placeholder="Nome do itinerário" className="h-8 text-xs border-slate-200" />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold uppercase text-slate-500">Prazo (Deadline)</label>
-                            <Input value={editForm.bidDeadline} onChange={(e) => setEditForm({...editForm, bidDeadline: e.target.value})} className="h-8 text-xs border-slate-200" />
+                            <Input type="datetime-local" value={editForm.deadline ?? ""} onChange={(e) => setEditForm({...editForm, deadline: e.target.value})} className="h-8 text-xs border-slate-200" />
                           </div>
+                          {updateAction.error && (
+                            <p className="text-[10px] font-semibold text-rose-600">{updateAction.error.message}</p>
+                          )}
                           <div className="flex gap-2 justify-end mt-auto pt-4 border-t border-slate-100">
-                            <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-8 text-xs">Cancelar</Button>
-                            <Button size="sm" onClick={saveEdit} className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">Salvar</Button>
+                            <Button size="sm" variant="ghost" onClick={cancelEditing} disabled={updateAction.pending} className="h-8 text-xs">Cancelar</Button>
+                            <Button size="sm" onClick={saveEdit} disabled={updateAction.pending} className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">
+                              {updateAction.pending ? <Loader2 size={14} className="animate-spin" /> : "Salvar"}
+                            </Button>
                           </div>
                         </div>
                       ) : (

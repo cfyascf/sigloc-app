@@ -21,4 +21,13 @@ public interface IAuctionService
     /// with the winning carrier, the Milking Run travel plan and the linked segments.
     /// </summary>
     Task<AuctionDetailDto> GetDetailAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the auction's editable metadata (custom name and/or bid deadline) for the
+    /// owning contractor. Only the provided fields are changed.
+    /// </summary>
+    Task<UpdateAuctionResponseDto> UpdateAsync(Guid contractorId, Guid id, UpdateAuctionRequestDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes the auction for the owning contractor.</summary>
+    Task DeleteAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default);
 }

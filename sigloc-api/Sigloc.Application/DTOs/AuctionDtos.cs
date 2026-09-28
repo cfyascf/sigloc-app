@@ -145,3 +145,21 @@ public record AuctionDetailDto(
     DetailBidMetricsDto BidMetrics,
     IReadOnlyList<TravelPlanStopDto> TravelPlan,
     IReadOnlyList<AuctionSegmentDto> Segments);
+
+// ---------------------------------------------------------------------------
+// Auction update / delete — PUT & DELETE /api/auctions/{id}
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Request body for editing the auction's custom name and/or bid deadline. Both fields
+/// are optional; only the ones provided are updated.
+/// </summary>
+public record UpdateAuctionRequestDto(
+    string? Name,
+    DateTimeOffset? ExpiresAt);
+
+/// <summary>Auction snapshot returned after a successful edit.</summary>
+public record UpdateAuctionResponseDto(
+    Guid Id,
+    string? Name,
+    DateTimeOffset ExpiresAt);

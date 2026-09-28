@@ -36,37 +36,44 @@
 
 ---
 
-### PUT `/api/v1/auctions/{auctionId}`
+### PUT `/api/auctions/{id}`
 - **Consumer:** FreightsOfferedOverview (card inline edit)
-- **Goal:** Update editable auction metadata (name, bidDeadline) used by the inline editing flow.
+- **Goal:** Update editable auction metadata (custom name and/or bid deadline) used by the inline editing flow. Both fields are optional; only the ones provided are changed. A custom `name` overrides the itinerary-derived label; sending an empty/whitespace name clears it and the listing falls back to the itinerary summary.
 
 **Input Contract (Request):**
 ```json
-{ "pathVariables": { "auctionId": "string" }, "body": { "name": "string (optional)", "bidDeadline": "string (optional, ISO-8601)" } }
+{ "pathVariables": { "id": "string (uuid, required)" }, "body": { "name": "string (optional)", "expiresAt": "string (optional, ISO-8601)" } }
 ```
 
 **Output Contract (Response):**
 ```json
-{ "statusCode": 200, "body": { "id": "string", "name": "string", "bidDeadline": "string" } }
-```
-
----
-
-### DELETE `/api/v1/auctions/{auctionId}`
-- **Consumer:** FreightsOfferedOverview
-- **Goal:** Delete an auction after confirmation. Soft delete preferred.
-
-**Input Contract (Request):**
-```json
-{ "pathVariables": { "auctionId": "string" }, "body": {} }
-```
-
-**Output Contract (Response):**
-```json
-{ "statusCode": 200, "body": { "auctionId": "string", "status": "deleted" } }
+{ "statusCode": 200, "body": { "id": "string (uuid)", "name": "string|null", "expiresAt": "string (ISO-8601)" } }
 ```
 
 **Error Payload (404):**
 ```json
-{ "statusCode": 404, "body": { "error": "AUCTION_NOT_FOUND", "message": "Auction not found" } }
+{ "statusCode": 404, "body": { "error": "AUCTION_NOT_FOUND", "message": "Auction ... does not exist or does not belong to this contractor." } }
+```
+
+**Error Payload (400):** invalid `expiresAt` (missing/in the past)
+```json
+{ "statusCode": 400, "body": { "error": "VALIDATION_ERROR", "message": "...", "details": [ { "field": "expiresAt", "reason": "Must be in the future." } ] } }
+```
+
+---
+
+### DELETE `/api/auctions/{id}`
+- **Consumer:** FreightsOfferedOverview
+- **Goal:** Delete an auction after confirmation.
+
+**Input Contract (Request):**
+```json
+{ "pathVariables": { "id": "string (uuid, required)" }, "body": {} }
+```
+
+**Output Contract (Response):** `204 No Content`
+
+**Error Payload (404):**
+```json
+{ "statusCode": 404, "body": { "error": "AUCTION_NOT_FOUND", "message": "Auction ... does not exist or does not belong to this contractor." } }
 ```

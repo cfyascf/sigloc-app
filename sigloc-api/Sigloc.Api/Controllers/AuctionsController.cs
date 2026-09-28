@@ -46,4 +46,20 @@ public class AuctionsController : ControllerBase
         var result = await _auctionService.GetDetailAsync(GetContractorId(), id, cancellationToken);
         return Ok(result);
     }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateAuctionRequestDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _auctionService.UpdateAsync(GetContractorId(), id, dto, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await _auctionService.DeleteAsync(GetContractorId(), id, cancellationToken);
+        return NoContent();
+    }
 }
