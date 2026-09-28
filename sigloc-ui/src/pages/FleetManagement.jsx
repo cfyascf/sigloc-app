@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Plus, Search, Pencil, Trash2, X, Save, AlertCircle, Scale, Box, Truck, MapPin, User, Settings2 } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Plus, Search, Pencil, Trash2, X, Save, AlertCircle, Scale, Box, Truck, MapPin, User, Settings2, Loader2 } from "lucide-react"
 import { Link } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
@@ -7,13 +7,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-export const availableVehicles = [
-  { id: "FRO-1042", plate: "ABC-1234", model: "Volvo FH 540", bodyType: "Frigorífico", driver: "Carlos Mendes", location: "Curitiba, PR", status: "Livre", weightKg: 25000, volumeM3: 90 },
-  { id: "FRO-1043", plate: "XYZ-9876", model: "Scania R460", bodyType: "Baú Sider", driver: "Roberto Silva", location: "São Paulo, SP", status: "Em Trânsito", weightKg: 27000, volumeM3: 105 },
-  { id: "FRO-1044", plate: "QWE-5544", model: "DAF XF 530", bodyType: "Refrigerado", driver: "Não Alocado", location: "Campinas, SP", status: "Manutenção", weightKg: 25000, volumeM3: 85 },
-  { id: "FRO-1045", plate: "ASD-9988", model: "Mercedes Actros 2651", bodyType: "Carga Seca", driver: "João Pedro", location: "Ribeirão Preto, SP", status: "Livre", weightKg: 30000, volumeM3: 110 },
-]
+import { useAsyncAction } from "@/hooks/use-async-action"
+import { vehicleService } from "@/services/vehicle-service"
+import { BODY_TYPE_OPTIONS, STATUS_OPTIONS } from "@/constants/vehicles"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`
@@ -35,11 +31,37 @@ const getStatusTextStyle = (status) => {
 
 export default function FleetManagement() {
   const [searchTerm, setSearchTerm] = useState("")
-  
-  const [vehicles, setVehicles] = useState(availableVehicles)
+
+  const [vehicles, setVehicles] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+
+  const saveAction = useAsyncAction(vehicleService.updateVehicle)
+  const deleteAction = useAsyncAction(vehicleService.deleteVehicle)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadVehicles() {
+      setIsLoading(true)
+      setLoadError(null)
+      try {
+        const data = await vehicleService.listVehicles({ signal: controller.signal })
+        setVehicles(data)
+      } catch (error) {
+        if (error?.name === "AbortError") return
+        setLoadError(error?.message || "Não foi possível carregar os veículos.")
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false)
+      }
+    }
+
+    loadVehicles()
+    return () => controller.abort()
+  }, [])
 
   const visibleVehicles = vehicles.filter((vehicle) => {
     const term = searchTerm.trim().toLowerCase()
@@ -51,20 +73,28 @@ export default function FleetManagement() {
     setEditingId(vehicle.id)
     setEditForm({ ...vehicle })
     setDeletingId(null)
+    saveAction.reset()
   }
-  
+
   const cancelEditing = () => {
     setEditingId(null)
     setEditForm(null)
+    saveAction.reset()
   }
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
+    const result = await saveAction.run(editingId, editForm)
+    if (!result.ok) return
+
     setVehicles(prev => prev.map(v => v.id === editingId ? editForm : v))
     setEditingId(null)
     setEditForm(null)
   }
 
-  const confirmDelete = (id) => {
+  const confirmDelete = async (id) => {
+    const result = await deleteAction.run(id)
+    if (!result.ok) return
+
     setVehicles(prev => prev.filter(v => v.id !== id))
     setDeletingId(null)
   }
@@ -95,7 +125,32 @@ export default function FleetManagement() {
           </div>
         </div>
 
+        {/* ESTADO: CARREGANDO */}
+        {isLoading && (
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-16 text-sm font-medium text-slate-500">
+            <Loader2 size={16} className="animate-spin text-blue-600" /> Carregando veículos...
+          </div>
+        )}
+
+        {/* ESTADO: ERRO DE CARREGAMENTO */}
+        {!isLoading && loadError && (
+          <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50/50 p-4 text-sm font-semibold text-rose-700">
+            <AlertCircle size={16} /> {loadError}
+          </div>
+        )}
+
+        {/* ESTADO: LISTA VAZIA */}
+        {!isLoading && !loadError && visibleVehicles.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
+            <Truck size={24} className="text-slate-300" />
+            <p className="text-sm font-semibold text-slate-600">
+              {vehicles.length === 0 ? "Nenhum veículo cadastrado." : "Nenhum veículo encontrado para a busca."}
+            </p>
+          </div>
+        )}
+
         {/* LISTAGEM DE ALTA DENSIDADE */}
+        {!isLoading && !loadError && visibleVehicles.length > 0 && (
         <div className="space-y-2">
           {visibleVehicles.map((vehicle) => {
             const isEditingThis = editingId === vehicle.id
@@ -106,11 +161,15 @@ export default function FleetManagement() {
                 <div key={vehicle.id} className="flex w-full items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50/50 p-3.5 animate-in fade-in">
                   <div className="flex items-center gap-3 text-rose-700 pl-2">
                     <AlertCircle size={16} />
-                    <span className="text-sm font-bold">Excluir permanentemente o veículo {vehicle.plate}?</span>
+                    <span className="text-sm font-bold">
+                      {deleteAction.error ? deleteAction.error.message : `Excluir permanentemente o veículo ${vehicle.plate}?`}
+                    </span>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setDeletingId(null)} className="h-8 text-xs font-semibold bg-white border-slate-200 text-slate-600">Cancelar</Button>
-                    <Button size="sm" onClick={() => confirmDelete(vehicle.id)} className="h-8 text-xs font-bold bg-rose-600 text-white hover:bg-rose-700">Sim, Excluir</Button>
+                    <Button variant="outline" size="sm" disabled={deleteAction.pending} onClick={() => { setDeletingId(null); deleteAction.reset() }} className="h-8 text-xs font-semibold bg-white border-slate-200 text-slate-600">Cancelar</Button>
+                    <Button size="sm" disabled={deleteAction.pending} onClick={() => confirmDelete(vehicle.id)} className="h-8 text-xs font-bold bg-rose-600 text-white hover:bg-rose-700">
+                      {deleteAction.pending ? <><Loader2 size={14} className="mr-1.5 animate-spin" /> Excluindo...</> : "Sim, Excluir"}
+                    </Button>
                   </div>
                 </div>
               )
@@ -177,7 +236,7 @@ export default function FleetManagement() {
                       <Button variant="ghost" size="icon" onClick={() => startEditing(vehicle)} className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0 transition-colors">
                         <Pencil size={14} />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeletingId(vehicle.id)} className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors">
+                      <Button variant="ghost" size="icon" onClick={() => { setDeletingId(vehicle.id); deleteAction.reset() }} className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors">
                         <Trash2 size={14} />
                       </Button>
                     </div>
@@ -192,7 +251,7 @@ export default function FleetManagement() {
                       {/* LINHA 1: Identificação Básica */}
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Placa do Veículo</label>
-                        <Input value={editForm.plate} onChange={(e) => setEditForm({...editForm, plate: e.target.value})} className="h-9 text-xs font-mono font-bold bg-white focus:border-blue-500 focus:ring-blue-500 uppercase" />
+                        <Input value={editForm.plate} readOnly disabled title="A placa não pode ser alterada" className="h-9 text-xs font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed uppercase" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marca / Modelo</label>
@@ -229,11 +288,9 @@ export default function FleetManagement() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Carga Seca">Carga Seca</SelectItem>
-                            <SelectItem value="Baú Sider">Baú Sider</SelectItem>
-                            <SelectItem value="Frigorífico">Frigorífico</SelectItem>
-                            <SelectItem value="Refrigerado">Refrigerado</SelectItem>
-                            <SelectItem value="Carreta Prancha">Carreta Prancha</SelectItem>
+                            {BODY_TYPE_OPTIONS.map((option) => (
+                              <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -252,22 +309,26 @@ export default function FleetManagement() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Livre">Livre</SelectItem>
-                            <SelectItem value="Em Trânsito">Em Trânsito</SelectItem>
-                            <SelectItem value="Manutenção">Manutenção</SelectItem>
+                            {STATUS_OPTIONS.map((option) => (
+                              <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
                     
                     <div className="flex items-center justify-between border-t border-slate-200 pt-4">
-                      <p className="text-[10px] text-slate-500 flex items-center gap-1.5"><AlertCircle size={12}/> Os dados do veículo serão atualizados imediatamente no sistema.</p>
+                      {saveAction.error ? (
+                        <p className="text-[10px] font-semibold text-rose-600 flex items-center gap-1.5"><AlertCircle size={12}/> {saveAction.error.message}</p>
+                      ) : (
+                        <p className="text-[10px] text-slate-500 flex items-center gap-1.5"><AlertCircle size={12}/> Os dados do veículo serão atualizados imediatamente no sistema.</p>
+                      )}
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={cancelEditing} className="h-8 text-xs font-semibold bg-white">
+                        <Button variant="outline" size="sm" disabled={saveAction.pending} onClick={cancelEditing} className="h-8 text-xs font-semibold bg-white">
                           <X size={14} className="mr-1.5" /> Cancelar
                         </Button>
-                        <Button size="sm" onClick={saveEdit} className="h-8 text-xs font-bold bg-blue-600 text-white hover:bg-blue-700">
-                          <Save size={14} className="mr-1.5" /> Salvar Veículo
+                        <Button size="sm" disabled={saveAction.pending} onClick={saveEdit} className="h-8 text-xs font-bold bg-blue-600 text-white hover:bg-blue-700">
+                          {saveAction.pending ? <><Loader2 size={14} className="mr-1.5 animate-spin" /> Salvando...</> : <><Save size={14} className="mr-1.5" /> Salvar Veículo</>}
                         </Button>
                       </div>
                     </div>
@@ -277,6 +338,7 @@ export default function FleetManagement() {
             )
           })}
         </div>
+        )}
 
       </div>
     </AppShell>
