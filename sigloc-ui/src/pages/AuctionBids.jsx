@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, CheckCircle2, Truck, MapPin, Clock, ShieldCheck, Trophy, ArrowDownRight, ExternalLink, Calendar, ChevronDown, ChevronUp, Activity, FileCheck, Loader2 } from "lucide-react"
-import { Link, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { FormAlert } from "@/components/auth/FormAlert"
+import { useToast } from "@/components/ui/toast"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { getBidRanking, awardAuction } from "@/services/auction-service"
 
@@ -22,9 +23,10 @@ const formatDeadline = (value) => {
 export default function AuctionBids() {
   // The route param carries the auction id (see /auction-bids/:segmentId route).
   const { segmentId: auctionId } = useParams()
+  const navigate = useNavigate()
+  const toast = useToast()
   const [expandedBids, setExpandedBids] = useState([])
   const [ranking, setRanking] = useState(null)
-  const [awardedTripId, setAwardedTripId] = useState(null)
 
   const loadAction = useAsyncAction((id) => getBidRanking(id))
   const awardAction = useAsyncAction(({ id, bidId }) => awardAuction(id, bidId))
@@ -61,8 +63,19 @@ export default function AuctionBids() {
     if (!auctionId || !bidId) return
     const result = await awardAction.run({ id: auctionId, bidId })
     if (result.ok) {
-      setAwardedTripId(result.data?.tripId ?? null)
-      await reload()
+      const tripId = result.data?.tripId ?? null
+      toast.success(
+        "Leilão adjudicado com sucesso",
+        tripId
+          ? `Viagem criada (${tripId}). Acompanhe em Rotas Ativas.`
+          : "Acompanhe a viagem em Rotas Ativas."
+      )
+      navigate("/active-routes")
+    } else {
+      toast.error(
+        "Não foi possível adjudicar o leilão",
+        result.error?.message ?? "Tente novamente."
+      )
     }
   }
 
@@ -180,16 +193,6 @@ export default function AuctionBids() {
             <div className="space-y-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 ml-1">Ranking de Propostas ({rankedBids.length})</h3>
 
-              {awardAction.error && (
-                <FormAlert message={awardAction.error.message} />
-              )}
-
-              {awardedTripId && (
-                <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                  <CheckCircle2 size={16} /> Leilão adjudicado com sucesso. Viagem criada ({awardedTripId}).
-                </div>
-              )}
-              
               {rankedBids.length === 0 ? (
                 <div className="rounded-xl border border-slate-200 border-dashed py-12 text-center text-slate-500 bg-slate-50/50">
                   {loadAction.pending ? "Carregando propostas…" : "Nenhum lance recebido para este leilão ainda."}
