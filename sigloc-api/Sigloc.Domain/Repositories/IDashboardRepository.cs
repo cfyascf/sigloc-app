@@ -41,6 +41,45 @@ public sealed record TripSlaMilestone(
     DateTimeOffset SlaDeadline,
     DateTimeOffset? LastCalculatedEta);
 
+/// <summary>Global state counters shown at the top of the carrier (transportador) dashboard.</summary>
+public sealed record CarrierDashboardKpis(
+    int AvailableVehicles,
+    int ActiveBids,
+    int InTransitTrips);
+
+/// <summary>
+/// Raw fleet/auction inputs used to compute the carrier performance ratios for the current
+/// month. <see cref="TotalVehicles"/>/<see cref="BusyVehicles"/> feed "fleet in operation",
+/// and <see cref="SubmittedBids"/>/<see cref="WonBids"/> feed the auction success rate.
+/// </summary>
+public sealed record CarrierPerformanceInputs(
+    int TotalVehicles,
+    int BusyVehicles,
+    int SubmittedBids,
+    int WonBids);
+
+/// <summary>
+/// An active bid of the carrier in an open auction paired with the current leader bid
+/// (lowest total across every active bid of the auction). Feeds the "Radar de Lances".
+/// </summary>
+public sealed record ActiveBidDispute(
+    Guid RouteId,
+    string Itinerary,
+    decimal MyBidAmount,
+    decimal LeaderBidAmount);
+
+/// <summary>
+/// An in-transit trip milestone of the carrier with the data needed to compute the SLA
+/// countdown: the vehicle plate, the reference code, the next milestone deadline and the
+/// last ETA calculated by the routing engine (null when no monitoring snapshot exists).
+/// </summary>
+public sealed record CarrierSlaMilestone(
+    string VehiclePlate,
+    string ReferenceCode,
+    string MilestoneType,
+    DateTimeOffset SlaDeadline,
+    DateTimeOffset? LastCalculatedEta);
+
 /// <summary>
 /// Read-only aggregations backing the executive dashboard (BFF). Every query is
 /// <c>AsNoTracking()</c> and scoped to the calling contractor.
@@ -58,4 +97,19 @@ public interface IDashboardRepository
 
     /// <summary>Returns the SLA milestone rows for the contractor's in-transit trips, for the SLA countdown ranking.</summary>
     Task<IReadOnlyList<TripSlaMilestone>> GetSlaMilestonesAsync(Guid contractorId, CancellationToken cancellationToken = default);
+
+    /// <summary>Counts the carrier's free vehicles, active bids in open auctions and in-transit trips.</summary>
+    Task<CarrierDashboardKpis> GetCarrierKpisAsync(Guid carrierId, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the raw fleet/auction figures used to compute the carrier performance ratios for the month.</summary>
+    Task<CarrierPerformanceInputs> GetCarrierPerformanceInputsAsync(Guid carrierId, DateTimeOffset monthStartUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the carrier's active bids in open auctions paired with the current leader bid, for the bid radar.</summary>
+    Task<IReadOnlyList<ActiveBidDispute>> GetActiveBidDisputesAsync(Guid carrierId, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the occupation snapshot for every in-transit trip of the carrier, for the capacity-utilization metric.</summary>
+    Task<IReadOnlyList<TripOccupation>> GetInTransitOccupationsByCarrierAsync(Guid carrierId, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the SLA milestone rows for the carrier's in-transit trips, for the control tower ranking.</summary>
+    Task<IReadOnlyList<CarrierSlaMilestone>> GetCarrierSlaMilestonesAsync(Guid carrierId, CancellationToken cancellationToken = default);
 }

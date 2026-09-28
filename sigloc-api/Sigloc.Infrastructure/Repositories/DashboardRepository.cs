@@ -229,6 +229,234 @@ public class DashboardRepository : IDashboardRepository
         return result;
     }
 
+    public async Task<CarrierDashboardKpis> GetCarrierKpisAsync(
+        Guid carrierId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var availableVehicles = await db.Vehicles
+            .AsNoTracking()
+            .CountAsync(v => v.TransportadoraId == carrierId && v.Status == OperationalStatus.LIVRE, cancellationToken);
+
+        var activeBids = await (
+            from bid in db.Bids.AsNoTracking()
+            join auction in db.Auctions.AsNoTracking() on bid.AuctionId equals auction.Id
+            where bid.CarrierId == carrierId
+                && bid.Status != BidStatus.Withdrawn
+                && auction.Status == AuctionStatus.Open
+            select bid.Id)
+            .CountAsync(cancellationToken);
+
+        var inTransitTrips = await db.Trips
+            .AsNoTracking()
+            .CountAsync(t => t.CarrierId == carrierId && t.Status == TripStatus.InTransit, cancellationToken);
+
+        return new CarrierDashboardKpis(availableVehicles, activeBids, inTransitTrips);
+    }
+
+    public async Task<CarrierPerformanceInputs> GetCarrierPerformanceInputsAsync(
+        Guid carrierId,
+        DateTimeOffset monthStartUtc,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var totalVehicles = await db.Vehicles
+            .AsNoTracking()
+            .CountAsync(v => v.TransportadoraId == carrierId, cancellationToken);
+
+        // "Fleet in operation": every truck currently not free (in transit or maintenance).
+        var busyVehicles = await db.Vehicles
+            .AsNoTracking()
+            .CountAsync(v => v.TransportadoraId == carrierId && v.Status != OperationalStatus.LIVRE, cancellationToken);
+
+        var submittedBids = await db.Bids
+            .AsNoTracking()
+            .CountAsync(b => b.CarrierId == carrierId && b.SubmittedAt >= monthStartUtc, cancellationToken);
+
+        var wonBids = await db.Bids
+            .AsNoTracking()
+            .CountAsync(b => b.CarrierId == carrierId && b.Status == BidStatus.Winner && b.SubmittedAt >= monthStartUtc, cancellationToken);
+
+        return new CarrierPerformanceInputs(totalVehicles, busyVehicles, submittedBids, wonBids);
+    }
+
+    public async Task<IReadOnlyList<TripOccupation>> GetInTransitOccupationsByCarrierAsync(
+        Guid carrierId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var rows = await (
+            from trip in db.Trips.AsNoTracking()
+            join route in db.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
+            join vehicle in db.Vehicles.AsNoTracking() on trip.VehicleId equals vehicle.Id
+            where trip.CarrierId == carrierId && trip.Status == TripStatus.InTransit
+            select new
+            {
+                trip.RouteId,
+                route.TotalWeightKg,
+                route.TotalVolumeM3,
+                vehicle.CapacityWeight,
+                vehicle.CapacityVolume
+            })
+            .ToListAsync(cancellationToken);
+
+        if (rows.Count == 0)
+        {
+            return Array.Empty<TripOccupation>();
+        }
+
+        var routeIds = rows.Select(r => r.RouteId).Distinct().ToList();
+        var segmentCounts = await db.RouteSegments
+            .AsNoTracking()
+            .Where(s => s.RouteId != null && routeIds.Contains(s.RouteId.Value))
+            .GroupBy(s => s.RouteId!.Value)
+            .Select(g => new { RouteId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.RouteId, x => x.Count, cancellationToken);
+
+        return rows
+            .Select(r => new TripOccupation(
+                r.TotalWeightKg,
+                (double)r.CapacityWeight,
+                r.TotalVolumeM3,
+                (double)r.CapacityVolume,
+                segmentCounts.TryGetValue(r.RouteId, out var count) ? count : 0))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<ActiveBidDispute>> GetActiveBidDisputesAsync(
+        Guid carrierId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+
+        // The carrier's active bids in open auctions (best/lowest bid per auction if several exist).
+        var myBids = await (
+            from bid in db.Bids.AsNoTracking()
+            join auction in db.Auctions.AsNoTracking() on bid.AuctionId equals auction.Id
+            where bid.CarrierId == carrierId
+                && bid.Status != BidStatus.Withdrawn
+                && auction.Status == AuctionStatus.Open
+            select new { bid.AuctionId, auction.RouteId, bid.TotalValue })
+            .ToListAsync(cancellationToken);
+
+        if (myBids.Count == 0)
+        {
+            return Array.Empty<ActiveBidDispute>();
+        }
+
+        var myBestBidByAuction = myBids
+            .GroupBy(b => b.AuctionId)
+            .ToDictionary(g => g.Key, g => g.Min(b => b.TotalValue));
+
+        var auctionRoutes = myBids
+            .GroupBy(b => b.AuctionId)
+            .ToDictionary(g => g.Key, g => g.First().RouteId);
+
+        var auctionIds = myBestBidByAuction.Keys.ToList();
+
+        // Current leader (lowest total across every active bid) for each auction.
+        var leaderByAuction = await db.Bids
+            .AsNoTracking()
+            .Where(b => auctionIds.Contains(b.AuctionId) && b.Status != BidStatus.Withdrawn)
+            .GroupBy(b => b.AuctionId)
+            .Select(g => new { AuctionId = g.Key, Leader = g.Min(b => b.TotalValue) })
+            .ToDictionaryAsync(x => x.AuctionId, x => x.Leader, cancellationToken);
+
+        var itineraries = await BuildItinerariesAsync(db, auctionRoutes, cancellationToken);
+
+        var result = new List<ActiveBidDispute>();
+        foreach (var auctionId in auctionIds)
+        {
+            var myBid = myBestBidByAuction[auctionId];
+            var leader = leaderByAuction.TryGetValue(auctionId, out var l) ? l : myBid;
+            itineraries.TryGetValue(auctionId, out var itinerary);
+
+            result.Add(new ActiveBidDispute(
+                RouteId: auctionRoutes[auctionId],
+                Itinerary: itinerary ?? string.Empty,
+                MyBidAmount: myBid,
+                LeaderBidAmount: leader));
+        }
+
+        return result;
+    }
+
+    public async Task<IReadOnlyList<CarrierSlaMilestone>> GetCarrierSlaMilestonesAsync(
+        Guid carrierId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
+
+        var trips = await (
+            from trip in db.Trips.AsNoTracking()
+            join vehicle in db.Vehicles.AsNoTracking() on trip.VehicleId equals vehicle.Id
+            where trip.CarrierId == carrierId && trip.Status == TripStatus.InTransit
+            join monitoring in db.TripMonitorings.AsNoTracking() on trip.Id equals monitoring.TripId into mon
+            from monitoring in mon.DefaultIfEmpty()
+            select new
+            {
+                trip.Id,
+                trip.RouteId,
+                vehicle.Plate,
+                LastCalculatedEta = (DateTimeOffset?)(monitoring != null ? monitoring.LastCalculatedEta : (DateTimeOffset?)null)
+            })
+            .ToListAsync(cancellationToken);
+
+        if (trips.Count == 0)
+        {
+            return Array.Empty<CarrierSlaMilestone>();
+        }
+
+        var routeIds = trips.Select(t => t.RouteId).Distinct().ToList();
+
+        var segments = await db.RouteSegments
+            .AsNoTracking()
+            .Where(s => s.RouteId != null && routeIds.Contains(s.RouteId.Value))
+            .Select(s => new
+            {
+                RouteId = s.RouteId!.Value,
+                s.Status,
+                s.PickupDeadline,
+                s.DeliveryDeadline
+            })
+            .ToListAsync(cancellationToken);
+
+        var segmentsByRoute = segments
+            .GroupBy(s => s.RouteId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var result = new List<CarrierSlaMilestone>();
+        foreach (var trip in trips)
+        {
+            if (!segmentsByRoute.TryGetValue(trip.RouteId, out var routeSegments) || routeSegments.Count == 0)
+            {
+                continue;
+            }
+
+            var ordered = routeSegments.OrderBy(s => s.PickupDeadline).ToList();
+
+            // The next open leg drives the milestone: not yet picked up → COLETA, else ENTREGA.
+            var nextPickup = ordered.FirstOrDefault(s => s.Status == SegmentStatus.Routed || s.Status == SegmentStatus.InTransit);
+            var isPickup = nextPickup != null && nextPickup.Status == SegmentStatus.Routed;
+            var deadline = isPickup
+                ? nextPickup!.PickupDeadline
+                : ordered.Min(s => s.DeliveryDeadline);
+            var milestoneType = isPickup ? "COLETA" : "ENTREGA";
+
+            result.Add(new CarrierSlaMilestone(
+                VehiclePlate: trip.Plate,
+                ReferenceCode: ShortCode(trip.Id),
+                MilestoneType: milestoneType,
+                SlaDeadline: deadline,
+                LastCalculatedEta: trip.LastCalculatedEta));
+        }
+
+        return result;
+    }
+
     private static async Task<Dictionary<Guid, string>> BuildItinerariesAsync(
         SiglocDbContext db,
         IReadOnlyDictionary<Guid, Guid> auctionToRoute,

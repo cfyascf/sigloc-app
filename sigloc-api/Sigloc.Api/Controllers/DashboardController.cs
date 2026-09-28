@@ -20,12 +20,23 @@ public class DashboardController : ControllerBase
 
     private Guid GetContractorId() => User.GetCompanyId();
 
+    private Guid GetCarrierId() => User.GetCompanyId();
+
     /// <summary>Aggregated executive dashboard (Dashboard Executivo) for the contractor.</summary>
     [HttpGet("executivo")]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> GetExecutive(CancellationToken cancellationToken)
     {
         var result = await _dashboardService.GetExecutiveDashboardAsync(GetContractorId(), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Aggregated operational dashboard (Dashboard do Transportador) for the carrier.</summary>
+    [HttpGet("transportador")]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> GetCarrier(CancellationToken cancellationToken)
+    {
+        var result = await _dashboardService.GetCarrierDashboardAsync(GetCarrierId(), cancellationToken);
         return Ok(result);
     }
 }

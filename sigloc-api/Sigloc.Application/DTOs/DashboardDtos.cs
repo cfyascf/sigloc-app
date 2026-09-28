@@ -45,3 +45,51 @@ public record SlaMilestoneDto(
     string MilestoneType,
     long TimeRemainingMinutes,
     bool IsCritical);
+
+/// <summary>
+/// Carrier (transportador) dashboard payload. Aggregated server-side (BFF) and returned
+/// ready to render, scoped to the calling carrier: immediate operational KPIs, monthly
+/// performance metrics, the active-bid radar and the SLA control tower.
+/// </summary>
+public record DashboardTransportadorDto(
+    CarrierKpisDto Kpis,
+    CarrierPerformanceDto Performance,
+    IReadOnlyList<ActiveDisputeDto> ActiveDisputes,
+    IReadOnlyList<ControlTowerItemDto> ControlTower);
+
+/// <summary>Immediate operational state counters shown at the top of the carrier dashboard.</summary>
+public record CarrierKpisDto(
+    int AvailableVehicles,
+    int ActiveBids,
+    int InTransitTrips);
+
+/// <summary>Aggregated performance metrics for the current month.</summary>
+public record CarrierPerformanceDto(
+    decimal FleetOperationPercentage,
+    decimal CapacityUtilizationPercentage,
+    decimal AuctionSuccessRate);
+
+/// <summary>
+/// One of the top active-bid disputes. <see cref="Status"/> is <c>VENCENDO</c> when the
+/// carrier holds the leader bid, otherwise <c>PERDENDO</c>; <see cref="AmountToCover"/> is
+/// <c>MyBidAmount - LeaderBidAmount</c> (zero when winning).
+/// </summary>
+public record ActiveDisputeDto(
+    string RouteId,
+    string Itinerary,
+    string Status,
+    decimal MyBidAmount,
+    decimal LeaderBidAmount,
+    decimal AmountToCover);
+
+/// <summary>
+/// One of the most critical SLA milestones for the carrier's in-transit fleet.
+/// <see cref="TimeRemainingMinutes"/> is the ETA vs deadline gap in minutes (negative when
+/// already late); <see cref="IsDelayed"/> is true when the milestone is past due.
+/// </summary>
+public record ControlTowerItemDto(
+    string VehiclePlate,
+    string ReferenceCode,
+    string MilestoneType,
+    long TimeRemainingMinutes,
+    bool IsDelayed);

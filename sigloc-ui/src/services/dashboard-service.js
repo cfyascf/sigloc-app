@@ -1,11 +1,13 @@
 /**
- * Dashboard service — boundary between the UI and the Sigloc executive dashboard
- * endpoint.
+ * Dashboard service — boundary between the UI and the Sigloc dashboard endpoints.
  *
- * `GET /api/dashboard/executivo` is an aggregator (BFF) that returns a
- * `DashboardExecutivoDto` (KPIs, network efficiency, top cost deviations and the
- * most critical SLA milestones) already computed server-side, scoped to the
- * authenticated contractor.
+ * `GET /api/dashboard/executivo` returns a `DashboardExecutivoDto` for the contractor
+ * (KPIs, network efficiency, top cost deviations and the most critical SLA milestones).
+ *
+ * `GET /api/dashboard/transportador` returns a `DashboardTransportadorDto` for the carrier
+ * (operational KPIs, monthly performance, the active-bid radar and the SLA control tower).
+ *
+ * Both are aggregators (BFF) computed server-side and scoped to the authenticated company.
  */
 
 import { apiClient } from "@/lib/api-client"
@@ -59,7 +61,54 @@ export async function getExecutiveDashboard(options) {
   return toExecutiveDashboard(payload)
 }
 
+/** Normalizes a `DashboardTransportadorDto` into a plain object for the UI. */
+export function toCarrierDashboard(dto) {
+  if (!dto) {
+    return null
+  }
+
+  const kpis = dto.kpis ?? {}
+  const performance = dto.performance ?? {}
+
+  return {
+    kpis: {
+      availableVehicles: kpis.availableVehicles ?? 0,
+      activeBids: kpis.activeBids ?? 0,
+      inTransitTrips: kpis.inTransitTrips ?? 0,
+    },
+    performance: {
+      fleetOperationPercentage: performance.fleetOperationPercentage ?? 0,
+      capacityUtilizationPercentage:
+        performance.capacityUtilizationPercentage ?? 0,
+      auctionSuccessRate: performance.auctionSuccessRate ?? 0,
+    },
+    activeDisputes: (dto.activeDisputes ?? []).map((item) => ({
+      routeId: item.routeId ?? "",
+      itinerary: item.itinerary ?? "",
+      status: item.status ?? "",
+      myBidAmount: item.myBidAmount ?? 0,
+      leaderBidAmount: item.leaderBidAmount ?? 0,
+      amountToCover: item.amountToCover ?? 0,
+    })),
+    controlTower: (dto.controlTower ?? []).map((item) => ({
+      vehiclePlate: item.vehiclePlate ?? "",
+      referenceCode: item.referenceCode ?? "",
+      milestoneType: item.milestoneType ?? "",
+      timeRemainingMinutes: item.timeRemainingMinutes ?? 0,
+      isDelayed: Boolean(item.isDelayed),
+    })),
+  }
+}
+
+/** Fetches the carrier (transportador) dashboard for the authenticated carrier. */
+export async function getCarrierDashboard(options) {
+  const payload = await apiClient.get(`${BASE}/transportador`, options)
+  return toCarrierDashboard(payload)
+}
+
 export const dashboardService = {
   getExecutiveDashboard,
   toExecutiveDashboard,
+  getCarrierDashboard,
+  toCarrierDashboard,
 }
