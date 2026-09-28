@@ -20,6 +20,12 @@ public interface IAuthService
     /// <summary>Smart onboarding of a carrier through an invite link.</summary>
     Task<AuthResultDto> RegisterCarrierByInviteAsync(string token, RegisterCarrierDto dto, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Connects an already-authenticated carrier to the contractor that issued the
+    /// invite, creating an active partnership and consuming the invite (single use).
+    /// </summary>
+    Task<PartnerConnectionCreatedDto> ConnectCarrierByInviteAsync(Guid carrierId, string token, CancellationToken cancellationToken = default);
+
     /// <summary>Open self-service registration of a shipper company using a Google account.</summary>
     Task<AuthResultDto> RegisterAdministratorWithGoogleAsync(RegisterAdministratorGoogleDto dto, CancellationToken cancellationToken = default);
 

@@ -78,6 +78,16 @@ public class AuthController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
+    /// <summary>Connects an already-authenticated carrier (Transportadora) to a contractor through an invite token.</summary>
+    [HttpPost("invite/{token}/connect")]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
+    public async Task<IActionResult> ConnectByInvite(string token, CancellationToken cancellationToken)
+    {
+        var carrierId = User.GetCompanyId();
+        var result = await _authService.ConnectCarrierByInviteAsync(carrierId, token, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
+
     /// <summary>Registration of a shipper (Contratante) using a Google account.</summary>
     [HttpPost("register/contratante/google")]
     [AllowAnonymous]

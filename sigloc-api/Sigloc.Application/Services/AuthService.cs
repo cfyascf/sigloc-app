@@ -230,6 +230,40 @@ public partial class AuthService : IAuthService
         return BuildAuthResult(user);
     }
 
+    public async Task<PartnerConnectionCreatedDto> ConnectCarrierByInviteAsync(Guid carrierId, string token, CancellationToken cancellationToken = default)
+    {
+        var invite = await _invites.GetByTokenAsync(token, cancellationToken);
+        if (invite is null || invite.IsUsed || IsExpired(invite))
+        {
+            throw new InvalidInviteException();
+        }
+
+        var contractor = await _contractors.GetByIdAsync(invite.ContractorId, cancellationToken)
+            ?? throw new InvalidInviteException();
+
+        if (await _connections.ExistsAsync(contractor.Id, carrierId, cancellationToken))
+        {
+            throw new PartnershipAlreadyExistsException(contractor.TradeName ?? contractor.CompanyName);
+        }
+
+        var connection = new PartnerConnection
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = contractor.Id,
+            CarrierId = carrierId,
+            Status = PartnershipStatus.Active,
+            InitiatedBy = PartnershipInitiator.Carrier
+        };
+
+        invite.IsUsed = true;
+
+        await _connections.AddAsync(connection, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var contractorName = contractor.TradeName ?? contractor.CompanyName;
+        return new PartnerConnectionCreatedDto(connection.Id, contractorName, "ATIVA");
+    }
+
     public async Task<AuthResultDto> LoginAsync(LoginDto dto, CancellationToken cancellationToken = default)
     {
         var email = NormalizeEmail(dto.Email);
