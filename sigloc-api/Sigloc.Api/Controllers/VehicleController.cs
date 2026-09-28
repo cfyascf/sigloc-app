@@ -34,7 +34,8 @@ public class VehiclesController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _vehicleService.GetByIdAsync(id, cancellationToken);
+        var carrierId = User.GetCompanyId();
+        var result = await _vehicleService.GetByIdAsync(carrierId, id, cancellationToken);
         return Ok(result);
     }
 
@@ -42,7 +43,8 @@ public class VehiclesController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
-        var result = await _vehicleService.GetAllAsync(cancellationToken);
+        var carrierId = User.GetCompanyId();
+        var result = await _vehicleService.GetAllAsync(carrierId, cancellationToken);
         return Ok(result);
     }
 
@@ -50,7 +52,8 @@ public class VehiclesController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateVehicleDto dto, CancellationToken cancellationToken)
     {
-        await _vehicleService.UpdateAsync(id, dto, cancellationToken);
+        var carrierId = User.GetCompanyId();
+        await _vehicleService.UpdateAsync(carrierId, id, dto, cancellationToken);
         return NoContent();
     }
 
@@ -58,7 +61,8 @@ public class VehiclesController : ControllerBase
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        await _vehicleService.DeleteAsync(id, cancellationToken);
+        var carrierId = User.GetCompanyId();
+        await _vehicleService.DeleteAsync(carrierId, id, cancellationToken);
         return NoContent();
     }
 }

@@ -15,16 +15,17 @@ public class VehicleRepository : IVehicleRepository
         _dbContext = dbContext;
     }
 
-    public async Task<Vehicle?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Vehicle?> GetByIdAsync(Guid id, Guid transportadoraId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Vehicles
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == id && p.TransportadoraId == transportadoraId, cancellationToken);
     }
 
-    public async Task<IEnumerable<Vehicle>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<Vehicle>> GetAllAsync(Guid transportadoraId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Vehicles
-            .AsNoTracking() 
+            .AsNoTracking()
+            .Where(v => v.TransportadoraId == transportadoraId)
             .ToListAsync(cancellationToken);
     }
 
