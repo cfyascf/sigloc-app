@@ -21,7 +21,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
     public async Task<IActionResult> Create([FromBody] CreateVehicleDto dto, CancellationToken cancellationToken)
     {
         var carrierId = User.GetCompanyId();
@@ -31,7 +31,7 @@ public class VehiclesController : ControllerBase
     }
     
     [HttpGet("{id}")]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var carrierId = User.GetCompanyId();
@@ -40,7 +40,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
         var carrierId = User.GetCompanyId();
@@ -49,7 +49,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateVehicleDto dto, CancellationToken cancellationToken)
     {
         var carrierId = User.GetCompanyId();
@@ -58,7 +58,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = Policies.RequireShipperAccess)]
+    [Authorize(Policy = Policies.RequireCarrierAccess)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var carrierId = User.GetCompanyId();
