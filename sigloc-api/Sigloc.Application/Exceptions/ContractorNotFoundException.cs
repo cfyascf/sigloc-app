@@ -6,8 +6,13 @@ namespace Sigloc.Application.Exceptions;
 /// </summary>
 public sealed class ContractorNotFoundException : Exception
 {
+    public string ResourceType => "contractor";
+
+    public Guid ResourceId { get; }
+
     public ContractorNotFoundException(Guid contractorId)
         : base($"Contratante '{contractorId}' não encontrado.")
     {
+        ResourceId = contractorId;
     }
 }

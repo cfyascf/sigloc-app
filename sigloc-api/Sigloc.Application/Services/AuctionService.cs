@@ -500,7 +500,7 @@ public class AuctionService : IAuctionService
 
         // The vehicle must belong to the carrier placing the bid.
         var vehicle = await _vehicleRepository.GetByIdAsync(dto.VeiculoId, carrierId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Veículo {dto.VeiculoId} não encontrado para esta transportadora.");
+            ?? throw new VehicleNotFoundException(dto.VeiculoId);
 
         // --- 2. Physical trava: weight ------------------------------------------
         if ((decimal)route.TotalWeightKg > vehicle.CapacityWeight)

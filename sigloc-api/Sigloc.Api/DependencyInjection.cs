@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Sigloc.Domain.Constants;
@@ -27,6 +28,20 @@ public static class DependencyInjection
                     ValidAudience = jwtSettings.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
                 };
+
+                // Return the standardized JSON error body (same shape as the global
+                // exception middleware) instead of an empty 401/403 response.
+                options.Events = new JwtBearerEvents
+                {
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse();
+                        return WriteErrorAsync(context.HttpContext, StatusCodes.Status401Unauthorized,
+                            "UNAUTHORIZED", "Authentication is required to access this resource.");
+                    },
+                    OnForbidden = context => WriteErrorAsync(context.HttpContext, StatusCodes.Status403Forbidden,
+                        "FORBIDDEN", "Access denied")
+                };
             });
 
         services.AddAuthorization(options =>
@@ -45,5 +60,15 @@ public static class DependencyInjection
         });
 
         return services;
+    }
+
+    private static Task WriteErrorAsync(HttpContext httpContext, int statusCode, string error, string message)
+    {
+        httpContext.Response.StatusCode = statusCode;
+        httpContext.Response.ContentType = "application/json";
+        return httpContext.Response.WriteAsync(JsonSerializer.Serialize(new { error, message }, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        }));
     }
 }

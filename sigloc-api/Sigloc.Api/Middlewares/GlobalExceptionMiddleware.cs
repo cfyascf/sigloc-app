@@ -64,7 +64,9 @@ public class GlobalExceptionHandlerMiddleware
                 new
                 {
                     error = "PRODUTO_NAO_ENCONTRADO",
-                    message = notFound.Message
+                    message = notFound.Message,
+                    resourceType = notFound.ResourceType,
+                    resourceId = notFound.ResourceId
                 }),
 
             ProductInUseException inUse => (
@@ -81,7 +83,9 @@ public class GlobalExceptionHandlerMiddleware
                 new
                 {
                     error = "ROUTE_SEGMENT_NOT_FOUND",
-                    message = segmentNotFound.Message
+                    message = segmentNotFound.Message,
+                    resourceType = segmentNotFound.ResourceType,
+                    resourceId = segmentNotFound.ResourceId
                 }),
 
             AuctionNotFoundException auctionNotFound => (
@@ -89,7 +93,9 @@ public class GlobalExceptionHandlerMiddleware
                 new
                 {
                     error = "AUCTION_NOT_FOUND",
-                    message = auctionNotFound.Message
+                    message = auctionNotFound.Message,
+                    resourceType = auctionNotFound.ResourceType,
+                    resourceId = auctionNotFound.ResourceId
                 }),
 
             RouteSegmentNotEditableException segmentNotEditable => (
@@ -156,7 +162,9 @@ public class GlobalExceptionHandlerMiddleware
                 new
                 {
                     error = "CONTRATANTE_NAO_ENCONTRADO",
-                    message = contractorNotFound.Message
+                    message = contractorNotFound.Message,
+                    resourceType = contractorNotFound.ResourceType,
+                    resourceId = contractorNotFound.ResourceId
                 }),
 
             InvalidInviteException invalidInvite => (
@@ -193,7 +201,7 @@ public class GlobalExceptionHandlerMiddleware
 
             BidNotFoundException bidNotFound => (
                 (int)HttpStatusCode.NotFound,
-                new { error = "BID_NOT_FOUND", message = bidNotFound.Message }),
+                new { error = "BID_NOT_FOUND", message = bidNotFound.Message, resourceType = bidNotFound.ResourceType, resourceId = bidNotFound.ResourceId }),
 
             AuctionNotOpenException auctionNotOpen => (
                 (int)HttpStatusCode.Conflict,
@@ -205,7 +213,27 @@ public class GlobalExceptionHandlerMiddleware
             
             OfferNotFoundException offerNotFound => (
                 (int)HttpStatusCode.NotFound,
-                new { error = "OFFER_NOT_FOUND", message = offerNotFound.Message }),
+                new { error = "OFFER_NOT_FOUND", message = offerNotFound.Message, resourceType = offerNotFound.ResourceType, resourceId = offerNotFound.ResourceId }),
+
+            VehicleNotFoundException vehicleNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "VEHICLE_NOT_FOUND",
+                    message = vehicleNotFound.Message,
+                    resourceType = vehicleNotFound.ResourceType,
+                    resourceId = vehicleNotFound.ResourceId
+                }),
+
+            ForbiddenException forbidden => (
+                (int)HttpStatusCode.Forbidden,
+                new
+                {
+                    error = "FORBIDDEN",
+                    message = forbidden.Message,
+                    resourceType = forbidden.ResourceType,
+                    resourceId = forbidden.ResourceId
+                }),
 
             KeyNotFoundException => (
                 (int)HttpStatusCode.NotFound,

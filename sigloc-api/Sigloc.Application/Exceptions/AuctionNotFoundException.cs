@@ -6,8 +6,13 @@ namespace Sigloc.Application.Exceptions;
 /// </summary>
 public sealed class AuctionNotFoundException : Exception
 {
+    public string ResourceType => "auction";
+
+    public Guid ResourceId { get; }
+
     public AuctionNotFoundException(Guid id)
         : base($"Auction {id} does not exist or does not belong to this contractor.")
     {
+        ResourceId = id;
     }
 }

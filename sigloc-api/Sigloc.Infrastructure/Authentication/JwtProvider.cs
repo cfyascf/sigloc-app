@@ -29,6 +29,8 @@ public sealed class JwtProvider : IJwtProvider
         if (companyId.HasValue)
         {
             claims.Add(new Claim("empresaId", companyId.Value.ToString()));
+            // Alias of empresaId so the UI can resolve the tenant without extra API calls.
+            claims.Add(new Claim("tenant", companyId.Value.ToString()));
         }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));

@@ -1,5 +1,6 @@
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
+using Sigloc.Application.Exceptions;
 using Sigloc.Domain.Entities;
 using Sigloc.Domain.Repositories;
 
@@ -57,7 +58,7 @@ public class VehicleService : IVehicleService
         var vehicle = await _repository.GetByIdAsync(id, transportadoraId, cancellationToken);
         if (vehicle == null)
         {
-            throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
+            throw new VehicleNotFoundException(id);
         }
 
         return MapToDto(vehicle);
@@ -74,7 +75,7 @@ public class VehicleService : IVehicleService
         var vehicle = await _repository.GetByIdAsync(id, transportadoraId, cancellationToken);
         if (vehicle == null)
         {
-            throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
+            throw new VehicleNotFoundException(id);
         }
 
         vehicle.Update(
@@ -91,7 +92,7 @@ public class VehicleService : IVehicleService
     var vehicle = await _repository.GetByIdAsync(id, transportadoraId, cancellationToken);
     if (vehicle == null)
     {
-        throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
+        throw new VehicleNotFoundException(id);
     }
 
     await _repository.DeleteAsync(vehicle, cancellationToken);
