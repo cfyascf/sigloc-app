@@ -123,4 +123,22 @@ public class AuthController : ControllerBase
         var result = await _authService.LoginWithGoogleAsync(dto, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>Requests a password-reset email without revealing whether the account exists.</summary>
+    [HttpPost("password-reset/request")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RequestPasswordReset([FromBody] PasswordResetRequestDto dto, CancellationToken cancellationToken)
+    {
+        await _authService.RequestPasswordResetAsync(dto, cancellationToken);
+        return Ok(new { message = "Se houver uma conta local para este e-mail, enviaremos instruções de redefinição." });
+    }
+
+    /// <summary>Updates a local account password using a valid, one-time reset token.</summary>
+    [HttpPost("password-reset/confirm")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmPasswordReset([FromBody] PasswordResetConfirmDto dto, CancellationToken cancellationToken)
+    {
+        await _authService.ConfirmPasswordResetAsync(dto, cancellationToken);
+        return NoContent();
+    }
 }

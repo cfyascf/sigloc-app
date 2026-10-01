@@ -6,6 +6,7 @@ using Sigloc.Domain.Repositories;
 using System.Net.Http.Headers;
 using Sigloc.Infrastructure.Authentication;
 using Sigloc.Infrastructure.Contexts;
+using Sigloc.Infrastructure.Configurations;
 using Sigloc.Infrastructure.Notifications;
 using Sigloc.Infrastructure.Repositories;
 using Sigloc.Infrastructure.Routing;
@@ -39,6 +40,8 @@ public static class DependencyInjection
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
         services.Configure<InviteSettings>(configuration.GetSection(InviteSettings.SectionName));
+        services.Configure<PasswordResetSettings>(configuration.GetSection(PasswordResetSettings.SectionName));
+        services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
 
         var openRouteSettings = configuration
             .GetSection(OpenRouteServiceSettings.SectionName)
@@ -60,6 +63,8 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
         services.AddScoped<IGoogleTokenVerifier, GoogleTokenVerifier>();
         services.AddSingleton<IInviteLinkBuilder, InviteLinkBuilder>();
+        services.AddSingleton<IPasswordResetLinkBuilder, PasswordResetLinkBuilder>();
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IRouteSegmentRepository, RouteSegmentRepository>();
@@ -71,6 +76,7 @@ public static class DependencyInjection
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IAuctionNotifier, LoggingAuctionNotifier>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddScoped<IContractorRepository, ContractorRepository>();
         services.AddScoped<ICarrierRepository, CarrierRepository>();
         services.AddScoped<IPartnershipInviteRepository, PartnershipInviteRepository>();

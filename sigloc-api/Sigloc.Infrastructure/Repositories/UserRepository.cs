@@ -20,6 +20,12 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
     }
 
+    public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Users
+            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+    }
+
     public Task<User?> GetByGoogleIdAsync(string googleId, CancellationToken cancellationToken = default)
     {
         return _dbContext.Users
