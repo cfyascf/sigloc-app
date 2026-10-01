@@ -64,7 +64,6 @@ export default function ContractorDashboard() {
     { title: "Trechos Avulsos", value: kpis?.unassignedSegments ?? 0, style: "text-slate-900" },
     { title: "Leilões Ativos", value: kpis?.activeAuctions ?? 0, style: "text-blue-600" },
     { title: "Em Trânsito", value: kpis?.inTransitTrips ?? 0, style: "text-emerald-600" },
-    { title: "Overbookings Barrados", value: kpis?.blockedOverbookings ?? 0, style: "text-rose-600" },
   ]
 
   return (

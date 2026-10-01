@@ -14,8 +14,7 @@ public record DashboardExecutivoDto(
 public record DashboardKpisDto(
     int UnassignedSegments,
     int ActiveAuctions,
-    int InTransitTrips,
-    int BlockedOverbookings);
+    int InTransitTrips);
 
 /// <summary>Average fleet occupation and route utilization for the current in-transit trips.</summary>
 public record NetworkEfficiencyDto(

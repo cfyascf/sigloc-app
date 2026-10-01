@@ -28,7 +28,6 @@ export function toExecutiveDashboard(dto) {
       unassignedSegments: kpis.unassignedSegments ?? 0,
       activeAuctions: kpis.activeAuctions ?? 0,
       inTransitTrips: kpis.inTransitTrips ?? 0,
-      blockedOverbookings: kpis.blockedOverbookings ?? 0,
     },
     networkEfficiency: {
       averageWeightOccupationPercentage:
