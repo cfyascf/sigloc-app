@@ -18,7 +18,6 @@ public class DashboardRepository : IDashboardRepository
 
     public async Task<DashboardKpis> GetKpisAsync(
         Guid contractorId,
-        DateTimeOffset monthStartUtc,
         CancellationToken cancellationToken = default)
     {
         await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
@@ -41,11 +40,7 @@ public class DashboardRepository : IDashboardRepository
             select trip.Id)
             .CountAsync(cancellationToken);
 
-        var blockedOverbookings = await db.BlockedBidAttempts
-            .AsNoTracking()
-            .CountAsync(a => a.ContractorId == contractorId && a.AttemptedAt >= monthStartUtc, cancellationToken);
-
-        return new DashboardKpis(unassignedSegments, activeAuctions, inTransitTrips, blockedOverbookings);
+        return new DashboardKpis(unassignedSegments, activeAuctions, inTransitTrips);
     }
 
     public async Task<IReadOnlyList<TripOccupation>> GetInTransitOccupationsAsync(

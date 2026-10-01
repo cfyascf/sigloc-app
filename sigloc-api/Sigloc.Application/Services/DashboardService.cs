@@ -21,10 +21,9 @@ public class DashboardService : IDashboardService
         CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
-        var monthStartUtc = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero);
 
         // Independent reads run in parallel to keep the aggregator (BFF) fast.
-        var kpisTask = _dashboardRepository.GetKpisAsync(contractorId, monthStartUtc, cancellationToken);
+        var kpisTask = _dashboardRepository.GetKpisAsync(contractorId, cancellationToken);
         var occupationsTask = _dashboardRepository.GetInTransitOccupationsAsync(contractorId, cancellationToken);
         var deviationsTask = _dashboardRepository.GetCostDeviationsAsync(contractorId, cancellationToken);
         var milestonesTask = _dashboardRepository.GetSlaMilestonesAsync(contractorId, cancellationToken);
@@ -37,8 +36,7 @@ public class DashboardService : IDashboardService
             Kpis: new DashboardKpisDto(
                 kpis.UnassignedSegments,
                 kpis.ActiveAuctions,
-                kpis.InTransitTrips,
-                kpis.BlockedOverbookings),
+                kpis.InTransitTrips),
             NetworkEfficiency: BuildEfficiency(occupationsTask.Result),
             CostDeviations: BuildCostDeviations(deviationsTask.Result),
             SlaMilestones: BuildSlaMilestones(milestonesTask.Result, now));

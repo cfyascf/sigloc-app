@@ -142,112 +142,81 @@ export default function AppShell({ title, children, contentClassName, innerClass
           ))}
         </nav>
 
-        {/* Rodapé da Sidebar - Perfil e Sair */}
+        {/* Rodapé da Sidebar - Menu do usuário */}
         <div
           className={cn(
-            "flex shrink-0 flex-col gap-3 border-t p-4 transition-colors duration-500",
+            "flex shrink-0 border-t p-4 transition-colors duration-500",
             brand.sidebarBorder,
             brand.footerBg
           )}
         >
-          {isAdmin ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  title={`Perfil atual: ${roleLabel}`}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                title="Abrir menu do usuário"
+                className={cn(
+                  "h-auto w-full py-1.5",
+                  isSidebarCollapsed ? "justify-center px-0" : "justify-start px-1.5",
+                  brand.navText,
+                  brand.navHover
+                )}
+              >
+                <div
                   className={cn(
-                    "text-[10px] font-bold shadow-none",
-                    isSidebarCollapsed ? "w-full justify-center px-0" : "w-full",
-                    brand.sidebarBorder,
-                    brand.navHover,
-                    brand.textMuted,
-                    brand.footerBg
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-inner",
+                    brand.footerBg,
+                    brand.textMain
                   )}
                 >
-                  {isSidebarCollapsed ? <User size={14} /> : <span>Perfil: {roleLabel}</span>}
-                  {showSidebarText ? <ChevronDown size={14} className="ml-2" /> : null}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                <DropdownMenuLabel className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
-                  Alternar Perfil
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {ROLE_OPTIONS.map((roleOption) => (
-                  <DropdownMenuItem
-                    key={roleOption.value}
-                    onClick={() => setRole(roleOption.value)}
-                    className="cursor-pointer text-xs font-semibold"
-                  >
-                    <Check
-                      size={14}
-                      className={cn(
-                        "mr-2",
-                        user.role === roleOption.value ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {roleOption.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <div
-              title={`Perfil atual: ${roleLabel}`}
-              className={cn(
-                "flex items-center rounded-md border py-2 text-[10px] font-bold",
-                isSidebarCollapsed ? "justify-center px-0" : "px-3",
-                brand.sidebarBorder,
-                brand.textMuted,
-                brand.footerBg
-              )}
-            >
-              {isSidebarCollapsed ? <User size={14} /> : <span>Perfil: {roleLabel}</span>}
-            </div>
-          )}
-
-          <div className={cn("mt-2 flex items-center", isSidebarCollapsed ? "justify-center" : "") }>
-            <div
-              className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-inner",
-                brand.footerBg,
-                brand.textMain
-              )}
-            >
-              <User size={18} />
-            </div>
-            {showSidebarText ? (
-              <div className={cn("ml-3 overflow-hidden", brand.textMain)}>
-                <p className="truncate text-sm font-bold">{user?.name ?? "Usuário"}</p>
-                <p
-                  className={cn(
-                    "text-[10px] font-black uppercase opacity-70",
-                    brand.accent
-                  )}
-                >
-                  {roleLabel}
-                </p>
-              </div>
-            ) : null}
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            title="Sair da conta"
-            className={cn(
-              "mt-1 font-semibold",
-              isSidebarCollapsed ? "w-full justify-center px-0" : "w-full justify-start px-3",
-              brand.navText,
-              brand.navHover
-            )}
-          >
-            <LogOut size={16} className={cn("shrink-0", isSidebarCollapsed ? "mr-0" : "mr-3")} />
-            {showSidebarText ? <span className="text-sm">Sair</span> : null}
-          </Button>
+                  <User size={18} />
+                </div>
+                {showSidebarText ? (
+                  <div className={cn("ml-3 min-w-0 flex-1 text-left", brand.textMain)}>
+                    <p className="truncate text-sm font-bold">{user?.name ?? "Usuário"}</p>
+                    <p className={cn("text-[10px] font-black uppercase opacity-70", brand.accent)}>
+                      {roleLabel}
+                    </p>
+                  </div>
+                ) : null}
+                {showSidebarText ? <ChevronDown size={16} className="shrink-0" /> : null}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52">
+              {isAdmin ? (
+                <>
+                  <DropdownMenuLabel className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
+                    Alternar Perfil
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {ROLE_OPTIONS.map((roleOption) => (
+                    <DropdownMenuItem
+                      key={roleOption.value}
+                      onClick={() => setRole(roleOption.value)}
+                      className="cursor-pointer text-xs font-semibold"
+                    >
+                      <Check
+                        size={14}
+                        className={cn(
+                          "mr-2",
+                          user.role === roleOption.value ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {roleOption.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                </>
+              ) : null}
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="cursor-pointer text-xs font-semibold"
+              >
+                <LogOut size={14} className="mr-2" />
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </aside>
 
