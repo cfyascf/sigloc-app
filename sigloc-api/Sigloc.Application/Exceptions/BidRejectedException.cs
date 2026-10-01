@@ -9,6 +9,9 @@ public enum BidRejectionCode
     /// <summary>The offered value is above the auction ceiling (teto).</summary>
     AboveCeiling,
 
+    /// <summary>The offered value is below the ANTT minimum freight floor for the vehicle.</summary>
+    BelowAnttFloor,
+
     /// <summary>The offered value is not a positive amount.</summary>
     InvalidValue,
 

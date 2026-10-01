@@ -183,19 +183,22 @@ public record BidRankingCarrierDto(
     Guid Id,
     string TradeName,
     double? AverageRating,
-    int OnTimeDeliveryRate,
-    bool HasActiveInsurancePolicy);
+    int OnTimeDeliveryRate);
 
 /// <summary>Vehicle data shown on each ranking row.</summary>
 public record BidRankingVehicleDto(
     string Plate,
-    string BodyType);
+    string BodyType,
+    int AxleCount,
+    decimal CapacityWeightKg,
+    decimal CapacityVolumeM3);
 
 /// <summary>Financial breakdown and savings of a ranked bid.</summary>
 public record BidRankingFinancialsDto(
     decimal TotalValue,
     decimal NetFreightValue,
     decimal TollValue,
+    decimal? AnttFreightFloor,
     decimal SavingsValue,
     double SavingsPercentage);
 
