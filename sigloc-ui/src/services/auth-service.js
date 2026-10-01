@@ -17,6 +17,8 @@ const ENDPOINTS = {
   loginGoogle: "/api/auth/login/google",
   registerContractor: "/api/auth/register/contratante",
   registerContractorGoogle: "/api/auth/register/contratante/google",
+  passwordResetRequest: "/api/auth/password-reset/request",
+  passwordResetConfirm: "/api/auth/password-reset/confirm",
   invite: "/api/auth/invite",
   activeInvite: "/api/auth/invite/active",
 }
@@ -112,6 +114,16 @@ export async function registerContractorWithGoogle(data, options) {
     { auth: false, ...options }
   )
   return toSession(payload)
+}
+
+/** Requests a reset link without disclosing whether the e-mail exists. */
+export function requestPasswordReset(data, options) {
+  return apiClient.post(ENDPOINTS.passwordResetRequest, data, { auth: false, ...options })
+}
+
+/** Confirms a password reset with a one-time token. */
+export function confirmPasswordReset(data, options) {
+  return apiClient.post(ENDPOINTS.passwordResetConfirm, data, { auth: false, ...options })
 }
 
 /**
@@ -232,6 +244,8 @@ export const authService = {
   loginWithGoogle,
   registerContractor,
   registerContractorWithGoogle,
+  requestPasswordReset,
+  confirmPasswordReset,
   getActiveInvite,
   createInvite,
   validateInvite,

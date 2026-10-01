@@ -129,6 +129,16 @@ export function AuthProvider({ children }) {
     [persistSession]
   )
 
+  const requestPasswordReset = useCallback(
+    (data) => authService.requestPasswordReset(data),
+    []
+  )
+
+  const confirmPasswordReset = useCallback(
+    (data) => authService.confirmPasswordReset(data),
+    []
+  )
+
   const registerCarrierByInvite = useCallback(
     async (token, data) => {
       const session = await authService.registerCarrierByInvite(token, data)
@@ -183,6 +193,8 @@ export function AuthProvider({ children }) {
       loginWithGoogle,
       registerContractor,
       registerContractorWithGoogle,
+      requestPasswordReset,
+      confirmPasswordReset,
       registerCarrierByInvite,
       registerCarrierByInviteWithGoogle,
       logout,
@@ -197,6 +209,8 @@ export function AuthProvider({ children }) {
       loginWithGoogle,
       registerContractor,
       registerContractorWithGoogle,
+      requestPasswordReset,
+      confirmPasswordReset,
       registerCarrierByInvite,
       registerCarrierByInviteWithGoogle,
       logout,

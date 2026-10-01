@@ -30,3 +30,14 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasFilter("\"GoogleId\" IS NOT NULL");
     }
 }
+
+public class PasswordResetTokenConfiguration : IEntityTypeConfiguration<PasswordResetToken>
+{
+    public void Configure(EntityTypeBuilder<PasswordResetToken> builder)
+    {
+        builder.HasKey(token => token.Id);
+        builder.Property(token => token.TokenHash).IsRequired();
+        builder.HasIndex(token => token.TokenHash).IsUnique();
+        builder.HasIndex(token => token.UserId);
+    }
+}
