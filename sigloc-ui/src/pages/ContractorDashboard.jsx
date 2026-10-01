@@ -191,13 +191,11 @@ export default function ContractorDashboard() {
                         className="flex w-full items-center justify-between rounded-lg py-3 text-left first:pt-0 last:pb-0"
                       >
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-slate-400">{item.routeId}</span>
-                            <span className="text-sm font-semibold text-slate-800">{item.itinerary}</span>
-                          </div>
+                          <p className="text-sm font-semibold text-slate-800">{item.itinerary}</p>
                           <p className="text-xs text-slate-400 mt-0.5">Alvo: {formatCurrency(item.targetBudget)}</p>
                         </div>
                         <div className="text-right">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Melhor lance</p>
                           <p className="text-sm font-bold text-slate-900">{formatCurrency(item.currentBestBid)}</p>
                           <div className={`mt-0.5 flex items-center justify-end gap-1 text-xs font-bold ${isAbove ? "text-rose-600" : "text-emerald-600"}`}>
                             {isAbove ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}

@@ -6,6 +6,7 @@ import { FormAlert } from "@/components/auth/FormAlert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { listAuctions, updateAuction, deleteAuction } from "@/services/auction-service"
 import { RISK } from "@/constants/risk"
@@ -76,7 +77,7 @@ const getRiskBadge = (risk) => {
   const styles = {
     [RISK.NORMAL]: "bg-emerald-50 text-emerald-700 border-emerald-200",
     [RISK.WARNING]: "bg-amber-50 text-amber-700 border-amber-200",
-    [RISK.CRITIC]: "bg-rose-50 text-rose-700 border-rose-200",
+    [RISK.CRITIC]: "border-red-700 bg-red-600 text-white",
   }
   return <Badge variant="outline" className={`rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 ${styles[risk] || "bg-slate-50"}`}>{risk}</Badge>
 }
@@ -88,8 +89,21 @@ export default function FreightsOfferedOverview() {
   const [editForm, setEditForm] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [selectedTab, setSelectedTab] = useState("active")
 
-  const listAction = useAsyncAction((query) => listAuctions(query))
+  const listAction = useAsyncAction(async ({ search, statuses }) => {
+    const responses = await Promise.all(
+      statuses.map((status) => listAuctions({ search, status, page: 1, pageSize: PAGE_SIZE }))
+    )
+
+    return {
+      items: statuses.length === 1
+        ? responses[0].items
+        : responses
+            .flatMap((response) => response.items)
+            .sort((first, second) => new Date(second.expiresAt) - new Date(first.expiresAt)),
+    }
+  })
   const updateAction = useAsyncAction(({ id, changes }) => updateAuction(id, changes))
   const deleteAction = useAsyncAction((id) => deleteAuction(id))
   const listPending = listAction.pending
@@ -103,20 +117,28 @@ export default function FreightsOfferedOverview() {
   }, [searchTerm])
 
   const loadList = useCallback(async () => {
+    const statuses = selectedTab === "active" ? ["OPEN"] : ["CLOSED", "CANCELLED"]
     const result = await listAction.run({
       search: debouncedSearch || undefined,
-      page: 1,
-      pageSize: PAGE_SIZE,
+      statuses,
     })
     if (result.ok) {
       setLeiloes(result.data.items.map(toCardModel))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch])
+  }, [debouncedSearch, selectedTab])
 
   useEffect(() => {
     loadList()
   }, [loadList])
+
+  const handleTabChange = (value) => {
+    setSelectedTab(value)
+    setDeletingId(null)
+    setEditingId(null)
+    setEditForm(null)
+    updateAction.reset()
+  }
 
   const handleDelete = async (id) => {
     const result = await deleteAction.run(id)
@@ -163,8 +185,14 @@ export default function FreightsOfferedOverview() {
       <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col gap-4 overflow-hidden">
         
         <div className="flex shrink-0 flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3 pt-1">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Leilões em Andamento</h1>
+          <div className="space-y-2">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">Painel de Leilões</h1>
+            <Tabs value={selectedTab} onValueChange={handleTabChange}>
+              <TabsList>
+                <TabsTrigger value="active">Em andamento</TabsTrigger>
+                <TabsTrigger value="history">Histórico</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
@@ -173,7 +201,7 @@ export default function FreightsOfferedOverview() {
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por ID ou trecho..."
+                placeholder="Buscar por trecho..."
                 className="h-9 border-slate-200 bg-white pl-9 text-xs"
               />
             </div>
@@ -188,7 +216,7 @@ export default function FreightsOfferedOverview() {
 
             {listPending ? (
               <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-500">
-                <Loader2 size={16} className="animate-spin" /> Carregando leilões...
+                <Loader2 size={16} className="animate-spin" /> Carregando {selectedTab === "active" ? "leilões em andamento" : "histórico de leilões"}...
               </div>
             ) : listAction.error ? (
               <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-6">
@@ -204,7 +232,7 @@ export default function FreightsOfferedOverview() {
               </div>
             ) : filteredLeiloes.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-                Nenhum leilão encontrado.
+                {selectedTab === "active" ? "Nenhum leilão em andamento encontrado." : "Nenhum leilão no histórico encontrado."}
               </div>
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -228,20 +256,14 @@ export default function FreightsOfferedOverview() {
                             </button>
                           </div>
                         ) : (
-                          <>
-                            <span className="absolute inset-0 flex items-center font-mono text-[10px] font-bold text-slate-500 opacity-100 group-hover:opacity-0 transition-opacity duration-200">
-                              {l.id}
-                            </span>
-                            
-                            <div className="absolute inset-0 hidden group-hover:flex items-center gap-1 transition-opacity duration-200">
-                              <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-600 hover:bg-blue-100" onClick={() => startEditing(l)}>
-                                <Pencil size={12} />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-6 w-6 text-rose-600 hover:bg-rose-100" onClick={() => setDeletingId(l.id)}>
-                                <Trash2 size={12} />
-                              </Button>
-                            </div>
-                          </>
+                          <div className="absolute inset-0 hidden items-center gap-1 group-hover:flex">
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-600 hover:bg-blue-100" onClick={() => startEditing(l)}>
+                              <Pencil size={12} />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-rose-600 hover:bg-rose-100" onClick={() => setDeletingId(l.id)}>
+                              <Trash2 size={12} />
+                            </Button>
+                          </div>
                         )}
                       </div>
 
