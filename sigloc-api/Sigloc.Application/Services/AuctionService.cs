@@ -21,6 +21,7 @@ public class AuctionService : IAuctionService
     private readonly IVehicleRepository _vehicleRepository;
     private readonly IBlockedBidAttemptRepository _blockedBidAttemptRepository;
     private readonly IRouteGeocodingService _geocodingService;
+    private readonly IAnttFreightFloorService _anttFreightFloorService;
     private readonly IAuctionNotifier _notifier;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -33,6 +34,7 @@ public class AuctionService : IAuctionService
         IVehicleRepository vehicleRepository,
         IBlockedBidAttemptRepository blockedBidAttemptRepository,
         IRouteGeocodingService geocodingService,
+        IAnttFreightFloorService anttFreightFloorService,
         IAuctionNotifier notifier,
         IUnitOfWork unitOfWork)
     {
@@ -44,6 +46,7 @@ public class AuctionService : IAuctionService
         _vehicleRepository = vehicleRepository;
         _blockedBidAttemptRepository = blockedBidAttemptRepository;
         _geocodingService = geocodingService;
+        _anttFreightFloorService = anttFreightFloorService;
         _notifier = notifier;
         _unitOfWork = unitOfWork;
     }
@@ -293,34 +296,47 @@ public class AuctionService : IAuctionService
 
         var ranked = await _bidRepository.GetRankedBidsAsync(auctionId, cancellationToken);
 
-        var bids = ranked.Select((r, index) =>
+        var products = detail.Segments
+            .SelectMany(segment => segment.Items)
+            .Where(item => item.Product is not null)
+            .Select(item => item.Product!)
+            .ToList();
+        var bids = new List<BidRankingItemDto>();
+
+        for (var index = 0; index < ranked.Count; index++)
         {
-            var savingsValue = ceiling - r.Bid.TotalValue;
+            var rankedBid = ranked[index];
+            var anttFloor = await _anttFreightFloorService.CalculateAsync(
+                detail.Route.TotalDistanceKm, products, rankedBid.Vehicle.AxleCount, cancellationToken);
+            var savingsValue = ceiling - rankedBid.Bid.TotalValue;
             var savingsPercentage = ceiling > 0
                 ? Math.Round((double)(savingsValue / ceiling) * 100, 1)
                 : 0d;
 
-            return new BidRankingItemDto(
+            bids.Add(new BidRankingItemDto(
                 Rank: index + 1,
-                BidId: r.Bid.Id,
-                Status: r.Bid.Status.ToWire(),
-                SubmittedAt: r.Bid.SubmittedAt,
+                BidId: rankedBid.Bid.Id,
+                Status: rankedBid.Bid.Status.ToWire(),
+                SubmittedAt: rankedBid.Bid.SubmittedAt,
                 Carrier: new BidRankingCarrierDto(
-                    Id: r.Carrier.Id,
-                    TradeName: string.IsNullOrWhiteSpace(r.Carrier.TradeName) ? r.Carrier.CompanyName : r.Carrier.TradeName!,
-                    AverageRating: r.Carrier.AverageRating,
-                    OnTimeDeliveryRate: r.Carrier.OnTimeDeliveryRate,
-                    HasActiveInsurancePolicy: r.Carrier.HasActiveInsurancePolicy),
+                    Id: rankedBid.Carrier.Id,
+                    TradeName: string.IsNullOrWhiteSpace(rankedBid.Carrier.TradeName) ? rankedBid.Carrier.CompanyName : rankedBid.Carrier.TradeName!,
+                    AverageRating: rankedBid.Carrier.AverageRating,
+                    OnTimeDeliveryRate: rankedBid.Carrier.OnTimeDeliveryRate),
                 Vehicle: new BidRankingVehicleDto(
-                    Plate: r.Vehicle.Plate,
-                    BodyType: BodyTypeLabel(r.Vehicle.BodyType)),
+                    Plate: rankedBid.Vehicle.Plate,
+                    BodyType: BodyTypeLabel(rankedBid.Vehicle.BodyType),
+                    AxleCount: rankedBid.Vehicle.AxleCount,
+                    CapacityWeightKg: rankedBid.Vehicle.CapacityWeight,
+                    CapacityVolumeM3: rankedBid.Vehicle.CapacityVolume),
                 Financials: new BidRankingFinancialsDto(
-                    TotalValue: r.Bid.TotalValue,
-                    NetFreightValue: r.Bid.NetFreightValue,
-                    TollValue: r.Bid.TollValue,
+                    TotalValue: rankedBid.Bid.TotalValue,
+                    NetFreightValue: rankedBid.Bid.NetFreightValue,
+                    TollValue: rankedBid.Bid.TollValue,
+                    AnttFreightFloor: anttFloor?.MinimumFreight,
                     SavingsValue: savingsValue,
-                    SavingsPercentage: savingsPercentage));
-        }).ToList();
+                    SavingsPercentage: savingsPercentage)));
+        }
 
         return new BidRankingDto(
             AuctionId: detail.Auction.Id,
@@ -535,6 +551,15 @@ public class AuctionService : IAuctionService
         {
             await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Equipment, cancellationToken);
             throw equipmentRejection;
+        }
+
+        var anttFloor = await _anttFreightFloorService.CalculateAsync(
+            route.TotalDistanceKm, products, vehicle.AxleCount, cancellationToken);
+        if (anttFloor is not null && dto.ValorOferecido < anttFloor.MinimumFreight)
+        {
+            throw new BidRejectedException(
+                BidRejectionCode.BelowAnttFloor,
+                $"Valor abaixo do piso ANTT para o veículo selecionado ({anttFloor.MinimumFreight:C}).");
         }
 
         // --- 5. Temporal trava: anti-overbooking --------------------------------

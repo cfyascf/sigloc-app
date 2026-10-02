@@ -85,8 +85,9 @@ internal static class RouteAggregator
         totalDistance = Math.Round(totalDistance, 2);
         totalTime = Math.Round(totalTime, 2);
 
-        // The consolidated ceiling is used as the base for the ANTT floor estimate.
-        var anttFloor = consolidatedCeiling;
+        // ANTT's minimum freight depends on the selected vehicle's axle configuration.
+        // A route without an allocated vehicle has no authoritative single floor.
+        var anttFloor = 0m;
         var costPerKm = totalDistance > 0
             ? Math.Round(consolidatedCeiling / (decimal)totalDistance, 2)
             : 0m;
