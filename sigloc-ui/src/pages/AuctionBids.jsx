@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CheckCircle2, Truck, MapPin, Clock, ShieldCheck, Trophy, ArrowDownRight, ExternalLink, Calendar, ChevronDown, ChevronUp, Activity, Loader2 } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Truck, MapPin, Clock, ShieldCheck, Trophy, ArrowDownRight, ExternalLink, Calendar, ChevronDown, ChevronUp, Activity, FileCheck, Loader2 } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
@@ -48,13 +48,12 @@ export default function AuctionBids() {
   const rankedBids = ranking?.bids ?? []
   const targetFare = routeSummary?.financialScenario?.consolidatedCeiling ?? 0
   const anttFloorFare = routeSummary?.financialScenario?.estimatedAnttFloor ?? 0
-  const hasRouteAnttFloor = anttFloorFare > 0 && anttFloorFare !== targetFare
   const isClosed = ranking?.status === "CLOSED"
 
   const anttPercent = useMemo(() => {
-    if (!hasRouteAnttFloor || !targetFare || targetFare <= 0) return 0
+    if (!targetFare || targetFare <= 0) return 72
     return Math.min(100, Math.round((anttFloorFare / targetFare) * 100))
-  }, [hasRouteAnttFloor, targetFare, anttFloorFare])
+  }, [targetFare, anttFloorFare])
 
   const toggleExpand = (bidId) => {
     setExpandedBids(prev => prev.includes(bidId) ? prev.filter(id => id !== bidId) : [...prev, bidId])
@@ -167,24 +166,21 @@ export default function AuctionBids() {
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5 flex items-center justify-end gap-1"><ShieldCheck size={10}/> Piso ANTT</p>
-                  <p className="text-sm font-bold text-slate-500 leading-none">{hasRouteAnttFloor ? formatCurrency(anttFloorFare) : "Por veículo"}</p>
+                  <p className="text-sm font-bold text-slate-500 font-mono leading-none">{formatCurrency(anttFloorFare)}</p>
                 </div>
               </div>
               
-              {hasRouteAnttFloor ? (
-                <div className="space-y-1.5">
-                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden flex">
-                      <div className="bg-slate-300" style={{ width: `${anttPercent}%` }} title="Valor Piso" />
-                      <div className="bg-emerald-400 flex-1" title="Margem de Negociação" />
-                    </div>
-                    <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                        <span>Bloqueado</span>
-                        <span className="text-emerald-600">Margem Válida</span>
-                    </div>
-                </div>
-              ) : (
-                <p className="text-[10px] font-medium text-slate-500">O piso legal depende dos eixos do veículo ofertado.</p>
-              )}
+              {/* Barra de Progresso da Janela de Negociação */}
+              <div className="space-y-1.5">
+                  <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden flex">
+                    <div className="bg-slate-300" style={{ width: `${anttPercent}%` }} title="Valor Piso" />
+                    <div className="bg-emerald-400 flex-1" title="Margem de Negociação" />
+                  </div>
+                  <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span>Bloqueado</span>
+                      <span className="text-emerald-600">Margem Válida</span>
+                  </div>
+              </div>
             </div>
 
           </div>
@@ -306,24 +302,26 @@ export default function AuctionBids() {
                           <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-2 fade-in duration-200">
                               <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                                      <Truck size={12} /> Veículo proposto
+                                      <Truck size={12} /> Compliance de Frota
                                   </div>
-                                  <p className="text-xs font-semibold text-slate-800">{vehicleLabel} · {bid.vehicle.axleCount} eixos</p>
-                                  <p className="text-[11px] text-slate-500 mt-0.5">Capacidade: {bid.vehicle.capacityWeightKg.toLocaleString("pt-BR")} kg · {bid.vehicle.capacityVolumeM3.toLocaleString("pt-BR")} m³</p>
+                                  <p className="text-xs font-semibold text-slate-800">{vehicleLabel}</p>
+                                  <p className="text-[11px] text-slate-500 mt-0.5">Veículo alocado para o lance.</p>
                               </div>
 
                               <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                                      <ArrowDownRight size={12} /> Composição do valor
+                                      <FileCheck size={12} /> Validação de Seguro
                                   </div>
-                                  <p className="text-xs font-semibold text-slate-800">Frete: {formatCurrency(bid.financials.netFreightValue)}</p>
-                                  <p className="text-[11px] text-slate-500 mt-0.5">Pedágio: {formatCurrency(bid.financials.tollValue)} · Piso ANTT: {bid.financials.anttFreightFloor != null ? formatCurrency(bid.financials.anttFreightFloor) : "indisponível"}</p>
-                                  <p className="text-[11px] text-slate-500 mt-0.5">Enviado em {formatDeadline(bid.submittedAt)}</p>
+                                  <div className="flex items-center gap-1.5">
+                                    <div className={`h-2 w-2 rounded-full ${bid.carrier.hasActiveInsurancePolicy ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                    <p className="text-xs font-semibold text-slate-800">{bid.carrier.hasActiveInsurancePolicy ? "Apólice Ativa" : "Sem Apólice Ativa"}</p>
+                                  </div>
+                                  <p className="text-[11px] text-slate-500 mt-0.5">{bid.carrier.hasActiveInsurancePolicy ? "Seguro de carga validado." : "Atenção: seguro não confirmado."}</p>
                               </div>
 
                               <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                                      <Activity size={12} /> Performance
+                                      <Activity size={12} /> Rating de Performance (OTD)
                                   </div>
                                   <p className="text-xs font-semibold text-slate-800">
                                     <span className={bid.carrier.onTimeDeliveryRate >= 95 ? "text-emerald-600" : "text-amber-600"}>{bid.carrier.onTimeDeliveryRate}%</span> de entregas no prazo

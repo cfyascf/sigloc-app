@@ -10,7 +10,6 @@ using Sigloc.Infrastructure.Configurations;
 using Sigloc.Infrastructure.Notifications;
 using Sigloc.Infrastructure.Repositories;
 using Sigloc.Infrastructure.Routing;
-using Sigloc.Infrastructure.Services;
 
 namespace Sigloc.Infrastructure;
 
@@ -58,12 +57,6 @@ public static class DependencyInjection
             }
 
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        });
-
-        services.AddHttpClient<IAnttFreightFloorService, AnttFreightFloorService>(client =>
-        {
-            client.BaseAddress = new Uri("https://calculadorafrete.antt.gov.br");
-            client.Timeout = TimeSpan.FromSeconds(10);
         });
 
         services.AddScoped<IJwtProvider, JwtProvider>();
