@@ -2,7 +2,7 @@ name: Deploy .NET Backend to Azure App Service
 
 env:
   # 1. THIS IS THE MAGIC LINE: Tell the pipeline where your backend lives
-  WORKING_DIRECTORY: './sigloc-api' 
+  WORKING_DIRECTORY: './sigloc-api'
   AZURE_WEBAPP_NAME: 'sigloc-api' # Replace with your actual Azure App Service name
   DOTNET_VERSION: '10.0.x' # Your target .NET version
 
@@ -17,6 +17,21 @@ on:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sigloc_monitoring_test
+          POSTGRES_USER: sigloc_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sigloc_test -d sigloc_monitoring_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     # 3. Tell ALL 'run' commands in this job to execute inside the sigloc-api folder
     defaults:
@@ -35,6 +50,11 @@ jobs:
       # Notice how we just call "Sigloc.slnx" directly because we are already in the right folder!
       - name: Build with dotnet
         run: dotnet build Sigloc.slnx --configuration Release
+
+      - name: Test monitoring and database behavior
+        env:
+          SIGLOC_TEST_CONNECTION: Host=localhost;Port=5432;Database=sigloc_monitoring_test;Username=sigloc_test
+        run: dotnet test Sigloc.slnx --configuration Release --no-build
 
       - name: dotnet publish
         run: dotnet publish Sigloc.Api/Sigloc.Api.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp

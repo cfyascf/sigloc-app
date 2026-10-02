@@ -20,6 +20,11 @@ namespace Sigloc.Domain.Entities;
         public string Driver { get; private set; }
         public string CurrentLocation { get; private set; }
 
+        /// <summary>Optional positive Traccar device identifier.</summary>
+        public long? TraccarDeviceId { get; set; }
+        /// <summary>Optional driver contact, never substituted with the carrier phone.</summary>
+        public string? DriverPhone { get; set; }
+
         // construtor
         public Vehicle(
             Guid transportadoraId,

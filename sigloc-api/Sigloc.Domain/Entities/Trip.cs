@@ -38,4 +38,6 @@ public class Trip : BaseEntity
     public decimal? FinalAnttFloor { get; set; }
 
     public TripStatus Status { get; set; } = TripStatus.AwaitingPickup;
+
+    public List<TripStop> Stops { get; set; } = new();
 }

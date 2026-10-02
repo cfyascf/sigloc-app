@@ -94,11 +94,12 @@ public class AuctionService : IAuctionService
 
             await _routeRepository.AddAsync(route, ct);
 
-            foreach (var id in segmentIds)
+            for (var index = 0; index < segmentIds.Count; index++)
             {
-                var segment = byId[id];
+                var segment = byId[segmentIds[index]];
                 segment.Status = SegmentStatus.Routed;
                 segment.RouteId = route.Id;
+                segment.RouteSequence = index + 1;
             }
 
             var auction = new Auction
@@ -373,6 +374,9 @@ public class AuctionService : IAuctionService
                 Status = TripStatus.AwaitingPickup
             };
 
+            var detail = await _auctionRepository.GetDetailAsync(auction.Id, contractorId, ct)
+                ?? throw new AuctionNotFoundException(auction.Id);
+            newTrip.Stops = TripItineraryBuilder.Build(newTrip.Id, detail.Segments);
             await _tripRepository.AddAsync(newTrip, ct);
 
             await _unitOfWork.SaveChangesAsync(ct);

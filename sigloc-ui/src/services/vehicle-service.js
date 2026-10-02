@@ -11,7 +11,7 @@
  * uses via `constants/vehicles`.
  */
 
-import { apiClient } from "@/lib/api-client"
+import { apiClient, ApiError } from "@/lib/api-client"
 import {
   bodyTypeLabel,
   bodyTypeValue,
@@ -39,6 +39,8 @@ export function toVehicle(dto) {
     plate: dto.plate ?? "",
     model: dto.model ?? "",
     driver: dto.driver ?? "",
+    driverPhone: dto.driverPhone ?? "",
+    traccarDeviceId: dto.traccarDeviceId ?? "",
     location: dto.currentLocation ?? "",
     bodyType: bodyTypeLabel(dto.bodyType),
     status: statusLabel(dto.status),
@@ -71,9 +73,38 @@ export function toUpdateDto(vehicle) {
     hasMopp: Boolean(vehicle.hasMopp),
     hasCargoSecuring: Boolean(vehicle.hasCargoSecuring),
     driver: vehicle.driver?.trim() || null,
+    ...toTrackingDto(vehicle),
     currentLocation: vehicle.location?.trim() || null,
     status: statusValue(vehicle.status),
   }
+}
+
+function toTrackingDto(vehicle) {
+  const rawDeviceId = String(vehicle.traccarDeviceId ?? "").trim()
+  const traccarDeviceId = rawDeviceId === "" ? null : Number(rawDeviceId)
+  const driverPhone = vehicle.driverPhone == null ? null : vehicle.driverPhone.trim()
+  if (traccarDeviceId !== null && (!Number.isSafeInteger(traccarDeviceId) || traccarDeviceId <= 0)) {
+    throw new ApiError("O ID Traccar deve ser um número inteiro positivo válido.", { code: "VALIDATION_ERROR" })
+  }
+  if (driverPhone && driverPhone.length > 30) {
+    throw new ApiError("O telefone deve ter no máximo 30 caracteres.", { code: "VALIDATION_ERROR" })
+  }
+  return { driverPhone, traccarDeviceId }
+}
+
+export function toCreateDto(vehicle) {
+  const fields = toUpdateDto(vehicle)
+  delete fields.status
+  return {
+    ...fields,
+    driverPhone: fields.driverPhone || null,
+    plate: vehicle.plate?.replace(/[\s-]/g, "").toUpperCase(),
+    refrigerationLevel: vehicle.refrigerationLevel ?? 0,
+  }
+}
+
+export async function createVehicle(vehicle, options) {
+  return toVehicle(await apiClient.post(BASE, toCreateDto(vehicle), options))
 }
 
 /** Lists all vehicles for the current carrier. */
@@ -102,6 +133,7 @@ export async function deleteVehicle(id, options) {
 }
 
 export const vehicleService = {
+  createVehicle,
   listVehicles,
   getVehicle,
   updateVehicle,

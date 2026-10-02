@@ -1,154 +1,40 @@
 # API Mapping — Fleet Management
 
-### GET `/api/v1/fleet/vehicles`
-- **Consumer:** FleetManagement
-- **Goal:** Return a searchable, filterable list of vehicles with summary fields and support quick dashboard stats.
-- **Business Logic Specification:**
-  1. Authenticate caller and restrict results to the tenant/carrier scope.
-  2. Support filtering by `status` (enum: AVAILABLE, LOCKED, IN_TRANSIT, MAINTENANCE), free-text `search` across `plate`, `model`, `driver`, and `location`, and pagination.
-  3. Return lightweight vehicle descriptors used by the UI vehicle cards.
+The implemented carrier-scoped resource is `/api/vehicles` (not `/api/v1/fleet/vehicles`). All calls use the existing authenticated API client.
 
-**Input Contract (Request):**
+| Method | Endpoint | Response / consumer |
+| --- | --- | --- |
+| GET | `/api/vehicles` | `200`, array of vehicle DTOs; `FleetManagement` filters locally |
+| GET | `/api/vehicles/{id}` | `200`, one vehicle DTO |
+| PUT | `/api/vehicles/{id}` | `204`, no content; inline editor updates the visible row |
+| DELETE | `/api/vehicles/{id}` | `204`, no content; explicit deletion confirmation |
+
+Vehicle response fields: `id`, `transportadoraId`, `plate`, `model`, `axleCount`, `capacityWeight`, `capacityVolume`, `bodyType`, `refrigerationLevel`, `hasMopp`, `hasCargoSecuring`, `driver`, `currentLocation`, `status`, optional/nullable `driverPhone` and `traccarDeviceId`.
+
+## Update contract
+
 ```json
 {
-  "pathVariables": {},
-  "queryParameters": {
-    "search": "string (optional)",
-    "status": "string (optional)",
-    "page": "integer (optional)",
-    "pageSize": "integer (optional)"
-  },
-  "body": {}
+  "model": "Volvo FH",
+  "axleCount": 6,
+  "capacityWeight": 20000,
+  "capacityVolume": 80,
+  "bodyType": 1,
+  "refrigerationLevel": 0,
+  "hasMopp": false,
+  "hasCargoSecuring": true,
+  "driver": "Motorista",
+  "currentLocation": "Curitiba, PR",
+  "status": 0,
+  "driverPhone": "+55 41 99999-0000",
+  "traccarDeviceId": 42
 }
 ```
 
-**Output Contract (Response):**
-```json
-{
-  "statusCode": 200,
-  "body": {
-    "items": [
-      {
-        "id": "string",
-        "plate": "string",
-        "type": "string",
-        "driver": "string",
-        "driverPhone": "string",
-        "capacity": "string",
-        "volumeM3": "number",
-        "currentLocation": "string",
-        "status": "string",
-        "features": ["string"],
-        "lockedPeriodsCount": "integer"
-      }
-    ],
-    "page": "integer",
-    "pageSize": "integer",
-    "total": "integer"
-  }
-}
-```
+`plate` is immutable and excluded from PUT. The service maps capacity/location names and numeric enums to existing UI names/Portuguese labels, preserving noneditable fields when round-tripping. `driverPhone` and `traccarDeviceId` are editable through the shared `VehicleForm` component and preserved by `toVehicle`/`toUpdateDto`.
 
----
+On update, `null`/omitted tracking or contact fields preserve existing values. A blank phone is sent as an empty string to clear it; a blank tracker is sent as `null` and keeps the existing device (the form explains this). The current API does not offer tracker removal. Phones are trimmed (maximum 30 characters); the browser service rejects nonpositive/fractional/unsafe tracker IDs before sending. Existing numeric enum mappings remain unchanged. Tracking identifiers stay on the vehicle API; the browser never contacts Traccar directly.
 
-### GET `/api/v1/fleet/vehicles/{vehicleId}`
-- **Consumer:** FleetManagement
-- **Goal:** Return the full vehicle detail required for the expanded card view.
+The screen shows loading, empty and API-error states; update/delete failures retain the current editing/confirmation state. No fleet statistics, locked-period, feature-list, or server pagination endpoints are called by this screen.
 
-**Input Contract (Request):**
-```json
-{ "pathVariables": { "vehicleId": "string (required)" }, "queryParameters": {}, "body": {} }
-```
-
-**Output Contract (Response):**
-```json
-{
-  "statusCode": 200,
-  "body": {
-    "id": "string",
-    "plate": "string",
-    "type": "string",
-    "driver": "string",
-    "driverPhone": "string",
-    "capacity": "string",
-    "volumeM3": "number",
-    "currentLocation": "string",
-    "status": "string",
-    "features": ["string"],
-    "lockedPeriods": [
-      { "bidId": "string", "routeId": "string", "routeName": "string", "startDate": "string", "endDate": "string" }
-    ],
-    "maintenanceReason": "string (optional)",
-    "lastMaintenance": "string",
-    "nextMaintenance": "string"
-  }
-}
-```
-
----
-
-### PUT `/api/v1/fleet/vehicles/{vehicleId}`
-- **Consumer:** FleetManagement
-- **Goal:** Update vehicle operational attributes from the inline edit form.
-- **Business Logic Specification:**
-  1. Authenticate caller and verify update permission.
-  2. Validate payload and ensure vehicle belongs to tenant scope.
-  3. Apply updates to driver, driverPhone, location, status, capacity, volumeM3, and features.
-
-**Input Contract (Request):**
-```json
-{
-  "pathVariables": { "vehicleId": "string (required)" },
-  "body": {
-    "plate": "string (optional)",
-    "type": "string (optional)",
-    "driver": "string (optional)",
-    "driverPhone": "string (optional)",
-    "capacity": "string (optional)",
-    "volumeM3": "number (optional)",
-    "currentLocation": "string (optional)",
-    "status": "string (optional, enum: ['AVAILABLE','LOCKED','IN_TRANSIT','MAINTENANCE'])",
-    "features": ["string"]
-  }
-}
-```
-
-**Output Contract (Response):**
-```json
-{ "statusCode": 200, "body": { "vehicle": { /* updated vehicle object */ } } }
-```
-
----
-
-### DELETE `/api/v1/fleet/vehicles/{vehicleId}`
-- **Consumer:** FleetManagement
-- **Goal:** Remove a vehicle from the fleet after confirmation.
-- **Business Logic Specification:**
-  1. Authenticate caller and verify delete permission.
-  2. Reject deletion if vehicle is currently assigned to an active transport or has locked periods overlapping now.
-
-**Input Contract (Request):**
-```json
-{ "pathVariables": { "vehicleId": "string (required)" }, "queryParameters": {}, "body": {} }
-```
-
-**Output Contract (Response):**
-```json
-{ "statusCode": 200, "body": { "vehicleId": "string", "status": "deleted" } }
-```
-
-**Error Payload (409):**
-```json
-{ "statusCode": 409, "body": { "error": "VEHICLE_IN_USE", "message": "Vehicle cannot be deleted while assigned to an active transport" } }
-```
-
----
-
-### GET `/api/v1/fleet/stats`
-- **Consumer:** FleetManagement
-- **Goal:** Return the quick KPI counters used in the top stat cards (total, available, locked, inTransit, maintenance).
-
-**Output Contract (Response):**
-```json
-{ "statusCode": 200, "body": { "total": "integer", "available": "integer", "locked": "integer", "inTransit": "integer", "maintenance": "integer" } }
-```
+See [registration](api-mapping-register-vehicle.md) for POST.

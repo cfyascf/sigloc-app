@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { vehicleService } from "@/services/vehicle-service"
 import { BODY_TYPE_OPTIONS, STATUS_OPTIONS } from "@/constants/vehicles"
+import VehicleForm from "@/pages/VehicleForm"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`
@@ -86,7 +87,11 @@ export default function FleetManagement() {
     const result = await saveAction.run(editingId, editForm)
     if (!result.ok) return
 
-    setVehicles(prev => prev.map(v => v.id === editingId ? editForm : v))
+    setVehicles(prev => prev.map(v => v.id === editingId ? {
+      ...editForm,
+      driverPhone: editForm.driverPhone?.trim() ?? v.driverPhone,
+      traccarDeviceId: String(editForm.traccarDeviceId ?? "").trim() ? Number(editForm.traccarDeviceId) : v.traccarDeviceId,
+    } : v))
     setEditingId(null)
     setEditForm(null)
   }
@@ -261,6 +266,8 @@ export default function FleetManagement() {
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Motorista Atribuído</label>
                         <Input value={editForm.driver} onChange={(e) => setEditForm({...editForm, driver: e.target.value})} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
                       </div>
+
+                      <VehicleForm value={editForm} onChange={setEditForm} disabled={saveAction.pending} idPrefix={`vehicle-${vehicle.id}`} preserveTrackerOnBlank />
 
                       {/* LINHA 2: Capacidade e Equipamento */}
                       <div className="space-y-1.5">

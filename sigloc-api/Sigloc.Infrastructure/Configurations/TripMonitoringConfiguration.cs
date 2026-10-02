@@ -11,7 +11,9 @@ public class TripMonitoringConfiguration : IEntityTypeConfiguration<TripMonitori
         builder.HasKey(m => m.Id);
 
         builder.Property(m => m.LastProgressPercentage).IsRequired();
-        builder.Property(m => m.LastCalculatedEta).IsRequired();
+        builder.Property(m => m.LastCalculatedEta).IsRequired(false);
+        builder.Property(m => m.Risk).HasMaxLength(30);
+        builder.Property(m => m.LastObservationId).HasMaxLength(128);
         builder.Property(m => m.LastPingAt).IsRequired();
 
         // One monitoring snapshot per trip; removing the trip removes its snapshot.

@@ -512,6 +512,9 @@ namespace Sigloc.Infrastructure.Migrations
                     b.Property<Guid?>("RouteId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("RouteSequence")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -586,9 +589,9 @@ namespace Sigloc.Infrastructure.Migrations
 
                     b.HasIndex("CarrierId");
 
-                    b.HasIndex("RouteId");
-
                     b.HasIndex("VehicleId");
+
+                    b.HasIndex("RouteId", "Status", "CreatedAt");
 
                     b.ToTable("Trip");
                 });
@@ -602,13 +605,45 @@ namespace Sigloc.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTimeOffset>("LastCalculatedEta")
+                    b.Property<DateTimeOffset?>("LastCalculatedEta")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("LastDeviceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("LastObservationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<DateTimeOffset>("LastPingAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<double>("LastProgressPercentage")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTimeOffset?>("LastSuccessfulCalculationAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTimeOffset?>("NextStopDeadline")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("NextStopId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("RemainingDistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Risk")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<double?>("TraveledDistanceKm")
                         .HasColumnType("double precision");
 
                     b.Property<Guid>("TripId")
@@ -626,6 +661,216 @@ namespace Sigloc.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("TripMonitoring");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripMonitoringEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RefreshId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TripId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TripId", "OccurredAt");
+
+                    b.HasIndex("TripId", "RefreshId", "Kind")
+                        .IsUnique();
+
+                    b.ToTable("TripMonitoringEvent", (string)null);
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripStop", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CompletionSource")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TripId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TripId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("TripStop", (string)null);
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripStopAction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CompletionSource")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("Deadline")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProductName")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("SegmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TripStopId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SegmentId");
+
+                    b.HasIndex("TripStopId", "SegmentId", "Kind", "ProductId")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("TripStopId", "SegmentId", "Kind", "ProductId"), false);
+
+                    b.ToTable("TripStopAction", (string)null);
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripTelemetry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CalculatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("DeviceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("FixTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("ObservationId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("TripId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TripId", "FixTime");
+
+                    b.HasIndex("TripId", "DeviceId", "ObservationId")
+                        .IsUnique();
+
+                    b.ToTable("TripTelemetry", (string)null);
                 });
 
             modelBuilder.Entity("Sigloc.Domain.Entities.User", b =>
@@ -705,6 +950,10 @@ namespace Sigloc.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("DriverPhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<bool>("HasCargoSecuring")
                         .HasColumnType("boolean");
 
@@ -724,6 +973,9 @@ namespace Sigloc.Infrastructure.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<long?>("TraccarDeviceId")
+                        .HasColumnType("bigint");
 
                     b.Property<Guid>("TransportadoraId")
                         .HasColumnType("uuid");
@@ -856,9 +1108,61 @@ namespace Sigloc.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripMonitoringEvent", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.Trip", null)
+                        .WithMany()
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripStop", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.Trip", null)
+                        .WithMany("Stops")
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripStopAction", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.RouteSegment", null)
+                        .WithMany()
+                        .HasForeignKey("SegmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sigloc.Domain.Entities.TripStop", null)
+                        .WithMany("Actions")
+                        .HasForeignKey("TripStopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripTelemetry", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.Trip", null)
+                        .WithMany()
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Sigloc.Domain.Entities.RouteSegment", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.Trip", b =>
+                {
+                    b.Navigation("Stops");
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripStop", b =>
+                {
+                    b.Navigation("Actions");
                 });
 #pragma warning restore 612, 618
         }

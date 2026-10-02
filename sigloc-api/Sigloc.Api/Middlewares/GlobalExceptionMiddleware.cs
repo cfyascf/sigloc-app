@@ -41,6 +41,14 @@ public class GlobalExceptionHandlerMiddleware
 
         var (statusCode, payload) = exception switch
         {
+            TripNotFoundException missingTrip => (
+                (int)HttpStatusCode.NotFound,
+                (object)new { error = "TRIP_NOT_FOUND", message = missingTrip.Message }),
+
+            TrackingUnavailableException unavailable => (
+                (int)HttpStatusCode.ServiceUnavailable,
+                (object)new { error = "TRACKING_UNAVAILABLE", message = unavailable.Message }),
+
             ValidationException validation => (
                 (int)HttpStatusCode.BadRequest,
                 (object)new
