@@ -18,6 +18,9 @@ public class RouteSegment : BaseEntity
     /// <summary>Consolidated route. Null on creation; set once the segment is consolidated.</summary>
     public Guid? RouteId { get; set; }
 
+    /// <summary>Immutable order within the consolidated route; null for legacy routes.</summary>
+    public int? RouteSequence { get; set; }
+
     /// <summary>Pickup location text (e.g. "Curitiba, PR").</summary>
     public required string OriginAddress { get; set; }
 

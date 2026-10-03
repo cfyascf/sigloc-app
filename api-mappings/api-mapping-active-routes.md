@@ -1,86 +1,48 @@
-# API Mapping — Active Routes Dashboard
+# API Mapping — Active Routes
 
-### GET `/api/v1/routes/active`
-- **Consumer:** ActiveRoutes
-- **Goal:** Return a lightweight, paginated list of routes currently in execution so the screen can render the active-route cards without client-side transformation.
-- **Business Logic Specification:**
-  1. Authenticate the caller and require access to route monitoring permissions.
-  2. Resolve the tenant/organization scope from the authenticated user and restrict results to routes belonging to that scope.
-  3. Select only routes whose lifecycle state is active or in progress, excluding completed, cancelled, or archived routes.
-  4. Apply optional search across route identifier, carrier name, and vehicle plate.
-  5. Apply optional filters for route status, carrier, and vehicle plate.
-  6. Compute derived presentation values for each route: progress percentage, ETA display string, and last ping timestamp formatted for display.
-  7. Sort results by urgency, with delayed routes first and the earliest ETA next.
-  8. Return only the fields required by the UI to minimize payload size and avoid client-side joins.
-  9. If the query is paged, include pagination metadata and return an empty list when no records match.
+## GET `/api/viagens/ativas`
 
-**Input Contract (Request):**
-```json
-{
-  "pathVariables": {},
-  "queryParameters": {
-    "search": "string (optional, max: 100)",
-    "status": "string (optional, enum: ['all', 'Em curso', 'Atrasado'])",
-    "carrierId": "string (optional)",
-    "plate": "string (optional)",
-    "page": "integer (optional, default: 1, minimum: 1)",
-    "pageSize": "integer (optional, default: 20, minimum: 1, maximum: 100)"
-  },
-  "body": {}
-}
-```
+`ActiveRoutes` uses the existing authenticated API client through `trip-service.js`. Shipper/contractor access and tenant isolation are enforced server-side. The list reads persisted state only: it does not poll, call GPS/routing providers, or eagerly fetch details.
 
-## **Output Contract (Response):**
-```json
-{
-  "statusCode": 200,
-  "body": {
-    "items": [
-      {
-        "id": "string",
-        "transportadora": "string",
-        "placa": "string",
-        "status": "string",
-        "progresso": "integer",
-        "eta": "string",
-        "lastPing": "string"
-      }
-    ],
-    "page": "integer",
-    "pageSize": "integer",
-    "total": "integer",
-    "hasMore": "boolean"
-  }
-}
-```
-
-**Error Payloads:**
-```json
-{
-  "statusCode": 400,
-  "body": {
-    "error": "INVALID_QUERY",
-    "message": "string"
-  }
-}
-```
+| Query | Contract |
+| --- | --- |
+| `page` | 1-based, default 1 |
+| `pageSize` | Default 20, maximum 100; UI offers 20/50/100 |
+| `search` | Trimmed reference/carrier/plate search; 350 ms UI debounce resets page to 1 |
+| `status` | Optional `AGUARDANDO_COLETA`, `EM_TRANSITO`, `ATRASADO` |
+| `risk` | Optional `NORMAL`, `CRITIC`, `NAO_MONITORADO` |
 
 ```json
 {
-  "statusCode": 401,
-  "body": {
-    "error": "UNAUTHORIZED",
-    "message": "Authentication token is missing or invalid"
-  }
+  "viagens": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "rotaId": "22222222-2222-2222-2222-222222222222",
+      "referencia": "TRP-111111",
+      "status": "EM_TRANSITO",
+      "risco": "NORMAL",
+      "transportadora": "Transportadora",
+      "placa": "ABC1D23",
+      "origem": "Curitiba, PR",
+      "destino": "Joinville, SC",
+      "progressoPercentual": 40,
+      "novoEta": "2026-10-01T19:30:00Z",
+      "ultimaAtualizacao": "2026-10-01T18:40:00Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "totalItems": 1,
+  "totalPages": 1
 }
 ```
 
-```json
-{
-  "statusCode": 403,
-  "body": {
-    "error": "FORBIDDEN",
-    "message": "User does not have permission to view active routes"
-  }
-}
-```
+- `referencia` follows the existing dashboard convention: `TRP-` plus the first six uppercase GUID hexadecimal characters. It is display/search text, not the unique request identifier.
+- `id` is the trip GUID; `rotaId` is a different consolidated-route GUID. Cards navigate to `/active-route-tracking/{id}`, never using `rotaId` for detail requests.
+- Delivered/cancelled trips are excluded. `ATRASADO` is the persisted SLA projection; unmonitored trips remain visible with nullable progress, ETA and calculation timestamp. Unknown values are never replaced with on-time/zero values.
+- `ultimaAtualizacao` is the last successful calculation, not GPS fix time. GPS observation time is supplied by the detail endpoint.
+- Filters reset pagination. Requests carry abort signals and request-key ownership prevents old responses from replacing newer results.
+- Loading, empty, failed-request/retry and previous/next states are explicit. Returning from details requests the list again to reflect persisted lifecycle/SLA changes.
+- Standard errors include validation `400`, authentication `401`, and authorization `403`. No refresh bypass is sent.
+
+See [tracking](api-mapping-active-route-tracking.md) for cache, stale-state and detail behavior.

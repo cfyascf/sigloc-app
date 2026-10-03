@@ -1,57 +1,31 @@
 # API Mapping — Register Vehicle
 
-### POST `/api/v1/vehicles`
-- **Consumer:** RegisterVehicle
-- **Goal:** Register a new vehicle into the tenant's fleet.
-- **Business Logic Specification:**
-  1. Authenticate caller and enforce tenant scoping and permissions to add fleet assets.
-  2. Validate required fields: `plate` (unique), `model`, `weightKg`, `volumeM3`, `bodyType`.
-  3. Normalize plate (uppercase, remove whitespace) and enforce uniqueness; return 409 if duplicate.
-  4. Default `status` to `Livre` when omitted.
-  5. Record createdBy and createdAt metadata; integrate with operation center for immediate listing when `status` is `Livre`.
+## POST `/api/vehicles`
 
-**Input Contract (Request):**
+`RegisterVehicle` submits through the authenticated `vehicleService.createVehicle` client. Carrier access and tenant scoping are enforced by the API. Success is `201` with the created vehicle DTO; the UI returns to fleet management. Validation/network errors remain visible without discarding the form.
+
 ```json
-{ "body": { "plate": "string", "model": "string", "driver": "string|null", "location": "string|null", "weightKg": "number", "volumeM3": "number", "bodyType": "string", "status": "string (optional)" } }
+{
+  "plate": "ABC1D23",
+  "model": "Volvo FH",
+  "axleCount": 6,
+  "capacityWeight": 20000,
+  "capacityVolume": 80,
+  "bodyType": 1,
+  "refrigerationLevel": 0,
+  "hasMopp": false,
+  "hasCargoSecuring": true,
+  "driver": "Motorista",
+  "currentLocation": "Curitiba, PR",
+  "driverPhone": "+55 41 99999-0000",
+  "traccarDeviceId": 42
+}
 ```
 
-**Output Contract (Response):**
-```json
-{ "status": 201, "body": { "id": "string", "plate": "string", "createdAt": "string" } }
-```
-
-**Errors:** 400 Validation errors, 409 Plate already exists, 403 Forbidden
-
----
-
-### GET `/api/v1/vehicles/validate-plate?plate={plate}`
-- **Consumer:** RegisterVehicle
-- **Goal:** Quick check for plate uniqueness used by the form.
-
-**Request:**
-```json
-{ "query": { "plate": "string" } }
-```
-
-**Response:**
-```json
-{ "status": 200, "body": { "available": "boolean" } }
-```
-
----
-
-### GET `/api/v1/vehicle-body-types`
-- **Consumer:** RegisterVehicle
-- **Goal:** Provide allowed `bodyType` options to populate the select list.
-
-**Response:**
-```json
-{ "status": 200, "body": { "items": [ { "id": "string", "label": "string", "description": "string" } ] } }
-```
-
----
-
-**UI Notes:**
-- The form normalizes plate and uses it as the unique identifier.
-- `status` controls whether the vehicle is immediately eligible for assignment; default semantics documented in the business logic.
-- Validation should ensure numeric fields (`weightKg`, `volumeM3`) are positive and within reasonable bounds for vehicle classes.
+- `driverPhone` and `traccarDeviceId` are optional/nullable. Blank inputs serialize as `null`; nonblank phones are trimmed, at most 30 characters. Tracker IDs must be positive safe integers in the JavaScript client. No provider credentials are collected.
+- The service normalizes plate to uppercase without spaces/hyphens. The server validates its format and uniqueness.
+- Positive axle count, weight and volume are required. Enum integers are sourced from `src/constants/vehicles.js`; body type is 1–5, refrigeration 0–2.
+- New vehicles start `Livre` (`status: 0`); create does not accept a status override. Status changes belong to fleet editing.
+- The response includes `id`, `transportadoraId`, all vehicle attributes, numeric `status`, and the nullable tracking/contact fields.
+- The form does not call a plate-validation endpoint or fetch a body-type catalog; it submits once and displays API errors.
+- Authentication/authorization and validation errors use the existing shared API error format.

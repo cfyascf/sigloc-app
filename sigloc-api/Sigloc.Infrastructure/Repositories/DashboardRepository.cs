@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sigloc.Domain.Enums;
+using Sigloc.Domain.Entities;
 using Sigloc.Domain.Repositories;
 using Sigloc.Infrastructure.Contexts;
 
@@ -162,6 +163,9 @@ public class DashboardRepository : IDashboardRepository
             {
                 trip.Id,
                 trip.RouteId,
+                NextStopKind = db.TripStopActions.Where(a => monitoring != null && a.TripStopId == monitoring.NextStopId && !a.IsCompleted)
+                    .OrderBy(a => a.Deadline).Select(a => (StopActionKind?)a.Kind).FirstOrDefault(),
+                NextStopDeadline = monitoring == null ? null : monitoring.NextStopDeadline,
                 LastCalculatedEta = (DateTimeOffset?)(monitoring != null ? monitoring.LastCalculatedEta : (DateTimeOffset?)null)
             })
             .ToListAsync(cancellationToken);
@@ -216,8 +220,8 @@ public class DashboardRepository : IDashboardRepository
             result.Add(new TripSlaMilestone(
                 ReferenceCode: ShortCode(trip.Id),
                 Itinerary: itinerary,
-                MilestoneType: milestoneType,
-                SlaDeadline: deadline,
+                MilestoneType: trip.NextStopKind.HasValue ? (trip.NextStopKind == StopActionKind.Pickup ? "COLETA" : "ENTREGA") : milestoneType,
+                SlaDeadline: trip.NextStopDeadline ?? deadline,
                 LastCalculatedEta: trip.LastCalculatedEta));
         }
 
@@ -396,6 +400,9 @@ public class DashboardRepository : IDashboardRepository
                 trip.Id,
                 trip.RouteId,
                 vehicle.Plate,
+                NextStopKind = db.TripStopActions.Where(a => monitoring != null && a.TripStopId == monitoring.NextStopId && !a.IsCompleted)
+                    .OrderBy(a => a.Deadline).Select(a => (StopActionKind?)a.Kind).FirstOrDefault(),
+                NextStopDeadline = monitoring == null ? null : monitoring.NextStopDeadline,
                 LastCalculatedEta = (DateTimeOffset?)(monitoring != null ? monitoring.LastCalculatedEta : (DateTimeOffset?)null)
             })
             .ToListAsync(cancellationToken);
@@ -444,8 +451,8 @@ public class DashboardRepository : IDashboardRepository
             result.Add(new CarrierSlaMilestone(
                 VehiclePlate: trip.Plate,
                 ReferenceCode: ShortCode(trip.Id),
-                MilestoneType: milestoneType,
-                SlaDeadline: deadline,
+                MilestoneType: trip.NextStopKind.HasValue ? (trip.NextStopKind == StopActionKind.Pickup ? "COLETA" : "ENTREGA") : milestoneType,
+                SlaDeadline: trip.NextStopDeadline ?? deadline,
                 LastCalculatedEta: trip.LastCalculatedEta));
         }
 

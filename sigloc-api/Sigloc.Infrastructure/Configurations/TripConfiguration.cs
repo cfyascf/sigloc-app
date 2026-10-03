@@ -41,5 +41,6 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
         // One trip per auction (the award closes the auction exactly once).
         builder.HasIndex(t => t.AuctionId).IsUnique();
         builder.HasIndex(t => t.CarrierId);
+        builder.HasIndex(t => new { t.RouteId, t.Status, t.CreatedAt });
     }
 }

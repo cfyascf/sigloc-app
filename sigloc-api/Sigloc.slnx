@@ -3,4 +3,5 @@
   <Project Path="Sigloc.Application\Sigloc.Application.csproj" />
   <Project Path="Sigloc.Domain\Sigloc.Domain.csproj" />
   <Project Path="Sigloc.Infrastructure\Sigloc.Infrastructure.csproj" />
+  <Project Path="Sigloc.Tests/Sigloc.Tests.csproj" />
 </Solution>

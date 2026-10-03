@@ -5,9 +5,6 @@ using Sigloc.Infrastructure;
 using Scalar.AspNetCore;
 using Serilog;
 using Microsoft.OpenApi; // Required for logging
-using Sigloc.Infrastructure.Contexts;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -75,6 +72,8 @@ try
         allowedOrigins = new[]
         {
             "http://localhost:5173", // Vite default local port
+            "http://127.0.0.1:5067", // Sigloc Vite development port
+            "http://localhost:5067",
             "https://icy-flower-092597810.7.azurestaticapps.net" // Live frontend
         };
     }
@@ -88,9 +87,6 @@ try
                   .AllowAnyMethod();
         });
     });
-
-    builder.Services.AddDbContext<Sigloc.Infrastructure.Contexts.SiglocDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
         // 1. Provedor de JWT (que já havíamos colocado)
     builder.Services.AddScoped<Sigloc.Application.Contracts.IJwtProvider, Sigloc.Infrastructure.Authentication.JwtProvider>();

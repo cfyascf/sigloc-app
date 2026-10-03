@@ -14,7 +14,9 @@ namespace Sigloc.Application.DTOs
         bool HasMopp,
         bool HasCargoSecuring,
         string Driver,
-        string CurrentLocation
+        string CurrentLocation,
+        long? TraccarDeviceId = null,
+        string? DriverPhone = null
     );
 
     public record UpdateVehicleDto(
@@ -28,7 +30,9 @@ namespace Sigloc.Application.DTOs
         bool? HasCargoSecuring,
         string? Driver,
         string? CurrentLocation,
-        OperationalStatus? Status
+        OperationalStatus? Status,
+        long? TraccarDeviceId = null,
+        string? DriverPhone = null
     );
 
     public record VehicleResponseDto(
@@ -45,6 +49,8 @@ namespace Sigloc.Application.DTOs
         bool HasCargoSecuring,
         string Driver,
         string CurrentLocation,
-        OperationalStatus Status
+        OperationalStatus Status,
+        long? TraccarDeviceId = null,
+        string? DriverPhone = null
     );
 }

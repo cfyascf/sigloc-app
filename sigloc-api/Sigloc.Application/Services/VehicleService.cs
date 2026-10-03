@@ -47,6 +47,9 @@ public class VehicleService : IVehicleService
             dto.CurrentLocation
         );
 
+        ValidateMonitoringFields(dto.TraccarDeviceId, dto.DriverPhone);
+        vehicle.TraccarDeviceId = dto.TraccarDeviceId;
+        vehicle.DriverPhone = NormalizePhone(dto.DriverPhone);
         await _repository.AddAsync(vehicle, cancellationToken);
 
         return MapToDto(vehicle);
@@ -76,6 +79,10 @@ public class VehicleService : IVehicleService
         {
             throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
         }
+
+        ValidateMonitoringFields(dto.TraccarDeviceId, dto.DriverPhone);
+        if (dto.TraccarDeviceId.HasValue) vehicle.TraccarDeviceId = dto.TraccarDeviceId;
+        if (dto.DriverPhone != null) vehicle.DriverPhone = NormalizePhone(dto.DriverPhone);
 
         vehicle.Update(
             dto.Model, dto.AxleCount, dto.CapacityWeight, dto.CapacityVolume, 
@@ -109,6 +116,17 @@ public class VehicleService : IVehicleService
     }
 
     // Centraliza o mapeamento para evitar repetição de código
+    private static string? NormalizePhone(string? phone) => string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+
+    private static void ValidateMonitoringFields(long? deviceId, string? phone)
+    {
+        var errors = new List<Sigloc.Application.Exceptions.ValidationError>();
+        if (deviceId is <= 0) errors.Add(new("traccarDeviceId", "Device ID must be positive."));
+        if (phone != null && (phone.Length > 40 || phone.Any(c => !char.IsDigit(c) && !" +-().".Contains(c))))
+            errors.Add(new("driverPhone", "Phone must contain at most 40 phone-number characters."));
+        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Invalid vehicle monitoring fields.");
+    }
+
     private static VehicleResponseDto MapToDto(Vehicle vehicle)
     {
         return new VehicleResponseDto(
@@ -125,7 +143,9 @@ public class VehicleService : IVehicleService
             vehicle.HasCargoSecuring,
             vehicle.Driver,
             vehicle.CurrentLocation,
-            vehicle.Status
+            vehicle.Status,
+            vehicle.TraccarDeviceId,
+            vehicle.DriverPhone
         );
     }
 }

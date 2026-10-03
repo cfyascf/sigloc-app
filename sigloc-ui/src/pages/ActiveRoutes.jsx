@@ -1,21 +1,27 @@
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Search, Filter, Truck, ChevronRight, RefreshCw } from "lucide-react"
+import { Search, Filter, Truck, ChevronRight, RefreshCw, Loader2 } from "lucide-react"
 
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useTripRequest } from "@/hooks/use-trip-request"
+import { listActiveTrips } from "@/services/trip-service"
+import { formatTripDate, tripStatusLabel } from "@/lib/trip-formatters"
 
 export default function ActiveRoutes() {
   const navigate = useNavigate()
-  
-  // Mock das rotas ativas
-  const [rotas] = useState([
-    { id: "ROT-9921", transportadora: "Expresso Frio Ltda", placa: "ABC-1234", status: "Em curso", progresso: 65, eta: "18:30", lastPing: "14:20" },
-    { id: "ROT-8840", transportadora: "LogBrasil S.A.", placa: "XYZ-9876", status: "Atrasado", progresso: 40, eta: "21:00", lastPing: "13:00" },
-    { id: "ROT-7732", transportadora: "Transportes Rapidos", placa: "LMN-5544", status: "Em curso", progresso: 90, eta: "16:45", lastPing: "14:40" },
-  ])
+  const [search, setSearch] = useState("")
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [query, setQuery] = useState({ search: "", status: "", risk: "", page: 1, pageSize: 20 })
+  useEffect(() => {
+    const timeout = setTimeout(() => setQuery((current) => ({ ...current, search: search.trim(), page: 1 })), 300)
+    return () => clearTimeout(timeout)
+  }, [search])
+  const load = useCallback((options) => listActiveTrips(query, options), [query])
+  const { data, pending, error, reload } = useTripRequest(load, JSON.stringify(query))
+  const rotas = data?.trips ?? []
 
   return (
     <AppShell title="Rotas Ativas">
@@ -30,17 +36,23 @@ export default function ActiveRoutes() {
           <div className="flex items-center gap-3">
              <div className="relative w-64">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input placeholder="Buscar rota ou transportadora..." className="h-9 border-slate-200 bg-white pl-9 text-xs" />
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar rota ou transportadora..." className="h-9 border-slate-200 bg-white pl-9 text-xs" />
             </div>
-            <Button variant="outline" className="h-9 border-slate-200 text-xs font-semibold bg-white">
+            <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)} className="h-9 border-slate-200 text-xs font-semibold bg-white">
                <Filter size={14} className="mr-2" /> Filtros
             </Button>
           </div>
         </div>
 
+        {filtersOpen && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs">
+          <select aria-label="Filtrar por status" value={query.status} onChange={(event) => setQuery((current) => ({ ...current, status: event.target.value, page: 1 }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os status</option><option value="AGUARDANDO_COLETA">Aguardando coleta</option><option value="EM_TRANSITO">Em trânsito</option><option value="ATRASADO">Atrasado</option></select>
+          <select aria-label="Filtrar por risco" value={query.risk} onChange={(event) => setQuery((current) => ({ ...current, risk: event.target.value, page: 1 }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os riscos</option><option value="NORMAL">Normal</option><option value="CRITIC">Crítico</option><option value="NAO_MONITORADO">Sem monitoramento</option></select>
+          <Button variant="outline" className="h-9 text-xs" onClick={reload} disabled={pending}>Atualizar</Button>
+        </div>}
+
         {/* LISTAGEM EM CARDS */}
-        <div className="space-y-3">
-          {rotas.map((rota) => (
+        <div className="space-y-3" aria-live="polite">
+          {pending ? <p className="flex items-center gap-2 p-4 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Carregando viagens…</p> : error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error.message || "Não foi possível carregar as viagens."}</div> : !rotas.length ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Nenhuma viagem ativa encontrada.</p> : rotas.map((rota) => (
             <button
               key={rota.id}
               type="button"
@@ -49,17 +61,17 @@ export default function ActiveRoutes() {
             >
               {/* ID + STATUS */}
               <div className="w-[120px]">
-                <div className="font-mono text-xs font-bold text-slate-500">{rota.id}</div>
-                <Badge variant="outline" className={`mt-1 text-[10px] font-bold uppercase border-none px-1.5 py-0 ${rota.status === 'Atrasado' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                    {rota.status}
+                <div className="font-mono text-xs font-bold text-slate-500">{rota.reference || rota.id}</div>
+                <Badge variant="outline" className={`mt-1 text-[10px] font-bold uppercase border-none px-1.5 py-0 ${rota.status === 'ATRASADO' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                    {tripStatusLabel(rota.status)}
                 </Badge>
               </div>
 
               {/* TRANSPORTADORA + VEÍCULO */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800">{rota.transportadora}</p>
+                <p className="text-sm font-semibold text-slate-800">{rota.carrier || "Não informado"}</p>
                 <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                    <Truck size={12} /> {rota.placa}
+                    <Truck size={12} /> {rota.plate || "Não informado"}
                 </div>
               </div>
 
@@ -67,10 +79,10 @@ export default function ActiveRoutes() {
               <div className="w-[180px]">
                 <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
                     <span>Progresso</span>
-                    <span>{rota.progresso}%</span>
+                    <span>{rota.progress == null ? "—" : `${rota.progress}%`}</span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-600" style={{ width: `${rota.progresso}%` }} />
+                    <div className="h-full bg-blue-600" style={{ width: `${Math.max(0, Math.min(100, rota.progress ?? 0))}%` }} />
                 </div>
               </div>
 
@@ -78,12 +90,12 @@ export default function ActiveRoutes() {
               <div className="w-[180px] grid grid-cols-2 gap-4 text-right">
                 <div>
                     <span className="block text-[10px] text-slate-400 uppercase font-bold">ETA</span>
-                    <span className="text-sm font-bold text-slate-700 font-mono">{rota.eta}</span>
+                    <span className="text-sm font-bold text-slate-700 font-mono">{formatTripDate(rota.eta)}</span>
                 </div>
                 <div>
                     <span className="block text-[10px] text-slate-400 uppercase font-bold">Ping</span>
                     <span className="text-sm font-bold text-slate-700 font-mono flex justify-end items-center gap-1">
-                        <RefreshCw size={10} /> {rota.lastPing}
+                        <RefreshCw size={10} /> {formatTripDate(rota.lastPing)}
                     </span>
                 </div>
               </div>
@@ -96,6 +108,10 @@ export default function ActiveRoutes() {
               </div>
             </button>
           ))}
+        </div>
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>Página {data?.page ?? query.page} de {Math.max(1, data?.totalPages ?? 1)} • {data?.total ?? 0} viagens</span>
+          <div className="flex gap-2"><Button variant="outline" size="sm" disabled={pending || query.page <= 1} onClick={() => setQuery((current) => ({ ...current, page: current.page - 1 }))}>Anterior</Button><Button variant="outline" size="sm" disabled={pending || !data || query.page >= data.totalPages} onClick={() => setQuery((current) => ({ ...current, page: current.page + 1 }))}>Próxima</Button></div>
         </div>
       </div>
     </AppShell>

@@ -18,7 +18,19 @@ public class TripMonitoring : BaseEntity
     public double LastProgressPercentage { get; set; }
 
     /// <summary>Last ETA calculated by the routing engine for the current leg.</summary>
-    public DateTimeOffset LastCalculatedEta { get; set; }
+    public DateTimeOffset? LastCalculatedEta { get; set; }
+
+    /// <summary>Successful calculation time, separate from the GPS fix time.</summary>
+    public DateTimeOffset? LastSuccessfulCalculationAt { get; set; }
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+    public double? TraveledDistanceKm { get; set; }
+    public double? RemainingDistanceKm { get; set; }
+    public Guid? NextStopId { get; set; }
+    public DateTimeOffset? NextStopDeadline { get; set; }
+    public string? Risk { get; set; }
+    public string? LastObservationId { get; set; }
+    public long? LastDeviceId { get; set; }
 
     /// <summary>Timestamp of the last location ping received for the trip.</summary>
     public DateTimeOffset LastPingAt { get; set; }

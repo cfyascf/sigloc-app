@@ -10,6 +10,7 @@ using Sigloc.Infrastructure.Configurations;
 using Sigloc.Infrastructure.Notifications;
 using Sigloc.Infrastructure.Repositories;
 using Sigloc.Infrastructure.Routing;
+using Sigloc.Infrastructure.Monitoring;
 
 namespace Sigloc.Infrastructure;
 
@@ -35,7 +36,7 @@ public static class DependencyInjection
         // Factory used by services that fan out independent queries in parallel
         // (e.g. the dashboard aggregator), so each concurrent query gets its own
         // short-lived DbContext instead of sharing the scoped one (which is not thread-safe).
-        services.AddDbContextFactory<SiglocDbContext>(ConfigureDbContext, lifetime: ServiceLifetime.Scoped);
+        services.AddDbContextFactory<SiglocDbContext>(ConfigureDbContext, lifetime: ServiceLifetime.Singleton);
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
@@ -72,6 +73,24 @@ public static class DependencyInjection
         services.AddScoped<IAuctionRepository, AuctionRepository>();
         services.AddScoped<IBidRepository, BidRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
+        services.AddScoped<ITripMonitoringStore, TripMonitoringStore>();
+        services.AddSingleton(TimeProvider.System);
+        services.AddOptions<TripMonitoringOptions>().Bind(configuration.GetSection("Monitoring"))
+            .Validate(o => o.MaxGpsAgeMinutes > 0 && double.IsFinite(o.GeofenceRadiusMeters)
+                && o.GeofenceRadiusMeters > 0 && o.DockBufferMinutes >= 0, "Invalid monitoring settings.");
+        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TripMonitoringOptions>>().Value);
+        services.Configure<MonitoringProviderSettings>(configuration.GetSection("Monitoring"));
+        services.Configure<OpenRouteServiceSettings>(configuration.GetSection(OpenRouteServiceSettings.SectionName));
+        if (configuration.GetValue<bool>("Monitoring:MockMode"))
+        {
+            services.AddScoped<ITripTrackingProvider, MockTripTrackingProvider>();
+            services.AddScoped<ITripRoutingProvider, MockTripRoutingProvider>();
+        }
+        else
+        {
+            services.AddHttpClient<ITripTrackingProvider, TraccarTripTrackingProvider>();
+            services.AddHttpClient<ITripRoutingProvider, OpenRouteServiceTripRoutingProvider>();
+        }
         services.AddScoped<IBlockedBidAttemptRepository, BlockedBidAttemptRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IAuctionNotifier, LoggingAuctionNotifier>();

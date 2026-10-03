@@ -116,7 +116,7 @@ export const ROUTES = [
     access: [ROLES.CONTRACTOR],
     nav: true,
   },
-  { path: "/active-route-tracking/:routeId", element: <ActiveRouteTracking />, access: [ROLES.CONTRACTOR], nav: false },
+  { path: "/active-route-tracking/:tripId", element: <ActiveRouteTracking />, access: [ROLES.CONTRACTOR], nav: false },
   { path: "/offer-freight", element: <OfferFreight />, access: [ROLES.CONTRACTOR], nav: false },
   { path: "/register-product", element: <RegisterProduct />, access: [ROLES.CONTRACTOR], nav: false },
   { path: "/auction-bids/:segmentId", element: <AuctionBids />, access: [ROLES.CONTRACTOR], nav: false },

@@ -40,14 +40,15 @@ public static class DatabaseSeeder
         }
 
         logger.LogInformation("Seeding development sample data...");
-        await SeedAsync(dbContext, passwordHasher, cancellationToken);
+        var mockMonitoring = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<Sigloc.Infrastructure.Monitoring.MonitoringProviderSettings>>().Value.MockMode;
+        await SeedAsync(dbContext, passwordHasher, mockMonitoring, cancellationToken);
         logger.LogInformation(
             "Seeding complete. Login with email '{Email}' and password '{Password}'.",
             "operator@sigloc.dev",
             DefaultPassword);
     }
 
-    private static async Task SeedAsync(SiglocDbContext dbContext, IPasswordHasher passwordHasher, CancellationToken cancellationToken)
+    private static async Task SeedAsync(SiglocDbContext dbContext, IPasswordHasher passwordHasher, bool mockMonitoring, CancellationToken cancellationToken)
     {
         // --- Contractor (shipper company) and its login-ready user ---
         var contractor = new Contractor
@@ -320,6 +321,9 @@ public static class DatabaseSeeder
             currentLocation: "São Paulo, SP",
             status: OperationalStatus.LIVRE);
 
+        vehicleFrio.Id = Guid.NewGuid();
+        vehicleRapido.Id = Guid.NewGuid();
+
         // --- Bids: Expresso Frio holds the best (lowest total) position ---
         var bidFrio = new Bid
         {
@@ -352,6 +356,9 @@ public static class DatabaseSeeder
         await dbContext.Set<Auction>().AddAsync(auction, cancellationToken);
         await dbContext.Set<Carrier>().AddRangeAsync(new[] { carrierFrio, carrierRapido }, cancellationToken);
         await dbContext.Set<Vehicle>().AddRangeAsync(new[] { vehicleFrio, vehicleRapido }, cancellationToken);
+        // Bid/Vehicle is an FK in the existing database schema but not an EF navigation.
+        // Persist the referenced fleet rows before staging bids in the development fixture.
+        await dbContext.SaveChangesAsync(cancellationToken);
         await dbContext.Set<Bid>().AddRangeAsync(new[] { bidFrio, bidRapido }, cancellationToken);
 
         // --- Carrier login + active partnership so the opportunity board (Mural de Fretes)
@@ -473,6 +480,11 @@ public static class DatabaseSeeder
             StartedAt = now.AddHours(-2),
             Status = TripStatus.InTransit
         };
+
+        transitSegment1.RouteSequence = 1;
+        transitSegment2.RouteSequence = 2;
+        transitTrip.Stops = Sigloc.Application.Services.TripItineraryBuilder.Build(transitTrip.Id, new[] { transitSegment1, transitSegment2 });
+        if (mockMonitoring) vehicleFrio.TraccarDeviceId = 1;
 
         var transitMonitoring = new TripMonitoring
         {
