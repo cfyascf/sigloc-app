@@ -8,8 +8,8 @@
   2. Resolve the segment by identifier and ensure it belongs to the authenticated tenant/organization.
   3. Retrieve all bids associated with the segment, including carrier, vehicle, proposed value, and bid metadata.
   4. Sort bids by proposed value ascending to produce the ranking shown in the UI.
-  5. Compute the savings relative to the auction ceiling and expose the bid's freight and toll components. Retrieve the official ANTT floor per proposed vehicle from the ANTT calculator; the floor excludes tolls.
-  6. Reject a new bid whose net freight is below its official vehicle-specific ANTT floor. Retrieve decision-supporting data for each bid: vehicle proposed, submission time, carrier rating, and OTD performance. Vehicle compatibility is enforced before a bid is accepted and is not presented as a comparison metric.
+  5. Compute the savings relative to the segment target fare and the ANTT floor threshold for display.
+  6. Retrieve supporting risk data for each bid, including fleet compliance, insurance validation status, and OTD performance metrics.
   7. Return only the fields required by the UI to avoid client-side joins and calculations.
   8. If the segment does not exist, return a 404 response.
 
