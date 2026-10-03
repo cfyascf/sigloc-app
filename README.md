@@ -7,7 +7,7 @@ FreightGuard is a high-performance logistics solution designed to solve critical
 By acting as a real-time validation gatekeeper, the system prevents carriers from double-booking vehicles across conflicting routes and optimizes load distribution using advanced heuristics.
 
 ## 🎯 The Problem
-In third-party logistics (3PL) operations, carriers often "reserve" multiple loads for a single vehicle plate without actual capacity, leading to last-minute cancellations, missed loading windows, and expensive spot-market auctions to recover service levels (SLA).
+In third-party logistics (3PL) operations, carriers often "reserve" multiple loads for a single vehicle plate without actual capacity, leading to last-minute cancellations, missed loading windows, and expensive spot-market auctions to recover service levels (SLA). tesring.
 
 ## 🚀 Key Features
 
