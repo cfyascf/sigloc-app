@@ -40,4 +40,10 @@ public interface IAuthService
 
     /// <summary>Authenticates a user with a Google account and issues a JWT.</summary>
     Task<AuthResultDto> LoginWithGoogleAsync(GoogleLoginDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Requests a password-reset email without disclosing whether the account exists.</summary>
+    Task RequestPasswordResetAsync(PasswordResetRequestDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Validates a one-time reset token and updates the local password.</summary>
+    Task ConfirmPasswordResetAsync(PasswordResetConfirmDto dto, CancellationToken cancellationToken = default);
 }

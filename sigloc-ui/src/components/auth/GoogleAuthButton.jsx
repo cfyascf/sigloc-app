@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import { GoogleLogin } from "@react-oauth/google"
+import { LoaderCircle } from "lucide-react"
 
 import { isGoogleAuthEnabled } from "@/config/env"
 
@@ -40,10 +41,9 @@ export function GoogleAuthButton({
 
   return (
     <div
-      className={
-        disabled ? "pointer-events-none opacity-60" : undefined
-      }
+      className={disabled ? "pointer-events-none relative opacity-60" : "relative"}
       aria-disabled={disabled}
+      aria-busy={disabled || undefined}
     >
       <GoogleLogin
         onSuccess={(response) => {
@@ -60,6 +60,12 @@ export function GoogleAuthButton({
         shape="rectangular"
         logo_alignment="center"
       />
+      {disabled ? (
+        <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-white/80 text-sm font-medium text-slate-700" role="status">
+          <LoaderCircle className="animate-spin" aria-hidden="true" />
+          Processando...
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -4,8 +4,7 @@ namespace Sigloc.Domain.Repositories;
 public sealed record DashboardKpis(
     int UnassignedSegments,
     int ActiveAuctions,
-    int InTransitTrips,
-    int BlockedOverbookings);
+    int InTransitTrips);
 
 /// <summary>
 /// Per-trip occupation snapshot used to compute the network efficiency averages. Occupation
@@ -86,8 +85,8 @@ public sealed record CarrierSlaMilestone(
 /// </summary>
 public interface IDashboardRepository
 {
-    /// <summary>Counts the contractor's available segments, open auctions, in-transit trips and blocked attempts this month.</summary>
-    Task<DashboardKpis> GetKpisAsync(Guid contractorId, DateTimeOffset monthStartUtc, CancellationToken cancellationToken = default);
+    /// <summary>Counts the contractor's available segments, open auctions and in-transit trips.</summary>
+    Task<DashboardKpis> GetKpisAsync(Guid contractorId, CancellationToken cancellationToken = default);
 
     /// <summary>Returns the occupation snapshot for every in-transit trip of the contractor.</summary>
     Task<IReadOnlyList<TripOccupation>> GetInTransitOccupationsAsync(Guid contractorId, CancellationToken cancellationToken = default);

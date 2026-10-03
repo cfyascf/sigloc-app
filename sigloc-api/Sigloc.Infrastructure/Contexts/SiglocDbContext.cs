@@ -11,6 +11,7 @@ public class SiglocDbContext : DbContext
     public DbSet<Contractor> Contractors => Set<Contractor>();
     public DbSet<Carrier> Carriers => Set<Carrier>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<PartnershipInvite> PartnershipInvites => Set<PartnershipInvite>();
     public DbSet<PartnerConnection> PartnerConnections => Set<PartnerConnection>();
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();

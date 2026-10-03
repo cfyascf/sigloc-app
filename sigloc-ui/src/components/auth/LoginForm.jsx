@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { LoaderCircle } from "lucide-react"
 import { Link } from "react-router-dom"
 
 import { useAuth } from "@/contexts/AuthContext"
@@ -83,7 +84,7 @@ export function LoginForm() {
               Senha
             </label>
             <Link
-              to="/auth"
+              to="/forgot-password"
               className="text-xs font-medium text-blue-600 hover:underline"
             >
               Esqueceu a senha?
@@ -106,7 +107,9 @@ export function LoginForm() {
           disabled={pending}
           className="mt-2 w-full bg-blue-600 text-white hover:bg-blue-700"
         >
-          {credentialAction.pending ? "Entrando..." : "Entrar no Sistema"}
+          {credentialAction.pending ? (
+            <><LoaderCircle className="animate-spin" aria-hidden="true" /> Entrando...</>
+          ) : "Entrar no Sistema"}
         </Button>
       </form>
 

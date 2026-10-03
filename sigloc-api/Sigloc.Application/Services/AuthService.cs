@@ -21,6 +21,9 @@ public partial class AuthService : IAuthService
     private readonly IJwtProvider _jwtProvider;
     private readonly IGoogleTokenVerifier _googleTokenVerifier;
     private readonly IInviteLinkBuilder _inviteLinkBuilder;
+    private readonly IPasswordResetTokenRepository _passwordResetTokens;
+    private readonly IPasswordResetLinkBuilder _passwordResetLinkBuilder;
+    private readonly IEmailSender _emailSender;
 
     public AuthService(
         IUserRepository users,
@@ -32,7 +35,10 @@ public partial class AuthService : IAuthService
         IPasswordHasher passwordHasher,
         IJwtProvider jwtProvider,
         IGoogleTokenVerifier googleTokenVerifier,
-        IInviteLinkBuilder inviteLinkBuilder)
+        IInviteLinkBuilder inviteLinkBuilder,
+        IPasswordResetTokenRepository passwordResetTokens,
+        IPasswordResetLinkBuilder passwordResetLinkBuilder,
+        IEmailSender emailSender)
     {
         _users = users;
         _contractors = contractors;
@@ -44,6 +50,9 @@ public partial class AuthService : IAuthService
         _jwtProvider = jwtProvider;
         _googleTokenVerifier = googleTokenVerifier;
         _inviteLinkBuilder = inviteLinkBuilder;
+        _passwordResetTokens = passwordResetTokens;
+        _passwordResetLinkBuilder = passwordResetLinkBuilder;
+        _emailSender = emailSender;
     }
 
     public async Task<AuthResultDto> RegisterContractorAsync(RegisterContractorDto dto, CancellationToken cancellationToken = default)
@@ -286,6 +295,72 @@ public partial class AuthService : IAuthService
         return BuildAuthResult(user);
     }
 
+    public async Task RequestPasswordResetAsync(PasswordResetRequestDto dto, CancellationToken cancellationToken = default)
+    {
+        var email = NormalizeEmail(dto.Email);
+        var user = string.IsNullOrWhiteSpace(email)
+            ? null
+            : await _users.GetByEmailAsync(email, cancellationToken);
+
+        if (user is null || user.AuthProvider != AuthProvider.Local || string.IsNullOrWhiteSpace(user.PasswordHash))
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var token = GeneratePasswordResetToken();
+        var resetToken = new PasswordResetToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            TokenHash = HashToken(token),
+            ExpiresAt = now.AddMinutes(_passwordResetLinkBuilder.TokenExpiryMinutes)
+        };
+
+        await _passwordResetTokens.InvalidateActiveForUserAsync(user.Id, now, cancellationToken);
+        await _passwordResetTokens.AddAsync(resetToken, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await _emailSender.SendPasswordResetAsync(
+                user.Email,
+                _passwordResetLinkBuilder.Build(token),
+                cancellationToken);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Preserve the same response for every e-mail address to prevent account enumeration.
+        }
+    }
+
+    public async Task ConfirmPasswordResetAsync(PasswordResetConfirmDto dto, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Token) || string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 8)
+        {
+            throw new ValidationException(
+                [new ValidationError("password", "A senha deve ter ao menos 8 caracteres.")],
+                "Não foi possível redefinir a senha.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var resetToken = await _passwordResetTokens.GetValidByHashAsync(
+            HashToken(dto.Token),
+            now,
+            cancellationToken)
+            ?? throw new InvalidPasswordResetTokenException();
+        var user = await _users.GetByIdAsync(resetToken.UserId, cancellationToken);
+
+        if (user is null || user.AuthProvider != AuthProvider.Local)
+        {
+            throw new InvalidPasswordResetTokenException();
+        }
+
+        user.PasswordHash = _passwordHasher.Hash(dto.Password);
+        resetToken.UsedAt = now;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<AuthResultDto> RegisterContractorWithGoogleAsync(RegisterContractorGoogleDto dto, CancellationToken cancellationToken = default)
     {
         var google = await VerifyGoogleAsync(dto.IdToken, cancellationToken);
@@ -477,6 +552,15 @@ public partial class AuthService : IAuthService
             .Replace('+', '-')
             .Replace('/', '_')
             .TrimEnd('=');
+
+    private static string GeneratePasswordResetToken()
+        => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
+
+    private static string HashToken(string token)
+        => Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token)));
 
     private static bool IsExpired(PartnershipInvite invite)
         => invite.ExpiresAt.HasValue && invite.ExpiresAt.Value <= DateTimeOffset.UtcNow;

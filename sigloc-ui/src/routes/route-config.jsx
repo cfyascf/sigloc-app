@@ -24,6 +24,8 @@ import {
 } from "lucide-react"
 
 import AuthPage from "@/pages/Auth"
+import ForgotPassword from "@/pages/ForgotPassword"
+import ResetPassword from "@/pages/ResetPassword"
 import ContractorDashboard from "@/pages/ContractorDashboard"
 import CarrierDashboard from "@/pages/CarrierDashboard"
 import ActiveRoutes from "@/pages/ActiveRoutes"
@@ -52,6 +54,8 @@ export const ROUTES = [
   { path: "/auth",    element: <AuthPage />,  access: AuthAccess.PUBLIC, nav: false },
   { path: "/login",   element: <AuthPage />,  access: AuthAccess.PUBLIC, nav: false },
   { path: "/register",element: <AuthPage />,  access: AuthAccess.PUBLIC, nav: false },
+  { path: "/forgot-password", element: <ForgotPassword />, access: AuthAccess.PUBLIC, nav: false },
+  { path: "/reset-password", element: <ResetPassword />, access: AuthAccess.PUBLIC, nav: false },
 
 
   // Dashboards by role

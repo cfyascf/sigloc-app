@@ -199,6 +199,14 @@ public class GlobalExceptionHandlerMiddleware
                     message = invalidGoogle.Message
                 }),
 
+            InvalidPasswordResetTokenException invalidResetToken => (
+                (int)HttpStatusCode.BadRequest,
+                new
+                {
+                    error = "PASSWORD_RESET_TOKEN_INVALIDO",
+                    message = invalidResetToken.Message
+                }),
+
             BidNotFoundException bidNotFound => (
                 (int)HttpStatusCode.NotFound,
                 new { error = "BID_NOT_FOUND", message = bidNotFound.Message }),

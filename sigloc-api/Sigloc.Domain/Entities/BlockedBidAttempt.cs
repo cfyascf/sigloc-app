@@ -5,8 +5,7 @@ namespace Sigloc.Domain.Entities;
 
 /// <summary>
 /// Audit entry logged whenever the anti-overbooking engine blocks a bid/allocation
-/// attempt (by SLA, volume or weight). The executive dashboard counts the current
-/// month's entries per contractor to surface the <c>BlockedOverbookings</c> KPI.
+/// attempt (by SLA, volume or weight).
 /// </summary>
 [Table("BlockedBidAttempt")]
 public class BlockedBidAttempt : BaseEntity

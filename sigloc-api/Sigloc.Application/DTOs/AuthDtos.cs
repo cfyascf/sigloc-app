@@ -48,6 +48,12 @@ public record RegisterCarrierGoogleDto(
 /// <summary>Request body for POST /api/auth/login/google.</summary>
 public record GoogleLoginDto(string? IdToken);
 
+/// <summary>Request body for POST /api/auth/password-reset/request.</summary>
+public record PasswordResetRequestDto(string? Email);
+
+/// <summary>Request body for POST /api/auth/password-reset/confirm.</summary>
+public record PasswordResetConfirmDto(string? Token, string? Password);
+
 /// <summary>
 /// Request body for POST /api/auth/invite. Issued by an authenticated contractor;
 /// the owning company is taken from the JWT, never from the body.
