@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordResetLinkBuilder, PasswordResetLinkBuilder>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 
+        services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IRouteSegmentRepository, RouteSegmentRepository>();
         services.AddScoped<IConsolidatedRouteRepository, ConsolidatedRouteRepository>();
