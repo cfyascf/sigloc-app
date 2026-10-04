@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: sigloc-app
+metadata:
+  template: azd-init
+
+services:
+  api:
+    project: ./sigloc-api/Sigloc.Api
+    language: dotnet
+    host: appservice
+
+  web:
+    project: ./sigloc-ui
+    language: js
+    host: staticwebapp
+    dist: dist

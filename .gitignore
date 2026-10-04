@@ -1,0 +1,11 @@
+# Azure Developer CLI (azd) environment state — contains per-environment
+# secrets and config set via `azd env set`. Never commit these.
+.azure/*/
+.azure/.env
+.azure/config.json
+
+# Transient azure-validate workflow artifact.
+.azure/validate-status.json
+
+# Keep the deployment plan tracked.
+!.azure/deployment-plan.md
