@@ -1,4 +1,4 @@
-import { useCallback } from "react"
+import { useCallback, useRef } from "react"
 import { ArrowLeft, RefreshCw, Truck, MapPinned, Clock, Phone, User, Scale, ArrowRightLeft, Target, MapPin, Loader2 } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import AppShell from "@/components/app-shell"
@@ -10,13 +10,23 @@ import { formatTripDate, formatTripNumber, tripStatusLabel } from "@/lib/trip-fo
 
 export default function ActiveRouteTracking() {
   const { tripId } = useParams()
-  const load = useCallback((options) => getTripDetails(tripId, options), [tripId])
+  // Page load reads the cached snapshot; only the "Localizar Motorista" button sets
+  // this flag so the next request fetches a live GPS position from the provider.
+  const refreshNext = useRef(false)
+  const load = useCallback((options) => {
+    const refresh = refreshNext.current
+    refreshNext.current = false
+    return getTripDetails(tripId, { ...options, refresh })
+  }, [tripId])
   const { data: trip, pending, error, reload } = useTripRequest(load, tripId)
   const timeline = trip?.timeline ?? []
   const events = trip?.events ?? []
   const isLate = trip?.sla === "ATRASADO" || trip?.risk === "CRITIC"
   const dotColor = (status) => status === "CONCLUIDO" || status === "CONCLUIDA" ? "bg-emerald-500" : status === "EM_TRANSITO" ? "bg-amber-500 ring-4 ring-amber-50" : "bg-slate-300"
-  const handlePing = reload
+  const handlePing = useCallback(() => {
+    refreshNext.current = true
+    reload()
+  }, [reload])
 
   return (
     <AppShell title={`Monitoramento: ${trip?.reference || tripId || "Viagem"}`}>

@@ -17,17 +17,40 @@ public class TripMonitoringServiceTests
     public async Task Cache_uses_success_time_and_exact_boundary(double minutes, bool hit)
     {
         var h = new Harness(); h.Cached(minutes);
-        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.Equal(!hit, result.IsCacheRenewed);
         Assert.Equal(hit ? 0 : 1, h.Tracking.Calls);
         Assert.Equal(hit ? 0 : 1, h.Store.RefreshCalls);
     }
 
     [Fact]
+    public async Task Detail_without_refresh_returns_cache_and_never_calls_provider()
+    {
+        // Stale cache + no refresh requested => still no GPS/routing provider access.
+        var h = new Harness(); h.Cached(60);
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: false);
+        Assert.False(result.IsCacheRenewed);
+        Assert.Equal(0, h.Tracking.Calls);
+        Assert.Equal(0, h.Store.RefreshCalls);
+        Assert.Equal(0, h.Routing.Calls);
+    }
+
+    [Fact]
+    public async Task Detail_without_refresh_and_no_snapshot_returns_unmonitored_without_provider()
+    {
+        // Never-monitored trip opened without refresh must not error or call the provider.
+        var h = new Harness();
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: false);
+        Assert.Equal(0, h.Tracking.Calls);
+        Assert.Equal(0, h.Store.RefreshCalls);
+        Assert.False(result.IsCacheRenewed);
+    }
+
+    [Fact]
     public async Task First_view_routes_every_remaining_stop_and_updates_next_stop_eta()
     {
         var h = new Harness();
-        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.True(result.IsCacheRenewed);
         Assert.Equal(3, h.Routing.Coordinates!.Count);
         Assert.Equal(Now.AddMinutes(40), result.NewEta);
@@ -41,7 +64,7 @@ public class TripMonitoringServiceTests
     public async Task Origin_geofence_starts_trip_then_final_stop_finishes_without_routing()
     {
         var h = new Harness(); h.Tracking.Fix = h.Tracking.Fix with { Latitude = 0, Longitude = 0 };
-        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.Equal("EM_TRANSITO", result.Status);
         Assert.Equal("CONCLUIDA", result.Stops[0].Status);
         Assert.Equal(SegmentStatus.InTransit, h.Store.State!.Segments[0].Status);
@@ -49,7 +72,7 @@ public class TripMonitoringServiceTests
         Assert.Equal(Now, h.Store.State.Trip.StartedAt);
         h.Clock.Now = Now.AddMinutes(16);
         h.Tracking.Fix = new TrackingFix("second", 1, 1, 1, h.Clock.Now);
-        result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.Equal("ENTREGUE", result.Status);
         Assert.Null(result.NewEta);
         Assert.Equal(100, result.ProgressPercentage);
@@ -65,13 +88,13 @@ public class TripMonitoringServiceTests
         var h = new Harness();
         h.State.Trip.Stops[1].Latitude = 0.0001; h.State.Trip.Stops[1].Longitude = 0;
         h.Tracking.Fix = h.Tracking.Fix with { Latitude = 0, Longitude = 0 };
-        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.Equal("CONCLUIDA", result.Stops[0].Status);
         Assert.Equal("EM_TRANSITO", result.Stops[1].Status);
         Assert.Equal("EM_TRANSITO", result.Status);
         h.Clock.Now = Now.AddMinutes(16);
         h.Tracking.Fix = h.Tracking.Fix with { FixTime = h.Clock.Now };
-        result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.True(result.IsStale);
         Assert.Equal("EM_TRANSITO", result.Stops[1].Status);
     }
@@ -81,7 +104,7 @@ public class TripMonitoringServiceTests
     public async Task Eta_compares_strictly_to_next_action_deadline(int deadlineMinutes, string risk)
     {
         var h = new Harness(); h.State.Trip.Stops[0].Actions[0].Deadline = Now.AddMinutes(deadlineMinutes);
-        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.Equal(risk, result.Risk);
         Assert.Equal(risk == "CRITIC" ? "ATRASADO" : "AGUARDANDO_COLETA", result.Status);
     }
@@ -92,10 +115,10 @@ public class TripMonitoringServiceTests
     {
         var h = new Harness(); if (cached) h.Cached(16);
         h.Routing.Fail = true;
-        if (!cached) await Assert.ThrowsAsync<TrackingUnavailableException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id));
+        if (!cached) await Assert.ThrowsAsync<TrackingUnavailableException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true));
         else
         {
-            var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+            var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
             Assert.True(result.IsStale); Assert.False(result.IsCacheRenewed);
             Assert.Equal(Now.AddMinutes(-16), result.LastUpdated);
         }
@@ -108,7 +131,7 @@ public class TripMonitoringServiceTests
     {
         var h = new Harness(); h.Routing.Fail = true;
         h.Tracking.Fix = h.Tracking.Fix with { Latitude = 0, Longitude = 0 };
-        await Assert.ThrowsAsync<TrackingUnavailableException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id));
+        await Assert.ThrowsAsync<TrackingUnavailableException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true));
         Assert.Equal(TripStatus.AwaitingPickup, h.Store.State!.Trip.Status);
         Assert.All(h.Store.State.Trip.Stops, s => Assert.False(s.IsCompleted));
         Assert.Empty(h.Store.State.Events);
@@ -130,7 +153,7 @@ public class TripMonitoringServiceTests
             _ => h.Tracking.Fix
         };
         if (failure == "missing-device") h.State.Vehicle.TraccarDeviceId = null;
-        await Assert.ThrowsAsync<TrackingUnavailableException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id));
+        await Assert.ThrowsAsync<TrackingUnavailableException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true));
         Assert.Equal(0, h.Routing.Calls); Assert.Null(h.Store.State!.Snapshot);
     }
 
@@ -139,7 +162,7 @@ public class TripMonitoringServiceTests
     {
         var h = new Harness(); h.Cached(16);
         using var cts = new CancellationTokenSource(); cts.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true, ct: cts.Token));
     }
 
     [Theory]
@@ -147,7 +170,7 @@ public class TripMonitoringServiceTests
     public async Task Terminal_trip_never_restarts_monitoring(TripStatus status)
     {
         var h = new Harness(); h.State.Trip.Status = status;
-        await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.Equal(0, h.Tracking.Calls); Assert.Equal(0, h.Store.RefreshCalls);
     }
 
@@ -155,7 +178,7 @@ public class TripMonitoringServiceTests
     public async Task Tenant_missing_is_not_found_before_provider_access()
     {
         var h = new Harness();
-        await Assert.ThrowsAsync<TripNotFoundException>(() => h.Service.GetDetailAsync(Guid.NewGuid(), h.State.Trip.Id));
+        await Assert.ThrowsAsync<TripNotFoundException>(() => h.Service.GetDetailAsync(Guid.NewGuid(), h.State.Trip.Id, refresh: true));
         Assert.Equal(0, h.Tracking.Calls);
     }
 
@@ -172,7 +195,7 @@ public class TripMonitoringServiceTests
     public async Task Persistence_retry_reuses_provider_results_and_writes_one_observation()
     {
         var h = new Harness(); h.Store.Retry = true;
-        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.True(result.IsCacheRenewed);
         Assert.Equal(1, h.Tracking.Calls); Assert.Equal(1, h.Routing.Calls);
         Assert.Single(h.Store.State!.NewTelemetry);
@@ -183,7 +206,7 @@ public class TripMonitoringServiceTests
     public async Task Freshness_is_rechecked_after_lock()
     {
         var h = new Harness(); h.Store.BeforeRefresh = s => s.Snapshot = new TripMonitoring { LastSuccessfulCalculationAt = Now };
-        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.False(result.IsCacheRenewed); Assert.Equal(0, h.Tracking.Calls);
     }
 
@@ -191,7 +214,7 @@ public class TripMonitoringServiceTests
     public async Task Contract_preserves_Portuguese_fields_and_unknown_values()
     {
         var h = new Harness(); h.State.Trip.Status = TripStatus.Cancelled;
-        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+        var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(result));
         Assert.Equal(h.State.Trip.Id, json.RootElement.GetProperty("viagemId").GetGuid());
         Assert.True(json.RootElement.TryGetProperty("isCacheRenovado", out _));

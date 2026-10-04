@@ -101,6 +101,9 @@ export async function listActiveTrips({ search = "", status = "", risk = "", pag
   }
 }
 
-export async function getTripDetails(tripId, options) {
-  return toTripDetails(await apiClient.get(`${BASE}/${encodeURIComponent(tripId)}/detalhes`, options))
+export async function getTripDetails(tripId, { refresh = false, ...options } = {}) {
+  // GPS is only fetched server-side when refresh=true (the "Locate driver" button).
+  // A normal page load omits it and receives the last stored snapshot.
+  const query = refresh ? "?refresh=true" : ""
+  return toTripDetails(await apiClient.get(`${BASE}/${encodeURIComponent(tripId)}/detalhes${query}`, options))
 }

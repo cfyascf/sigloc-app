@@ -17,9 +17,9 @@ public sealed class TripsController(ITripMonitoringService service) : Controller
         Ok(await service.SearchAsync(User.GetCompanyId(), query, ct));
 
     [HttpGet("{id:guid}/detalhes")]
-    public async Task<IActionResult> Detail(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Detail(Guid id, [FromQuery] bool refresh, CancellationToken ct)
     {
         Response.Headers.CacheControl = "no-store";
-        return Ok(await service.GetDetailAsync(User.GetCompanyId(), id, ct));
+        return Ok(await service.GetDetailAsync(User.GetCompanyId(), id, refresh, ct));
     }
 }

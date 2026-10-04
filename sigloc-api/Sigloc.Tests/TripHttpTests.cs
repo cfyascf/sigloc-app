@@ -37,14 +37,31 @@ public class TripHttpTests
     }
 
     [Fact]
+    public async Task Detail_without_refresh_never_contacts_tracking_provider()
+    {
+        // A plain page load must return the stored snapshot without consuming the GPS
+        // tracking/routing provider quota; only the explicit refresh does that.
+        var h = new TripMonitoringServiceTests.Harness();
+        using var server = Server(h); using var client = Client(server, h.CompanyId, Roles.Shipper);
+
+        var response = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(0, h.Tracking.Calls);
+        Assert.Equal(0, h.Store.RefreshCalls);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.False(json.RootElement.GetProperty("isCacheRenovado").GetBoolean());
+    }
+
+    [Fact]
     public async Task Detail_returns_no_store_and_reuses_successful_cache()
     {
         var h = new TripMonitoringServiceTests.Harness();
         using var server = Server(h); using var client = Client(server, h.CompanyId, Roles.Shipper);
-        var first = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes");
+        var first = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes?refresh=true");
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         Assert.True(first.Headers.CacheControl!.NoStore);
-        var second = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes");
+        var second = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes?refresh=true");
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
         using var json = JsonDocument.Parse(await second.Content.ReadAsStringAsync());
         Assert.False(json.RootElement.GetProperty("isCacheRenovado").GetBoolean());
@@ -64,7 +81,7 @@ public class TripHttpTests
             Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes")).StatusCode);
         h.State.Vehicle.TraccarDeviceId = null;
         using var client = Client(server, h.CompanyId, Roles.Shipper);
-        var response = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes");
+        var response = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes?refresh=true");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("TRACKING_UNAVAILABLE", json.RootElement.GetProperty("error").GetString());
