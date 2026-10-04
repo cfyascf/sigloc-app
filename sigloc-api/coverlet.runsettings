@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <!--
+            Exclude code that is generated or not meaningfully unit-testable so the
+            coverage percentage reflects real, hand-written, testable code:
+              * EF Core migrations and the model snapshot (auto-generated)
+              * The OpenAPI XML-comment support file (auto-generated)
+              * Program.cs / startup composition root
+              * The development-only database seeder
+          -->
+          <ExcludeByFile>**/Migrations/*.cs,**/*.generated.cs,**/Program.cs,**/Persistence/DatabaseSeeder.cs</ExcludeByFile>
+          <Exclude>[*]Sigloc.Infrastructure.Migrations.*</Exclude>
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

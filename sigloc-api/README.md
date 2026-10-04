@@ -91,15 +91,45 @@ provider keys and raw upstream responses never belong in frontend environment
 variables. Set `VITE_API_BASE_URL` to the local API URL when testing the frontend
 so it does not accidentally use the deployed API.
 
-### Monitoring tests
+### Running the tests
 
-The solution's tests use fake HTTP handlers and controlled time for provider/cache
-behavior. PostgreSQL-specific integration tests use `SIGLOC_TEST_CONNECTION`;
-point it at a **disposable test database only**, never a development/shared or
+The whole suite runs **fully offline** — no Docker, no database, no VPN/NeonDB
+access required — so you can validate changes locally instead of deploying first:
+
+```powershell
+dotnet test .\Sigloc.slnx --configuration Release
+```
+
+The tests in `Sigloc.Tests` are organized as:
+
+- **`Unit/`** — service and domain logic tested in isolation. Dependencies are mocked
+  with [NSubstitute](https://nsubstitute.github.io/) and assertions use
+  [FluentAssertions](https://fluentassertions.com/). Covers `AuthService`,
+  `AuctionService`, `ProductService`, `VehicleService`, `FreightOfferService`,
+  `RouteSegmentService`, `DashboardService`, `PartnerNetworkService`,
+  `RoutePreviewService`, and the pure calculators/builders/formatters.
+- **`Integration/`** — repositories, `UnitOfWork`, EF Core mappings and the
+  `DbContext` audit/transaction behavior, run against a **SQLite in-memory**
+  database (see `Common/SqliteDbContextFactory.cs`). This exercises real SQL
+  (ordering, filtering, unique indexes, transactions) with no external services.
+- **`Common/`** — shared helpers: the SQLite database fixture and the `TestData`
+  entity factory.
+
+> SQLite note: production uses PostgreSQL with a global `DateTimeOffset` UTC value
+> converter that SQLite cannot translate for ordering/comparison. The test fixture
+> (`SqliteTestDbContext`) stores `DateTimeOffset` as sortable ticks **only for the
+> in-memory test database**, so those queries behave like they do on PostgreSQL.
+> Production is unaffected.
+
+#### Monitoring / PostgreSQL-specific tests
+
+A small set of PostgreSQL-specific integration tests (`PostgresMonitoringTests`)
+use `SIGLOC_TEST_CONNECTION` and are **skipped automatically** when it is not set.
+Point it at a **disposable test database only**, never a development/shared or
 production database. CI provisions a dedicated PostgreSQL service for these tests.
 
 ```powershell
-# Supply a connection string for an isolated test database outside source control.
+# Optional: only needed for the PostgreSQL-specific monitoring tests.
 $env:SIGLOC_TEST_CONNECTION = '<disposable PostgreSQL test connection>'
 dotnet test .\Sigloc.slnx --configuration Release
 ```
