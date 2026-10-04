@@ -1,0 +1,70 @@
+name: CI - Backend Tests
+
+env:
+  WORKING_DIRECTORY: './sigloc-api'
+  DOTNET_VERSION: '10.0.x'
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'sigloc-api/**'
+      - '.github/workflows/ci-tests.yml'
+
+jobs:
+  test:
+    name: Build and run unit + integration tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sigloc_monitoring_test
+          POSTGRES_USER: sigloc_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sigloc_test -d sigloc_monitoring_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore Sigloc.slnx
+
+      - name: Build
+        run: dotnet build Sigloc.slnx --configuration Release --no-restore
+
+      - name: Run tests
+        env:
+          SIGLOC_TEST_CONNECTION: Host=localhost;Port=5432;Database=sigloc_monitoring_test;Username=sigloc_test
+        run: >-
+          dotnet test Sigloc.slnx --configuration Release --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+          --settings coverlet.runsettings
+          --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ env.WORKING_DIRECTORY }}/TestResults/**/*
+          if-no-files-found: ignore
