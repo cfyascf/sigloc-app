@@ -24,10 +24,13 @@ public sealed class TripMonitoringService(
         return store.SearchAsync(contractorId, query with { Page = page, PageSize = size, Search = query.Search?.Trim(), Status = status, Risk = risk }, ct);
     }
 
-    public async Task<TripDetailDto> GetDetailAsync(Guid contractorId, Guid tripId, CancellationToken ct = default)
+    public async Task<TripDetailDto> GetDetailAsync(Guid contractorId, Guid tripId, bool refresh = false, CancellationToken ct = default)
     {
         var previous = await store.ReadAsync(contractorId, tripId, ct) ?? throw new TripNotFoundException(tripId);
-        if (TripMonitoringCalculator.IsTerminal(previous.Trip) || TripMonitoringCalculator.IsFresh(previous.Snapshot, clock.GetUtcNow()))
+        // GPS/routing providers are only contacted on an explicit user-triggered refresh
+        // ("Locate driver" button). A plain page load returns the last stored snapshot so
+        // simply viewing a trip never consumes the tracking provider quota.
+        if (!refresh || TripMonitoringCalculator.IsTerminal(previous.Trip) || TripMonitoringCalculator.IsFresh(previous.Snapshot, clock.GetUtcNow()))
             return Map(previous, false);
 
         // Memoize provider work across EF retries; each attempt receives a new tracked graph.

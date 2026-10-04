@@ -67,7 +67,7 @@ public class PostgresMonitoringTests
         var h = await fixture.SeedAsync();
         var first = new TripMonitoringService(new TripMonitoringStore(fixture.Factory), h.Tracking, h.Routing, h.Clock, new());
         var second = new TripMonitoringService(new TripMonitoringStore(fixture.Factory), h.Tracking, h.Routing, h.Clock, new());
-        var results = await Task.WhenAll(first.GetDetailAsync(h.CompanyId, h.State.Trip.Id), second.GetDetailAsync(h.CompanyId, h.State.Trip.Id));
+        var results = await Task.WhenAll(first.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true), second.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true));
         Assert.Single(results.Where(x => x.IsCacheRenewed));
         Assert.Equal(1, h.Tracking.Calls); Assert.Equal(1, h.Routing.Calls);
         await using var db = fixture.Factory.CreateDbContext();
@@ -81,7 +81,7 @@ public class PostgresMonitoringTests
         var h = await fixture.SeedAsync(); h.Routing.Fail = true;
         h.Tracking.Fix = h.Tracking.Fix with { Latitude = 0, Longitude = 0 };
         var service = new TripMonitoringService(new TripMonitoringStore(fixture.Factory), h.Tracking, h.Routing, h.Clock, new());
-        await Assert.ThrowsAsync<Sigloc.Application.Exceptions.TrackingUnavailableException>(() => service.GetDetailAsync(h.CompanyId, h.State.Trip.Id));
+        await Assert.ThrowsAsync<Sigloc.Application.Exceptions.TrackingUnavailableException>(() => service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true));
         await using (var db = fixture.Factory.CreateDbContext())
         {
             Assert.Empty(await db.TripMonitorings.ToListAsync());
@@ -89,7 +89,7 @@ public class PostgresMonitoringTests
             Assert.Equal(TripStatus.AwaitingPickup, (await db.Trips.SingleAsync()).Status);
         }
         h.Routing.Fail = false;
-        Assert.True((await service.GetDetailAsync(h.CompanyId, h.State.Trip.Id)).IsCacheRenewed);
+        Assert.True((await service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true)).IsCacheRenewed);
     }
 
     private sealed class DatabaseFixture(string connectionString, string schema) : IAsyncDisposable
