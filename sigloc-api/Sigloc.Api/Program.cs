@@ -127,6 +127,11 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application terminated unexpectedly");
+    // Re-throw so the process exits with a non-zero code. Otherwise a startup
+    // failure (e.g. a missing connection string or invalid configuration) is
+    // swallowed, Main returns 0, and Azure App Service reports the container as
+    // cleanly exited and serves "403 Site Disabled" with no clear signal.
+    throw;
 }
 finally
 {
