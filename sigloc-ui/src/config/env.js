@@ -7,7 +7,7 @@
  */
 
 const DEFAULT_API_BASE_URL =
-  "https://sigloc-api-hbfzcfd6ghephmcc.centralus-01.azurewebsites.net"
+  "https://sigloc-api-hbfzcfd6ghephmcc.northcentralus-01.azurewebsites.net"
 
 function readString(value, fallback = "") {
   if (typeof value !== "string") {
