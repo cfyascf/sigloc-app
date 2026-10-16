@@ -3,7 +3,7 @@ name: Deploy .NET Backend to Azure App Service
 env:
   # 1. THIS IS THE MAGIC LINE: Tell the pipeline where your backend lives
   WORKING_DIRECTORY: './sigloc-api'
-  AZURE_WEBAPP_NAME: 'sigloc-api-v2' # Azure App Service name (student subscription, B1)
+  AZURE_WEBAPP_NAME: 'sigloc-api' # Azure App Service name (student subscription, B1)
   DOTNET_VERSION: '10.0.x' # Your target .NET version
 
 on:
