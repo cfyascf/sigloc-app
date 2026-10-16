@@ -7,6 +7,8 @@ env:
   DOTNET_VERSION: '10.0.x' # Your target .NET version
 
 on:
+  # Allow manually triggering a deploy from the Actions tab (Run workflow button)
+  workflow_dispatch:
   push:
     branches:
       - main
