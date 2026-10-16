@@ -91,7 +91,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
         >
           <div
             className={cn(
-              "mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-sm transition-colors duration-500",
+              "mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-500",
               brand.brandBg,
               brand.brandIcon
             )}
@@ -164,7 +164,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
               >
                 <div
                   className={cn(
-                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-inner",
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
                     brand.footerBg,
                     brand.textMain
                   )}

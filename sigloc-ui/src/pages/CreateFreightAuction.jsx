@@ -29,7 +29,7 @@ export default function CreateFreightAuction() {
 
   return (
     <AppShell title="Publicar Trecho em Leilão">
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="space-y-6">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <Link to="/freights-panel">
             <Button variant="ghost" className="text-slate-500 hover:text-slate-900">
@@ -48,7 +48,7 @@ export default function CreateFreightAuction() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="gap-0 border-slate-200 py-0 shadow-sm lg:col-span-2">
+          <Card className="gap-0 border-slate-200 py-0 lg:col-span-2">
             <CardHeader className="border-b border-slate-100 bg-slate-50/70 py-3">
               <CardTitle className="flex items-center gap-2 text-lg font-bold text-slate-800">
                 <Gavel size={18} className="text-blue-600" /> Dados do Leilão
@@ -70,7 +70,7 @@ export default function CreateFreightAuction() {
                       <SelectItem key={segment.id} value={segment.id}>
                         <div className="flex items-center gap-2">
                           <Route size={14} className="text-slate-500" />
-                          {segment.id} - {segment.name}
+                          {segment.name}
                         </div>
                       </SelectItem>
                     ))}
@@ -81,7 +81,6 @@ export default function CreateFreightAuction() {
               {selectedSegment && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-blue-100 text-blue-800">{selectedSegment.id}</Badge>
                     <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">{selectedSegment.itemCount} itens</Badge>
                     <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">{selectedSegment.legCount} pernas</Badge>
                   </div>
@@ -154,7 +153,7 @@ export default function CreateFreightAuction() {
                 <div className="mt-3 grid gap-2 md:grid-cols-2">
                   {selectedItems.map((item) => (
                     <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-3">
-                      <p className="text-sm font-medium text-slate-800">{item.id} • {item.productName}</p>
+                      <p className="text-sm font-medium text-slate-800">{item.productName}</p>
                       <p className="mt-1 text-xs text-slate-500">{item.quantityLabel} • {item.routeLabel}</p>
                     </div>
                   ))}
@@ -164,7 +163,7 @@ export default function CreateFreightAuction() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="gap-0 border-slate-200 py-0 shadow-sm">
+            <Card className="gap-0 border-slate-200 py-0">
               <CardHeader className="border-b border-slate-100 bg-slate-50/70 py-3">
                 <CardTitle className="text-base font-bold text-slate-800">Resumo</CardTitle>
               </CardHeader>
@@ -192,7 +191,7 @@ export default function CreateFreightAuction() {
               </CardContent>
             </Card>
 
-            <Card className="gap-0 border-slate-200 py-0 shadow-sm">
+            <Card className="gap-0 border-slate-200 py-0">
               <CardHeader className="border-b border-slate-100 bg-slate-50/70 py-3">
                 <CardTitle className="text-base font-bold text-slate-800">Publicação</CardTitle>
               </CardHeader>

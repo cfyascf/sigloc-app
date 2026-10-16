@@ -66,7 +66,7 @@ export function RegisterForm() {
     <div className="space-y-6">
       <div className="space-y-2 text-center lg:text-left">
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">Nova Conta</h2>
-        <p className="text-sm text-slate-500">Cadastre sua empresa como operador logístico.</p>
+        <p className="text-sm text-slate-500">Cadastre sua empresa como contratante de frete.</p>
       </div>
 
       <FormAlert message={errorMessage} />
@@ -86,9 +86,9 @@ export function RegisterForm() {
         </div>
       ) : (
         <form noValidate onSubmit={handleSubmit} className="space-y-4">
-          <div className="rounded-xl border border-blue-600 bg-blue-50/50 p-4 text-center shadow-sm">
+          <div className="rounded-xl border border-blue-600 bg-blue-50/50 p-4 text-center">
             <Building2 size={24} className="mx-auto mb-2 text-blue-600" />
-            <p className="text-sm font-medium text-blue-900">Operador Logístico</p>
+            <p className="text-sm font-medium text-blue-900">Contratante de Frete</p>
             <p className="mt-1 text-[10px] text-slate-500">Contratar fretes</p>
           </div>
           {method === "google" ? <p className="text-sm text-slate-600">Conta Google confirmada. Complete os dados da empresa para continuar.</p> : null}

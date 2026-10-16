@@ -68,7 +68,7 @@ export default function CreateSegment() {
 
   return (
     <AppShell title="Cadastro de Trecho">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden">
         {/* HEADER LIMPO E TEXTUAL */}
         <div className="mb-5 flex shrink-0 items-center justify-between border-b border-slate-200 pt-1 pb-3">
           <Link to="/load-management">
@@ -172,7 +172,7 @@ export default function CreateSegment() {
                         {selectedProducts.map((product) => (
                           <div
                             key={product.value}
-                            className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-2 shadow-sm transition-all hover:border-slate-300"
+                            className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-2 transition-all hover:border-slate-300"
                           >
                             <div className="flex min-w-0 items-center gap-2.5">
                               <span className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-slate-600 uppercase">

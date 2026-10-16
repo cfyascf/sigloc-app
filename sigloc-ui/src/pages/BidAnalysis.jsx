@@ -139,7 +139,7 @@ export default function BidAnalysis() {
 
   return (
     <AppShell title="Detalhes da Rota">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden">
 
         {/* HEADER LIMPO */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-2 pt-1 mb-4">

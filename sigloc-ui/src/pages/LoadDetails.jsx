@@ -57,7 +57,7 @@ export default function LoadDetails() {
   }
 
   const handleDeleteLoad = () => {
-    const shouldDelete = globalThis.confirm(`Tem certeza que deseja excluir o item ${load.id}?`)
+    const shouldDelete = globalThis.confirm(`Tem certeza que deseja excluir o item ${load.productName}?`)
 
     if (!shouldDelete) {
       return
@@ -68,8 +68,8 @@ export default function LoadDetails() {
   }
 
   return (
-    <AppShell title={`Detalhes do Item ${load.id}`}>
-      <div className="mx-auto max-w-7xl space-y-6">
+    <AppShell title={`Detalhes do Item · ${load.productName}`}>
+      <div className="space-y-6">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <Link to="/load-management">
             <Button variant="ghost" className="text-slate-500 hover:text-slate-900">
@@ -99,7 +99,7 @@ export default function LoadDetails() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="gap-0 border-slate-200 py-0 shadow-sm lg:col-span-2">
+          <Card className="gap-0 border-slate-200 py-0 lg:col-span-2">
             <CardHeader className="border-b border-slate-100 bg-slate-50/70 py-3">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -136,7 +136,7 @@ export default function LoadDetails() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="gap-0 border-slate-200 py-0 shadow-sm">
+            <Card className="gap-0 border-slate-200 py-0">
               <CardHeader className="border-b border-slate-100 bg-slate-50/70 py-3">
                 <CardTitle className="text-base font-bold text-slate-800">Planejamento e Leilão</CardTitle>
               </CardHeader>

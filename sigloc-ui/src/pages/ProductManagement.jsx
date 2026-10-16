@@ -263,7 +263,7 @@ export default function ProductManagement() {
 
   return (
     <AppShell title="Catálogo de Produtos">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl gap-6 overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] gap-6 overflow-hidden">
         {/* PAINEL ESQUERDO: LISTAGEM */}
         <div className="flex w-full flex-col rounded-xl border border-slate-200 bg-white lg:w-1/2 xl:w-[45%]">
           <div className="flex shrink-0 flex-col gap-3 border-b border-slate-100 p-4">

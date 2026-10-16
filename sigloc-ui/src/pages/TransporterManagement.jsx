@@ -62,7 +62,7 @@ export default function TransporterManagement() {
     >
       <div className="flex flex-col space-y-6 p-2 md:p-6">
         
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-slate-200">
           <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-4">
             <CardTitle className="text-lg font-semibold flex items-center text-slate-800">
               <UserSquare2 size={18} className="mr-2 text-blue-600" />

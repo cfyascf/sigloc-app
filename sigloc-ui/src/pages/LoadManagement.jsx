@@ -102,9 +102,9 @@ const formatCurrency = (value) =>
 
 const getRiskDotStyle = (risk) => {
   if (risk === RISK.CRITIC)
-    return "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]"
+    return "bg-rose-500"
   if (risk === RISK.WARNING)
-    return "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
+    return "bg-amber-500"
   return "bg-slate-300"
 }
 
@@ -203,7 +203,7 @@ export default function LoadManagement() {
         isForAuction ? "Selecione o Trecho para o Leilão" : "Gestão de Trechos"
       }
     >
-      <div className="mx-auto max-w-7xl space-y-4">
+      <div className="space-y-4">
         {/* BARRA DE TOPO */}
         <div className="flex flex-col justify-between gap-4 border-b border-slate-100 pb-4 md:flex-row md:items-center">
           <div>
@@ -319,7 +319,7 @@ export default function LoadManagement() {
                   <div className="flex items-center gap-3 pl-2 text-rose-700">
                     <AlertCircle size={16} />
                     <span className="text-sm font-bold">
-                      Excluir permanentemente o trecho {segment.id}?
+                      Excluir permanentemente este trecho?
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -373,9 +373,6 @@ export default function LoadManagement() {
                         <span
                           className={`h-2 w-2 rounded-full ${getRiskDotStyle(segment.risk)}`}
                         />
-                        <span className="font-mono text-xs font-bold text-slate-500">
-                          {segment.id}
-                        </span>
                       </div>
                       <Badge
                         variant="secondary"

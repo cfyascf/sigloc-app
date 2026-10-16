@@ -185,7 +185,7 @@ export default function RouteSegmentManagement() {
 
   return (
     <AppShell title="Gestão de Trechos">
-      <div className="mx-auto max-w-7xl space-y-4">
+      <div className="space-y-4">
         {/* BARRA DE TOPO */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
@@ -606,7 +606,7 @@ export default function RouteSegmentManagement() {
                                       {detail?.sku ?? ""}
                                     </span>
                                     <span className="truncate text-xs font-semibold text-slate-700">
-                                      {detail?.name ?? item.productId}
+                                      {detail?.name ?? "Produto"}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1">

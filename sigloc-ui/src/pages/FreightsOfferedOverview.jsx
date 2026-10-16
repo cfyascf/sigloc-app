@@ -182,7 +182,7 @@ export default function FreightsOfferedOverview() {
 
   return (
     <AppShell title="Painel de Leilões">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col gap-4 overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col gap-4 overflow-hidden">
         
         <div className="flex shrink-0 flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3 pt-1">
           <div className="space-y-2">

@@ -42,7 +42,7 @@ export default function RegisterVehicle() {
   return (
     <AppShell title="Cadastro de Veículo">
       {/* Container com scroll blindado e altura calculada em 8.5rem garantindo margem de segurança */}
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden">
         
         {/* HEADER LIMPO E TEXTUAL */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-3 pt-1 mb-5">
