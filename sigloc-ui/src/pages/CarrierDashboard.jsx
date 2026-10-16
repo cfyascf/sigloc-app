@@ -46,7 +46,7 @@ export default function CarrierDashboard() {
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
         
         {/* O GRANDE CARD BRANCO UNIFICADOR */}
-        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-6 flex flex-col min-h-0 overflow-hidden">
           
           {/* SEÇÃO 1: LINHA DE CONTADORES (KPIs MACROS) */}
           <section className="flex items-center justify-between border-b border-slate-100 pb-5 mb-5">
@@ -154,7 +154,6 @@ export default function CarrierDashboard() {
                     >
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-[10px] font-bold text-slate-400">{item.id}</span>
                           <Badge variant="outline" className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0 border ${
                               isWinning ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
                           }`}>
@@ -207,7 +206,6 @@ export default function CarrierDashboard() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-[10px] font-bold text-slate-400"><Truck size={10} className="inline mr-1"/>{alert.truck}</span>
-                          <span className="text-xs font-bold text-slate-800">{alert.id}</span>
                         </div>
                         <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide uppercase ${
                             alert.critical ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"

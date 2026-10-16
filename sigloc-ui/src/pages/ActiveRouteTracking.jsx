@@ -33,7 +33,7 @@ export default function ActiveRouteTracking() {
 
   return (
     <AppShell title={`Monitoramento: Rota ${routeId || "ROT-9921"}`}>
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="space-y-6">
         
         {/* HEADER */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -141,8 +141,8 @@ export default function ActiveRouteTracking() {
                              </svg>
                              {/* Ponto do Motorista */}
                              <div className="absolute animate-pulse flex flex-col items-center">
-                                <div className="h-4 w-4 bg-rose-600 rounded-full border-2 border-white shadow-lg" />
-                                <span className="bg-white text-[9px] font-bold px-2 py-0.5 rounded shadow mt-1 text-rose-700">KM 640</span>
+                                <div className="h-4 w-4 bg-rose-600 rounded-full border-2 border-white" />
+                                <span className="bg-white text-[9px] font-bold px-2 py-0.5 rounded mt-1 text-rose-700">KM 640</span>
                              </div>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Building2, Truck } from "lucide-react"
+import { Building2 } from "lucide-react"
 
 import { useAuth } from "@/contexts/AuthContext"
 import { useAsyncAction } from "@/hooks/use-async-action"
@@ -97,7 +97,7 @@ export function RegisterForm() {
           Nova Conta
         </h2>
         <p className="text-sm text-slate-500">
-          Cadastre sua empresa como operador logístico.
+          Cadastre sua empresa como contratante de frete.
         </p>
       </div>
 
@@ -105,21 +105,11 @@ export function RegisterForm() {
 
       <form noValidate onSubmit={handleSubmit} className="space-y-4">
         {/* Perfil — apenas Contratante está disponível no momento. */}
-        <div className="grid grid-cols-2 gap-4 pb-2">
-          <div className="rounded-xl border border-blue-600 bg-blue-50/50 p-4 text-center shadow-sm">
+        <div className="pb-2">
+          <div className="rounded-xl border border-blue-600 bg-blue-50/50 p-4 text-center">
             <Building2 size={24} className="mx-auto mb-2 text-blue-600" />
-            <p className="text-sm font-medium text-blue-900">Operador Logístico</p>
+            <p className="text-sm font-medium text-blue-900">Contratante de Frete</p>
             <p className="mt-1 text-[10px] text-slate-500">Contratar fretes</p>
-          </div>
-
-          <div
-            className="cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 p-4 text-center opacity-60"
-            title="Cadastro de transportadora em breve"
-            aria-disabled="true"
-          >
-            <Truck size={24} className="mx-auto mb-2 text-slate-400" />
-            <p className="text-sm font-medium text-slate-500">Transportadora</p>
-            <p className="mt-1 text-[10px] text-slate-400">Em breve</p>
           </div>
         </div>
 

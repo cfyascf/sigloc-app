@@ -91,7 +91,7 @@ export default function BidAnalysis() {
 
   return (
     <AppShell title={`Detalhes da Rota`}>
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden">
         
         {/* HEADER LIMPO */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-2 pt-1 mb-4">
@@ -108,7 +108,6 @@ export default function BidAnalysis() {
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <Layers size={14} className="text-blue-500" />
-                  <span className="font-mono text-xs font-bold text-slate-500">{route.id}</span>
                   <Badge className="bg-slate-800 text-white text-[9px] uppercase font-bold border-none hover:bg-slate-800">{route.status}</Badge>
                 </div>
                 <h1 className="text-xl font-black text-slate-900">{route.name}</h1>
@@ -388,7 +387,6 @@ export default function BidAnalysis() {
                 {route.segments.map((seg) => (
                   <div key={seg.id} className="flex items-center justify-between px-4 py-2.5 bg-slate-50/50">
                     <div className="flex items-center gap-3">
-                      <span className="font-mono text-[10px] font-bold text-slate-400">{seg.id}</span>
                       <div>
                         <p className="text-xs font-bold text-slate-800">{seg.load}</p>
                         <p className="text-[9px] font-medium text-slate-500">{seg.from} ➔ {seg.to}</p>

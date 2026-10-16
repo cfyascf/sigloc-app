@@ -199,8 +199,8 @@ export default function ControlTower() {
 
   return (
     <AppShell title="Torre de Controle - Monitoramento de Execução">
-      <div className="mx-auto grid max-w-7xl gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
-        <Card className="border-slate-200 bg-white shadow-sm xl:sticky xl:top-6 xl:self-start">
+      <div className="grid gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
+        <Card className="border-slate-200 bg-white xl:sticky xl:top-6 xl:self-start">
           <CardHeader className="border-b border-slate-100 pb-5">
             <CardTitle className="text-lg font-semibold text-slate-900">Rotas ativas</CardTitle>
           </CardHeader>
@@ -216,16 +216,13 @@ export default function ControlTower() {
                   onClick={() => setSelectedRouteId(route.id)}
                   className={`w-full rounded-2xl border p-4 text-left transition-all ${
                     isSelected
-                      ? "border-sky-300 bg-sky-50/70 shadow-sm"
+                      ? "border-sky-300 bg-sky-50/70"
                       : "border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-white"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-mono text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        {route.id}
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-slate-900">{route.carrier}</p>
+                      <p className="text-sm font-medium text-slate-900">{route.carrier}</p>
                     </div>
                     <Badge className={`border-none ${getStatusBadgeClass(route.status)}`}>{route.status}</Badge>
                   </div>
@@ -263,7 +260,7 @@ export default function ControlTower() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card className="border-slate-200 bg-white">
             <CardHeader className="border-b border-slate-100 pb-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -283,7 +280,7 @@ export default function ControlTower() {
                   <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Rota</p>
-                      <p className="mt-2 font-mono text-sm font-semibold text-slate-900">{selectedRoute.id}</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">{selectedRoute.itinerary}</p>
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Transportadora</p>
@@ -325,14 +322,14 @@ export default function ControlTower() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card className="border-slate-200 bg-white">
             <CardHeader className="border-b border-slate-100 pb-5">
               <CardTitle className="text-lg font-semibold text-slate-900">Comprovação de entrega</CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
               <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center transition-colors hover:border-slate-400 hover:bg-slate-100/60">
                 <input type="file" className="hidden" onChange={handlePodUpload} />
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-600">
                   <FileText size={20} />
                 </div>
                 <p className="mt-4 text-sm font-medium text-slate-900">

@@ -160,7 +160,7 @@ export default function FreightsOfferedOverview() {
 
   return (
     <AppShell title="Painel de Leilões">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col gap-4 overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col gap-4 overflow-hidden">
         
         <div className="flex shrink-0 flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3 pt-1">
           <div>
@@ -229,11 +229,7 @@ export default function FreightsOfferedOverview() {
                           </div>
                         ) : (
                           <>
-                            <span className="absolute inset-0 flex items-center font-mono text-[10px] font-bold text-slate-500 opacity-100 group-hover:opacity-0 transition-opacity duration-200">
-                              {l.id}
-                            </span>
-                            
-                            <div className="absolute inset-0 hidden group-hover:flex items-center gap-1 transition-opacity duration-200">
+                            <div className="absolute inset-0 flex items-center gap-1">
                               <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-600 hover:bg-blue-100" onClick={() => startEditing(l)}>
                                 <Pencil size={12} />
                               </Button>

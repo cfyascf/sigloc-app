@@ -68,7 +68,7 @@ export default function AuctionBids() {
 
   return (
     <AppShell title="Análise de Lances">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden">
         
         {/* HEADER */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-3 pt-1 mb-5">
@@ -186,7 +186,7 @@ export default function AuctionBids() {
 
               {awardedTripId && (
                 <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                  <CheckCircle2 size={16} /> Leilão adjudicado com sucesso. Viagem criada ({awardedTripId}).
+                  <CheckCircle2 size={16} /> Leilão adjudicado com sucesso. Viagem criada.
                 </div>
               )}
               
@@ -217,7 +217,7 @@ export default function AuctionBids() {
                     >
                       
                       {(isWinner || (!isClosed && isTopRank)) && (
-                        <div className="absolute -top-2.5 left-4 flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700 shadow-sm">
+                        <div className="absolute -top-2.5 left-4 flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">
                           <Trophy size={10} /> {isWinner ? "Vencedor" : "Melhor Oferta"}
                         </div>
                       )}

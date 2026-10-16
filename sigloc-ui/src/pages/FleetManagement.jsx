@@ -16,9 +16,9 @@ const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)}
 
 // Cores baseadas no status do veículo
 const getStatusDotStyle = (status) => {
-  if (status === "Livre") return "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-  if (status === "Em Trânsito") return "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]"
-  if (status === "Manutenção") return "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
+  if (status === "Livre") return "bg-emerald-500"
+  if (status === "Em Trânsito") return "bg-blue-500"
+  if (status === "Manutenção") return "bg-amber-500"
   return "bg-slate-300"
 }
 
@@ -101,7 +101,7 @@ export default function FleetManagement() {
 
   return (
     <AppShell title="Gestão de Frota">
-      <div className="mx-auto max-w-7xl space-y-4">
+      <div className="space-y-4">
         
         {/* BARRA DE TOPO */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -188,11 +188,10 @@ export default function FleetManagement() {
                 <div className="flex items-center w-full p-3.5 text-left">
 
                   <div className="grid min-w-0 flex-1 grid-cols-[120px_1.1fr_1.3fr_250px] items-center gap-6 pl-2">
-                    {/* Col 1: Status, ID e Tipo */}
+                    {/* Col 1: Status e Tipo */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`h-2 w-2 rounded-full ${getStatusDotStyle(vehicle.status)}`} />
-                        <span className="font-mono text-xs font-bold text-slate-500">{vehicle.id}</span>
                       </div>
                       <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600 font-bold uppercase tracking-wide border-none px-1.5 py-0">
                         {vehicle.bodyType}

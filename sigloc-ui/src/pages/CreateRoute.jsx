@@ -73,7 +73,7 @@ export default function CreateRoute() {
 
   return (
     <AppShell title="Planejamento de Novo Trecho">
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="space-y-6">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <Link to="/load-management">
             <Button variant="ghost" className="text-slate-500 hover:text-slate-900">
@@ -90,7 +90,7 @@ export default function CreateRoute() {
           </div>
         </div>
 
-        <section className="planner-hero overflow-hidden rounded-[28px] p-6 text-white shadow-lg shadow-sky-950/10 md:p-8">
+        <section className="planner-hero overflow-hidden rounded-[28px] p-6 text-white md:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr] lg:items-end">
             <div className="space-y-4">
               <Badge className="border border-white/20 bg-white/12 text-white hover:bg-white/15">Fluxo guiado do planejador</Badge>
@@ -126,7 +126,7 @@ export default function CreateRoute() {
           </div>
         </section>
 
-        <section className="glass-panel rounded-[24px] border border-white/60 p-4 shadow-sm">
+        <section className="glass-panel rounded-[24px] border border-white/60 p-4">
           <div className="grid gap-3 md:grid-cols-3">
             {steps.map((step, index) => {
               const isActive = currentStep === index
@@ -138,7 +138,7 @@ export default function CreateRoute() {
                   type="button"
                   aria-current={isActive ? "step" : undefined}
                   onClick={() => setCurrentStep(index)}
-                  className={`focus-ring-strong rounded-2xl border px-4 py-4 text-left transition-colors ${isActive ? "border-sky-300 bg-white shadow-sm" : "border-slate-200/80 bg-white/70 hover:bg-white"}`}
+                  className={`focus-ring-strong rounded-2xl border px-4 py-4 text-left transition-colors ${isActive ? "border-sky-300 bg-white" : "border-slate-200/80 bg-white/70 hover:bg-white"}`}
                 >
                   <div className="flex items-center gap-3">
                     <span className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${getStepBadgeClass(isActive, isDone)}`}>
@@ -172,7 +172,7 @@ export default function CreateRoute() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             {currentStep === 0 && (
-              <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
+              <Card className="glass-panel gap-0 border-white/60 py-0">
                 <CardHeader className="border-b border-slate-200/70 pb-5">
                   <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                     <Route size={18} className="mr-2 text-blue-600" /> Identidade do Trecho
@@ -237,7 +237,7 @@ export default function CreateRoute() {
             )}
 
             {currentStep === 1 && (
-              <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
+              <Card className="glass-panel gap-0 border-white/60 py-0">
                 <CardHeader className="border-b border-slate-200/70 pb-5">
                   <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                     <Boxes size={18} className="mr-2 text-blue-600" /> Itens que entram no trecho
@@ -257,11 +257,11 @@ export default function CreateRoute() {
                           type="button"
                           aria-pressed={isSelected}
                           onClick={() => toggleItem(cargo.id)}
-                          className={`focus-ring-strong rounded-2xl border p-4 text-left transition-colors ${isSelected ? "border-sky-300 bg-sky-50 shadow-sm" : "border-slate-200 bg-white/90 hover:bg-white"}`}
+                          className={`focus-ring-strong rounded-2xl border p-4 text-left transition-colors ${isSelected ? "border-sky-300 bg-sky-50" : "border-slate-200 bg-white/90 hover:bg-white"}`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-slate-900">{cargo.id} • {cargo.productName}</p>
+                              <p className="text-sm font-semibold text-slate-900">{cargo.productName}</p>
                               <p className="mt-1 text-xs text-slate-500">{cargo.routeLabel}</p>
                             </div>
                             <Badge className={isSelected ? "bg-sky-700 text-white" : "bg-slate-100 text-slate-700"}>
@@ -294,7 +294,7 @@ export default function CreateRoute() {
             )}
 
             {currentStep === 2 && (
-              <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
+              <Card className="glass-panel gap-0 border-white/60 py-0">
                 <CardHeader className="border-b border-slate-200/70 pb-5">
                   <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                     <Sparkles size={18} className="mr-2 text-blue-600" /> Estratégia de publicação
@@ -350,7 +350,7 @@ export default function CreateRoute() {
           </div>
 
           <div className="space-y-6">
-            <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
+            <Card className="glass-panel gap-0 border-white/60 py-0">
               <CardHeader className="border-b border-slate-200/70">
                 <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-800">
                   <Sparkles size={18} className="text-blue-600" /> Resumo operacional
@@ -378,7 +378,7 @@ export default function CreateRoute() {
               </CardContent>
             </Card>
 
-            <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
+            <Card className="glass-panel gap-0 border-white/60 py-0">
               <CardHeader className="border-b border-slate-200/70">
                 <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-800">
                   <Workflow size={18} className="text-blue-600" /> Lógica do planejador

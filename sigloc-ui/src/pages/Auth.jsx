@@ -40,13 +40,13 @@ export default function Auth() {
             <TabsList className="mb-8 grid w-full grid-cols-2 bg-slate-200/50 p-1">
               <TabsTrigger
                 value="login"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                className="data-[state=active]:bg-white"
               >
                 Entrar
               </TabsTrigger>
               <TabsTrigger
                 value="register"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                className="data-[state=active]:bg-white"
               >
                 Criar Conta
               </TabsTrigger>

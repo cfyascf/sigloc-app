@@ -111,7 +111,7 @@ export default function SegmentDetails() {
   if (detailPending || detailAction.error || !route) {
     return (
       <AppShell title="Detalhes da Rota">
-        <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden">
+        <div className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden">
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-3 pt-1 mb-5">
             <Button
               type="button"
@@ -152,7 +152,7 @@ export default function SegmentDetails() {
   return (
     <AppShell title={`Detalhes da Rota`}>
       {/* Container com scroll blindado e altura calculada em 8.5rem (Sem overflow!) */}
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden">
         
         {/* HEADER LIMPO E TEXTUAL */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-3 pt-1 mb-5">
@@ -175,7 +175,6 @@ export default function SegmentDetails() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Layers size={16} className="text-blue-500" />
-                  <span className="font-mono text-sm font-bold text-slate-500">{route.id}</span>
                   <Badge variant="secondary" className="border-none bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider px-2 py-0">
                     Rota Consolidada
                   </Badge>
@@ -289,7 +288,6 @@ export default function SegmentDetails() {
                 {route.segments.map((seg) => (
                   <div key={seg.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors">
                     <div className="flex items-center gap-4">
-                      <span className="font-mono text-xs font-bold text-slate-400">{seg.id}</span>
                       <div>
                         <p className="text-xs font-bold text-slate-800">{seg.load}</p>
                         <p className="text-[10px] font-medium text-slate-500">{seg.from} ➔ {seg.to}</p>

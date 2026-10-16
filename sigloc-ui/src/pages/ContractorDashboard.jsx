@@ -73,7 +73,7 @@ export default function ContractorDashboard() {
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
         
         {/* O GRANDE CARD BRANCO UNIFICADOR DE TODA A TORRE DE CONTROLE */}
-        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-6 flex flex-col min-h-0 overflow-hidden">
 
           {pending && !data ? (
             <div className="flex flex-1 items-center justify-center gap-2 text-slate-400">
@@ -193,7 +193,6 @@ export default function ContractorDashboard() {
                       >
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-slate-400">{item.routeId}</span>
                             <span className="text-sm font-semibold text-slate-800">{item.itinerary}</span>
                           </div>
                           <p className="text-xs text-slate-400 mt-0.5">Alvo: {formatCurrency(item.targetBudget)}</p>

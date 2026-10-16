@@ -62,7 +62,7 @@ export default function CarrierDashboard() {
       {/* Metrics Row */}
       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-slate-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-500">Faturamento Diário</CardTitle>
             <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
@@ -77,7 +77,7 @@ export default function CarrierDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-slate-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-500">Utilização da Frota</CardTitle>
             <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
@@ -93,7 +93,7 @@ export default function CarrierDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-slate-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-500">Veículos Disponíveis</CardTitle>
             <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
@@ -106,7 +106,7 @@ export default function CarrierDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-red-100 shadow-sm relative overflow-hidden">
+        <Card className="border-red-100 relative overflow-hidden">
           <div className="absolute right-0 top-0 -z-10 h-16 w-16 rounded-bl-full bg-red-50"></div>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-500">Alertas Operacionais</CardTitle>
@@ -127,7 +127,7 @@ export default function CarrierDashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         
         {/* Active Transports List */}
-        <Card className="col-span-2 border-slate-200 shadow-sm">
+        <Card className="col-span-2 border-slate-200">
           <CardHeader className="border-b border-slate-100 pb-4 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base font-bold text-slate-800">Transportes em Andamento</CardTitle>
@@ -172,7 +172,7 @@ export default function CarrierDashboard() {
         </Card>
 
         {/* Quick Actions / Status */}
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-slate-200">
           <CardHeader className="border-b border-slate-100 pb-4">
             <CardTitle className="text-base font-bold text-slate-800">Ações Rápidas</CardTitle>
           </CardHeader>

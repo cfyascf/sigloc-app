@@ -19,7 +19,7 @@ export default function ActiveRoutes() {
 
   return (
     <AppShell title="Rotas Ativas">
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="space-y-6">
         
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -49,8 +49,7 @@ export default function ActiveRoutes() {
             >
               {/* ID + STATUS */}
               <div className="w-[120px]">
-                <div className="font-mono text-xs font-bold text-slate-500">{rota.id}</div>
-                <Badge variant="outline" className={`mt-1 text-[10px] font-bold uppercase border-none px-1.5 py-0 ${rota.status === 'Atrasado' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                <Badge variant="outline" className={`text-[10px] font-bold uppercase border-none px-1.5 py-0 ${rota.status === 'Atrasado' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                     {rota.status}
                 </Badge>
               </div>

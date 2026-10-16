@@ -34,8 +34,8 @@ const buildUnifiedTimeline = (segments) => {
   }
 
   segments.forEach((s) => {
-    addAction(s.origin, `📥 Coleta · ${s.productName} · ${s.id}`)
-    addAction(s.destination, `📤 Descarga · ${s.productName} · ${s.id}`)
+    addAction(s.origin, `📥 Coleta · ${s.productName}`)
+    addAction(s.destination, `📤 Descarga · ${s.productName}`)
   })
 
   return nodes.map((node, idx) => ({

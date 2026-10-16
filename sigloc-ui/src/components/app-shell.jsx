@@ -91,7 +91,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
         >
           <div
             className={cn(
-              "mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-sm transition-colors duration-500",
+              "mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-500",
               brand.brandBg,
               brand.brandIcon
             )}
@@ -166,7 +166,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
                     brand.footerBg
                   )}
                 >
-                  {isSidebarCollapsed ? <User size={14} /> : <span>Perfil: {roleLabel}</span>}
+                  {isSidebarCollapsed ? <User size={14} /> : <span>Alternar Perfil</span>}
                   {showSidebarText ? <ChevronDown size={14} className="ml-2" /> : null}
                 </Button>
               </DropdownMenuTrigger>
@@ -193,25 +193,12 @@ export default function AppShell({ title, children, contentClassName, innerClass
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            <div
-              title={`Perfil atual: ${roleLabel}`}
-              className={cn(
-                "flex items-center rounded-md border py-2 text-[10px] font-bold",
-                isSidebarCollapsed ? "justify-center px-0" : "px-3",
-                brand.sidebarBorder,
-                brand.textMuted,
-                brand.footerBg
-              )}
-            >
-              {isSidebarCollapsed ? <User size={14} /> : <span>Perfil: {roleLabel}</span>}
-            </div>
-          )}
+          ) : null}
 
           <div className={cn("mt-2 flex items-center", isSidebarCollapsed ? "justify-center" : "") }>
             <div
               className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-inner",
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
                 brand.footerBg,
                 brand.textMain
               )}

@@ -287,7 +287,7 @@ export default function PartnerNetwork() {
 
   return (
     <AppShell title="Rede de Parceiros">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col gap-5 overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col gap-5 overflow-hidden">
         <div className="grid shrink-0 gap-4 lg:grid-cols-[1.5fr_1fr]">
 
           <section className="rounded-xl border border-slate-200 bg-white p-5">

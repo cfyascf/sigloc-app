@@ -61,7 +61,7 @@ export default function MyTransports() {
           <Input 
             type="text" 
             placeholder="Buscar por ID, placa ou rota..." 
-            className="border-slate-200 bg-white pl-9 shadow-sm"
+            className="border-slate-200 bg-white pl-9"
           />
         </div>
       </div>
@@ -77,11 +77,11 @@ export default function MyTransports() {
         </TabsList>
 
         <TabsContent value="active">
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <Table>
               <TableHeader className="bg-slate-50">
                 <TableRow>
-                  <TableHead className="w-[120px]">ID Transporte</TableHead>
+                  <TableHead className="w-[160px]">Referência</TableHead>
                   <TableHead>Veículo</TableHead>
                   <TableHead>Status Operacional</TableHead>
                   <TableHead>Previsão (ETA)</TableHead>
@@ -92,8 +92,7 @@ export default function MyTransports() {
                 {activeTripsMock.map((trip) => (
                   <TableRow key={trip.id} className="hover:bg-slate-50/50">
                     <TableCell>
-                      <p className="font-bold text-slate-900">{trip.id}</p>
-                      <p className="text-xs text-slate-500">Ref: {trip.loadRef}</p>
+                      <p className="font-bold text-slate-900">{trip.loadRef}</p>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="font-mono bg-slate-50 text-slate-700 border-slate-200">
@@ -117,11 +116,11 @@ export default function MyTransports() {
         </TabsContent>
 
         <TabsContent value="history">
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <Table>
               <TableHeader className="bg-slate-50">
                 <TableRow>
-                  <TableHead className="w-[120px]">ID Transporte</TableHead>
+                  <TableHead className="w-[160px]">Referência</TableHead>
                   <TableHead>Veículo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Data de Entrega</TableHead>
@@ -132,8 +131,7 @@ export default function MyTransports() {
                 {historyTripsMock.map((trip) => (
                   <TableRow key={trip.id} className="hover:bg-slate-50/50">
                     <TableCell>
-                      <p className="font-bold text-slate-900">{trip.id}</p>
-                      <p className="text-xs text-slate-500">Ref: {trip.loadRef}</p>
+                      <p className="font-bold text-slate-900">{trip.loadRef}</p>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="font-mono bg-slate-50 text-slate-700 border-slate-200">
