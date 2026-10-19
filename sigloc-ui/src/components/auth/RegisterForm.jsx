@@ -74,7 +74,7 @@ export function RegisterForm() {
       {!method ? (
         <div className="space-y-4">
           <p className="text-sm font-medium text-slate-700">Como deseja criar sua conta?</p>
-          <Button type="button" onClick={() => setMethod("password")} className="h-auto w-full justify-start bg-slate-900 p-4 text-left text-white hover:bg-slate-800">
+          <Button type="button" onClick={() => setMethod("password")} className="h-auto w-full justify-start bg-zinc-900 p-4 text-left text-white hover:bg-zinc-800">
             <KeyRound className="size-5" aria-hidden="true" />
             <span>Usar e-mail e senha</span>
           </Button>
@@ -99,7 +99,7 @@ export function RegisterForm() {
             <FormField id="email" label="Email Corporativo" type="email" placeholder="nome@empresa.com" autoComplete="email" required value={credentials.email} onChange={handleCredentialsChange} error={fieldErrors.email} />
             <FormField id="password" label="Senha" type="password" autoComplete="new-password" required value={credentials.password} onChange={handleCredentialsChange} error={fieldErrors.password} />
           </> : null}
-          <Button type="submit" disabled={pending} className="mt-2 w-full bg-slate-900 text-white hover:bg-slate-800">
+          <Button type="submit" disabled={pending} className="mt-2 w-full bg-zinc-900 text-white hover:bg-zinc-800">
             {pending ? <><LoaderCircle className="animate-spin" aria-hidden="true" /> Criando conta...</> : "Criar Conta"}
           </Button>
           <Button type="button" variant="link" disabled={pending} className="w-full" onClick={() => { setMethod(null); setGoogleToken(null) }}>

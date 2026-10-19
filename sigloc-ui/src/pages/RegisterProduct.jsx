@@ -54,7 +54,7 @@ export default function RegisterProduct() {
               type="button"
               variant="outline"
               disabled={pending}
-              className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700"
+              className="h-9 border-slate-200 bg-card text-xs font-semibold text-slate-700"
               onClick={() => navigate("/product-management")}
             >
               <X size={14} className="mr-1.5" /> Cancelar
@@ -62,7 +62,7 @@ export default function RegisterProduct() {
             <Button
               type="submit"
               disabled={pending}
-              className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700"
+              className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:brightness-90"
             >
               {pending ? (
                 <Loader2 size={14} className="mr-1.5 animate-spin" />

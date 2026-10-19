@@ -119,11 +119,11 @@ export default function OfferFreight() {
   if (segmentIds.length === 0) {
     return (
       <AppShell title="Workspace de Rota">
-        <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-6 text-center">
+        <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-card p-6 text-center">
           <p className="text-sm font-semibold text-slate-500">
             Nenhum trecho foi selecionado para montagem.
           </p>
-          <Button asChild className="mt-4 h-9 bg-slate-900 text-xs text-white">
+          <Button asChild className="mt-4 h-9 bg-zinc-900 text-xs text-white">
             <Link to="/route-segment-management">Voltar para listagem</Link>
           </Button>
         </div>
@@ -175,8 +175,8 @@ export default function OfferFreight() {
         {/* SECTION CENTRAL PRINCIPAL */}
         <section className="grid min-h-0 flex-1 gap-3 overflow-hidden p-[1px] xl:grid-cols-[minmax(0,1.45fr)_340px]">
           {/* CARD ESQUERDO: TIMELINE E RESUMO MACRO */}
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 bg-white h-[76px] flex items-center">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-card">
+            <div className="border-b border-slate-200 px-5 bg-card h-[76px] flex items-center">
               <div className="grid gap-2 grid-cols-4 w-full">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
@@ -251,7 +251,7 @@ export default function OfferFreight() {
                         {node.actions.map((action) => (
                           <div
                             key={`${node.city}-${action}`}
-                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600"
+                            className="rounded-lg border border-slate-200 bg-card px-2.5 py-1.5 text-xs font-semibold text-slate-600"
                           >
                             {action}
                           </div>
@@ -265,9 +265,9 @@ export default function OfferFreight() {
           </div>
 
           {/* CARD DIREITO: PARÂMETROS FINANCEIROS E REGRAS DO LEILÃO */}
-          <div className="flex min-h-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="flex min-h-0 flex-col justify-between overflow-hidden rounded-xl border border-slate-200 bg-card">
             <div>
-              <div className="border-b border-slate-200 px-5 bg-white h-[76px] flex items-center">
+              <div className="border-b border-slate-200 px-5 bg-card h-[76px] flex items-center">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   Configuração Comercial
                 </h2>
@@ -305,7 +305,7 @@ export default function OfferFreight() {
                       <span className="text-slate-500">Equipamento Exigido:</span>
                       <Badge
                         variant="outline"
-                        className="bg-white text-[10px] font-bold text-slate-700 border-slate-300"
+                        className="bg-card text-[10px] font-bold text-slate-700 border-slate-300"
                       >
                         {requirement.baseBodyworkType || "—"}
                       </Badge>
@@ -325,7 +325,7 @@ export default function OfferFreight() {
                     type="datetime-local"
                     value={auctionDeadline}
                     onChange={(e) => setAuctionDeadline(e.target.value)}
-                    className="h-9 border-slate-200 bg-white text-xs font-medium focus:ring-blue-500"
+                    className="h-9 border-slate-200 bg-card text-xs font-medium focus:ring-blue-500"
                   />
                 </div>
 
@@ -359,7 +359,7 @@ export default function OfferFreight() {
               <Button
                 onClick={handleStartAuction}
                 disabled={auctionAction.pending}
-                className="h-10 w-full rounded-lg bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-60"
+                className="h-10 w-full rounded-lg bg-blue-600 text-xs font-bold tracking-wide text-white hover:brightness-90 active:bg-blue-600 transition-colors disabled:opacity-60"
               >
                 {auctionAction.pending ? (
                   <Loader2 size={14} className="mr-1.5 animate-spin" />

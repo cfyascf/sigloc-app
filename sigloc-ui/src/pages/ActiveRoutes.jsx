@@ -36,15 +36,15 @@ export default function ActiveRoutes() {
           <div className="flex items-center gap-3">
              <div className="relative w-64">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar rota ou transportadora..." className="h-9 border-slate-200 bg-white pl-9 text-xs" />
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar rota ou transportadora..." className="h-9 border-slate-200 bg-card pl-9 text-xs" />
             </div>
-            <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)} className="h-9 border-slate-200 text-xs font-semibold bg-white">
+            <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)} className="h-9 border-slate-200 text-xs font-semibold bg-card">
                <Filter size={14} className="mr-2" /> Filtros
             </Button>
           </div>
         </div>
 
-        {filtersOpen && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs">
+        {filtersOpen && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-card p-3 text-xs">
           <select aria-label="Filtrar por status" value={query.status} onChange={(event) => setQuery((current) => ({ ...current, status: event.target.value, page: 1 }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os status</option><option value="AGUARDANDO_COLETA">Aguardando coleta</option><option value="EM_TRANSITO">Em trânsito</option><option value="ATRASADO">Atrasado</option></select>
           <select aria-label="Filtrar por risco" value={query.risk} onChange={(event) => setQuery((current) => ({ ...current, risk: event.target.value, page: 1 }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os riscos</option><option value="NORMAL">Normal</option><option value="CRITIC">Crítico</option><option value="NAO_MONITORADO">Sem monitoramento</option></select>
           <Button variant="outline" className="h-9 text-xs" onClick={reload} disabled={pending}>Atualizar</Button>
@@ -57,7 +57,7 @@ export default function ActiveRoutes() {
               key={rota.id}
               type="button"
               onClick={() => navigate(`/active-route-tracking/${rota.id}`)}
-              className="group flex w-full items-center gap-6 rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-blue-300 hover:ring-1 hover:ring-blue-100 cursor-pointer"
+              className="group flex w-full items-center gap-6 rounded-xl border border-slate-200 bg-card p-4 transition-all hover:border-blue-300 hover:ring-1 hover:ring-blue-100 cursor-pointer"
             >
               {/* ID + STATUS */}
               <div className="w-[120px]">

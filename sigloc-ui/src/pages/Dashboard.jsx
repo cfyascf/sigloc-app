@@ -43,7 +43,7 @@ export default function ContractorDashboard() {
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
         
         {/* O GRANDE CARD BRANCO UNIFICADOR DE TODA A TORRE DE CONTROLE */}
-        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 bg-card border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col min-h-0 overflow-hidden">
           
           {/* SEÇÃO 1: LINHA DE CONTADORES (KPIs MACROS) */}
           <section className="flex items-center justify-between border-b border-slate-100 pb-5 mb-5">
@@ -69,7 +69,7 @@ export default function ContractorDashboard() {
               
               {/* Peso Médio */}
               <div className="flex items-center gap-3 bg-slate-50/60 p-3 rounded-lg border border-slate-100">
-                <div className="p-2 bg-white rounded-md text-slate-600 border border-slate-100">
+                <div className="p-2 bg-card rounded-md text-slate-600 border border-slate-100">
                   <Scale size={16} />
                 </div>
                 <div className="flex-1">
@@ -78,14 +78,14 @@ export default function ContractorDashboard() {
                     <span className="text-sm font-black text-slate-800">{fleetUtilization.weightEfficiency}%</span>
                   </div>
                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                    <div className="bg-slate-700 h-full rounded-full" style={{ width: `${fleetUtilization.weightEfficiency}%` }} />
+                    <div className="bg-zinc-700 h-full rounded-full" style={{ width: `${fleetUtilization.weightEfficiency}%` }} />
                   </div>
                 </div>
               </div>
 
               {/* Volume Médio */}
               <div className="flex items-center gap-3 bg-slate-50/60 p-3 rounded-lg border border-slate-100">
-                <div className="p-2 bg-white rounded-md text-slate-600 border border-slate-100">
+                <div className="p-2 bg-card rounded-md text-slate-600 border border-slate-100">
                   <Box size={16} />
                 </div>
                 <div className="flex-1">
@@ -94,14 +94,14 @@ export default function ContractorDashboard() {
                     <span className="text-sm font-black text-slate-800">{fleetUtilization.volumeEfficiency}%</span>
                   </div>
                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                    <div className="bg-slate-700 h-full rounded-full" style={{ width: `${fleetUtilization.volumeEfficiency}%` }} />
+                    <div className="bg-zinc-700 h-full rounded-full" style={{ width: `${fleetUtilization.volumeEfficiency}%` }} />
                   </div>
                 </div>
               </div>
 
               {/* Acoplamento Continuous Move */}
               <div className="flex items-center gap-3 bg-slate-50/60 p-3 rounded-lg border border-slate-100">
-                <div className="p-2 bg-white rounded-md text-emerald-600 border border-slate-100">
+                <div className="p-2 bg-card rounded-md text-emerald-600 border border-slate-100">
                   <ShieldCheck size={16} />
                 </div>
                 <div className="flex-1">

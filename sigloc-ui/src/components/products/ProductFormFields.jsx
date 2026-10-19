@@ -48,7 +48,7 @@ function ToggleCard({ active, onToggle, disabled, title, tone }) {
     <div
       className={cn(
         "rounded-xl border p-4 transition-all",
-        active ? tones[tone] : "border-slate-200 bg-white"
+        active ? tones[tone] : "border-slate-200 bg-card"
       )}
     >
       <div className="flex items-start gap-3">
@@ -103,7 +103,7 @@ export function ProductFormFields({
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       {/* Bloco: Identificação */}
-      <div className="rounded-xl border border-slate-200 bg-white">
+      <div className="rounded-xl border border-slate-200 bg-card">
         <div className="flex h-[52px] items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
           <PackageOpen size={16} className="text-blue-600" />
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -169,7 +169,7 @@ export function ProductFormFields({
       </div>
 
       {/* Bloco: Dimensões e Acomodação */}
-      <div className="rounded-xl border border-slate-200 bg-white">
+      <div className="rounded-xl border border-slate-200 bg-card">
         <div className="flex h-[52px] items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
           <Scale size={16} className="text-slate-600" />
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -233,7 +233,7 @@ export function ProductFormFields({
       </div>
 
       {/* Bloco: Regras de Risco Operacional */}
-      <div className="rounded-xl border border-slate-200 bg-white md:col-span-2">
+      <div className="rounded-xl border border-slate-200 bg-card md:col-span-2">
         <div className="flex h-[52px] items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
           <AlertTriangle size={16} className="text-amber-600" />
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -247,7 +247,7 @@ export function ProductFormFields({
               "rounded-xl border p-4 transition-all",
               showTemperature
                 ? "border-sky-300 bg-sky-50/30"
-                : "border-slate-200 bg-white"
+                : "border-slate-200 bg-card"
             )}
           >
             <div className="space-y-2">

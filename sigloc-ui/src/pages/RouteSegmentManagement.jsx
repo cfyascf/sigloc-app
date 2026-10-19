@@ -201,7 +201,7 @@ export default function RouteSegmentManagement() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por origem..."
-                className="h-9 border-slate-200 bg-white pl-9 text-xs"
+                className="h-9 border-slate-200 bg-card pl-9 text-xs"
               />
             </div>
 
@@ -210,7 +210,7 @@ export default function RouteSegmentManagement() {
               className={
                 isSelectionMode
                   ? "h-9 border-blue-200 bg-blue-50 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                  : "h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  : "h-9 border-slate-200 bg-card text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
               }
               onClick={() =>
                 isSelectionMode ? handleCancelSelection() : setIsSelectionMode(true)
@@ -222,7 +222,7 @@ export default function RouteSegmentManagement() {
 
             <Button
               asChild
-              className="h-9 bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700"
+              className="h-9 bg-blue-600 text-xs font-semibold text-white hover:brightness-90"
             >
               <Link to="/create-route-segment">
                 <Plus size={14} className="mr-1.5" /> Novo Trecho
@@ -267,11 +267,11 @@ export default function RouteSegmentManagement() {
 
         {/* LISTAGEM */}
         {listPending ? (
-          <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-500">
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-card p-10 text-sm text-slate-500">
             <Loader2 size={16} className="animate-spin" /> Carregando trechos...
           </div>
         ) : listAction.error ? (
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-6">
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-card p-6">
             <FormAlert message={listAction.error.message} />
             <Button
               variant="outline"
@@ -283,7 +283,7 @@ export default function RouteSegmentManagement() {
             </Button>
           </div>
         ) : segments.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+          <div className="rounded-xl border border-dashed border-slate-200 bg-card p-10 text-center text-sm text-slate-500">
             Nenhum trecho encontrado.
           </div>
         ) : (
@@ -312,7 +312,7 @@ export default function RouteSegmentManagement() {
                         size="sm"
                         onClick={() => setDeletingId(null)}
                         disabled={deleteAction.pending}
-                        className="h-8 text-xs font-semibold bg-white border-slate-200 text-slate-600"
+                        className="h-8 text-xs font-semibold bg-card border-slate-200 text-slate-600"
                       >
                         Cancelar
                       </Button>
@@ -320,7 +320,7 @@ export default function RouteSegmentManagement() {
                         size="sm"
                         onClick={() => confirmDelete(segment.id)}
                         disabled={deleteAction.pending}
-                        className="h-8 text-xs font-bold bg-rose-600 text-white hover:bg-rose-700"
+                        className="h-8 text-xs font-bold bg-rose-600 text-white hover:brightness-90"
                       >
                         {deleteAction.pending ? (
                           <Loader2 size={14} className="mr-1.5 animate-spin" />
@@ -339,8 +339,8 @@ export default function RouteSegmentManagement() {
                     isChecked
                       ? "border-blue-300 bg-blue-50/40 ring-1 ring-blue-200"
                       : isEditingThis
-                        ? "border-blue-300 bg-white"
-                        : "border-slate-200 bg-white"
+                        ? "border-blue-300 bg-card"
+                        : "border-slate-200 bg-card"
                   }`}
                 >
                   {/* LINHA PRINCIPAL VISÍVEL */}
@@ -408,7 +408,7 @@ export default function RouteSegmentManagement() {
 
                     {/* AÇÕES */}
                     {!isSelectionMode && !isEditingThis && editable && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 bg-white pl-2 transition-opacity duration-200">
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 bg-card pl-2 transition-opacity duration-200">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -448,7 +448,7 @@ export default function RouteSegmentManagement() {
                             onChange={(e) =>
                               setEditForm({ ...editForm, origin: e.target.value })
                             }
-                            className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
+                            className="h-9 text-xs bg-card focus:border-blue-500 focus:ring-blue-500"
                           />
                           {mappedFieldErrors.origin ? (
                             <p className="text-[10px] font-medium text-rose-600">
@@ -468,7 +468,7 @@ export default function RouteSegmentManagement() {
                                 destination: e.target.value,
                               })
                             }
-                            className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
+                            className="h-9 text-xs bg-card focus:border-blue-500 focus:ring-blue-500"
                           />
                           {mappedFieldErrors.destination ? (
                             <p className="text-[10px] font-medium text-rose-600">
@@ -496,7 +496,7 @@ export default function RouteSegmentManagement() {
                                   budgetCeiling: e.target.value,
                                 })
                               }
-                              className="h-9 border-slate-200 pl-8 text-xs font-mono font-semibold bg-white focus:border-blue-500 focus:ring-blue-500"
+                              className="h-9 border-slate-200 pl-8 text-xs font-mono font-semibold bg-card focus:border-blue-500 focus:ring-blue-500"
                             />
                           </div>
                           {mappedFieldErrors.budgetCeiling ? (
@@ -520,7 +520,7 @@ export default function RouteSegmentManagement() {
                                 pickupDeadline: e.target.value,
                               })
                             }
-                            className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
+                            className="h-9 text-xs bg-card focus:border-blue-500 focus:ring-blue-500"
                           />
                           {mappedFieldErrors.pickupDeadline ? (
                             <p className="text-[10px] font-medium text-rose-600">
@@ -542,7 +542,7 @@ export default function RouteSegmentManagement() {
                                 deliveryDeadline: e.target.value,
                               })
                             }
-                            className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
+                            className="h-9 text-xs bg-card focus:border-blue-500 focus:ring-blue-500"
                           />
                           {mappedFieldErrors.deliveryDeadline ? (
                             <p className="text-[10px] font-medium text-rose-600">
@@ -570,7 +570,7 @@ export default function RouteSegmentManagement() {
                                   estimatedTollCost: e.target.value,
                                 })
                               }
-                              className="h-9 border-slate-200 pl-8 text-xs font-mono font-semibold bg-white focus:border-blue-500 focus:ring-blue-500"
+                              className="h-9 border-slate-200 pl-8 text-xs font-mono font-semibold bg-card focus:border-blue-500 focus:ring-blue-500"
                             />
                           </div>
                           {mappedFieldErrors.estimatedTollCost ? (
@@ -581,7 +581,7 @@ export default function RouteSegmentManagement() {
                         </div>
                       </div>
 
-                      <div className="mb-6 rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="mb-6 rounded-lg border border-slate-200 bg-card p-3">
                         <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                           <Box size={12} className="text-slate-400" /> Produtos do
                           trecho
@@ -631,7 +631,7 @@ export default function RouteSegmentManagement() {
                                           ),
                                         }))
                                       }}
-                                      className="h-7 w-16 border-slate-200 text-center text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
+                                      className="h-7 w-16 border-slate-200 text-center text-xs bg-card focus:border-blue-500 focus:ring-blue-500"
                                     />
                                   </div>
                                 </div>
@@ -657,7 +657,7 @@ export default function RouteSegmentManagement() {
                             size="sm"
                             onClick={cancelEditing}
                             disabled={saveAction.pending}
-                            className="h-8 text-xs font-semibold bg-white"
+                            className="h-8 text-xs font-semibold bg-card"
                           >
                             <X size={14} className="mr-1.5" /> Cancelar
                           </Button>
@@ -665,7 +665,7 @@ export default function RouteSegmentManagement() {
                             size="sm"
                             onClick={saveEdit}
                             disabled={saveAction.pending}
-                            className="h-8 text-xs font-bold bg-blue-600 text-white hover:bg-blue-700"
+                            className="h-8 text-xs font-bold bg-blue-600 text-white hover:brightness-90"
                           >
                             {saveAction.pending ? (
                               <Loader2 size={14} className="mr-1.5 animate-spin" />

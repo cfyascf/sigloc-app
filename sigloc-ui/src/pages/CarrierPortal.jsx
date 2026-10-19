@@ -53,10 +53,10 @@ export default function FreightsOffersOverview() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por cliente ou rota..."
-                className="h-9 border-slate-200 bg-white pl-9 text-xs"
+                className="h-9 border-slate-200 bg-card pl-9 text-xs"
               />
             </div>
-            <Button variant="outline" className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700">
+            <Button variant="outline" className="h-9 border-slate-200 bg-card text-xs font-semibold text-slate-700">
               <SlidersHorizontal size={14} className="mr-1.5 text-slate-500" /> Filtros
             </Button>
           </div>
@@ -71,7 +71,7 @@ export default function FreightsOffersOverview() {
                 const hasBid = !!o.bidStatus;
                 
                 return (
-                  <div key={o.id} className={`group flex flex-col rounded-xl border border-slate-200 bg-white transition-all overflow-hidden ${hasBid ? "border-t-4 border-t-blue-600" : ""}`}>
+                  <div key={o.id} className={`group flex flex-col rounded-xl border border-slate-200 bg-card transition-all overflow-hidden ${hasBid ? "border-t-4 border-t-blue-600" : ""}`}>
                     
                     {/* CABEÇALHO */}
                     <div className="bg-slate-50/50 px-4 py-2.5 border-b border-slate-100">
@@ -138,7 +138,7 @@ export default function FreightsOffersOverview() {
                     {/* FOOTER */}
                     <div className="px-4 pb-4">
                       <Button asChild variant={hasBid ? "outline" : "default"} className={`w-full font-bold h-8 text-xs ${
-                          hasBid ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "bg-slate-900 hover:bg-slate-800 text-white"
+                          hasBid ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "bg-zinc-900 hover:bg-zinc-800 text-white"
                       }`}>
                         <Link to={`/bid-analysis/${o.segmentId}`}>
                             {hasBid ? "Ver Detalhes do Lance" : "Analisar e Dar Lance"}
