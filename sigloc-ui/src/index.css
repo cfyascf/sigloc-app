@@ -78,6 +78,18 @@
 
 /* Cores vêm de themes.css ([data-brand] em <html>) */
 
+[data-brand="public"] body {
+  background-image:
+    radial-gradient(circle at top left, rgba(79, 164, 196, 0.16), transparent 30%),
+    radial-gradient(circle at top right, rgba(245, 197, 66, 0.14), transparent 24%),
+    linear-gradient(180deg, rgba(246, 251, 253, 0.96), rgba(255, 255, 255, 0.9));
+  background-attachment: fixed;
+}
+
+[data-brand="public"] .planner-hero {
+  background-image: linear-gradient(135deg, rgba(28, 92, 122, 0.96), rgba(48, 120, 156, 0.88) 55%, rgba(227, 180, 52, 0.82));
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

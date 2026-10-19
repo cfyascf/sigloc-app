@@ -74,11 +74,14 @@ export function BrandProvider({ children }) {
   const currentKey = THEME_IDS.has(stored) ? stored : DEFAULT_PREFS[role] ?? "corporate"
   const currentTheme = THEMES.find((theme) => theme.id === currentKey)
 
+  const isPublic = !user
+
+  // Sem sessão (login, cadastro etc.) o tema não se aplica: usa o visual original.
   useLayoutEffect(() => {
     const root = document.documentElement
-    root.dataset.brand = currentKey
-    root.classList.toggle("dark", currentTheme.kind === "dark")
-  }, [currentKey, currentTheme.kind])
+    root.dataset.brand = isPublic ? "public" : currentKey
+    root.classList.toggle("dark", !isPublic && currentTheme.kind === "dark")
+  }, [isPublic, currentKey, currentTheme.kind])
 
   const setBrand = useCallback(
     (styleKey) => {

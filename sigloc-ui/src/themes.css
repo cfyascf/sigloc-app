@@ -406,3 +406,56 @@
   --color-slate-800: color-mix(in oklab, var(--foreground) 93%, var(--background));
   --color-slate-900: color-mix(in oklab, var(--foreground) 97%, var(--background));
 }
+
+/*
+ * Telas públicas (login, cadastro, recuperação de senha, convite): o usuário não escolhe tema aqui,
+ * então mantêm a aparência original do app.
+ */
+[data-brand="public"] {
+  color-scheme: light;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.52 0.13 211);
+    --primary-foreground: oklch(0.985 0.01 210);
+    --secondary: oklch(0.96 0.016 196);
+    --secondary-foreground: oklch(0.26 0.03 220);
+    --muted: oklch(0.975 0.006 210);
+    --muted-foreground: oklch(0.5 0.02 220);
+    --accent: oklch(0.95 0.03 85);
+    --accent-foreground: oklch(0.3 0.03 70);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.915 0.012 220);
+    --input: oklch(0.915 0.012 220);
+    --ring: oklch(0.64 0.08 210);
+    --chart-1: oklch(0.77 0.11 196);
+    --chart-2: oklch(0.68 0.14 211);
+    --chart-3: oklch(0.62 0.16 235);
+    --chart-4: oklch(0.73 0.13 85);
+    --chart-5: oklch(0.58 0.12 165);
+    --sidebar: oklch(0.985 0.006 205);
+    --sidebar-foreground: oklch(0.18 0.015 220);
+    --sidebar-primary: oklch(0.52 0.13 211);
+    --sidebar-primary-foreground: oklch(0.985 0.01 210);
+    --sidebar-accent: oklch(0.95 0.02 205);
+    --sidebar-accent-foreground: oklch(0.22 0.02 220);
+    --sidebar-border: oklch(0.915 0.012 220);
+    --sidebar-ring: oklch(0.64 0.08 210);
+  --header: #ffffff; --header-foreground: oklch(0.145 0 0); --brand: oklch(0.52 0.13 211);
+  --sidebar-strong: oklch(0.145 0 0); --sidebar-active: oklch(0.95 0.02 205);
+  --sidebar-active-foreground: oklch(0.22 0.02 220); --sidebar-active-border: oklch(0.915 0.012 220);
+  --color-slate-50: oklch(98.4% 0.003 247.858);
+  --color-slate-100: oklch(96.8% 0.007 247.896);
+  --color-slate-200: oklch(92.9% 0.013 255.508);
+  --color-slate-300: oklch(86.9% 0.022 252.894);
+  --color-slate-400: oklch(70.4% 0.04 256.788);
+  --color-slate-500: oklch(55.4% 0.046 257.417);
+  --color-slate-600: oklch(44.6% 0.043 257.281);
+  --color-slate-700: oklch(37.2% 0.044 257.287);
+  --color-slate-800: oklch(27.9% 0.041 260.031);
+  --color-slate-900: oklch(20.8% 0.042 265.755);
+  --color-slate-950: oklch(12.9% 0.042 264.695);
+}
