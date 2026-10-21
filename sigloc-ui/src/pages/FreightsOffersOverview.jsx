@@ -14,6 +14,8 @@ const PAGE_SIZE = 50
 
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value)
 
+const isClosed = (offer) => offer.status === "CLOSED"
+
 const getRiskBadge = (risk) => {
   const styles = {
     [RISK.NORMAL]: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -28,6 +30,147 @@ const getRequirementBadge = (req) => {
   if (normalized.includes("frágil")) return "bg-rose-50 text-rose-600 border-rose-200";
   if (normalized.includes("hazmat") || normalized.includes("perigoso")) return "bg-amber-50 text-amber-600 border-amber-200";
   return "bg-slate-100 text-slate-600 border-slate-200";
+}
+
+function OfferCard({ o }) {
+  const hasBid = !!o.bidStatus
+  const closed = isClosed(o)
+
+  return (
+    <div className={`group flex flex-col rounded-xl border bg-white transition-all overflow-hidden ${
+      closed
+        ? "border-slate-200 opacity-90"
+        : hasBid
+          ? "border-slate-200 border-t-4 border-t-blue-600"
+          : "border-slate-200"
+    }`}>
+
+      {/* FAIXA DE OFERTA ENCERRADA */}
+      {closed && (
+        <div className="flex items-center justify-between gap-2 bg-slate-100 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 size={12} className="text-emerald-600" /> Oferta encerrada
+          </span>
+          {o.closedAt && <span className="font-semibold normal-case text-slate-400">em {o.closedAt}</span>}
+        </div>
+      )}
+
+      {/* CABEÇALHO */}
+      <div className="bg-slate-50/50 px-4 py-2.5 border-b border-slate-100">
+        <div className="flex justify-between items-center mb-1">
+            <p className="text-[9px] font-bold uppercase text-slate-400 tracking-wider truncate">{o.contractor}</p>
+            <div className="flex gap-1.5 items-center">
+               {closed ? (
+                  <Badge className="bg-slate-200 text-slate-600 text-[9px] font-bold border-none uppercase">
+                      Rota Ativa
+                  </Badge>
+               ) : (
+                  <>
+                    {getRiskBadge(o.risk)}
+                    {/* Badge de Lance Ativo */}
+                    {hasBid && (
+                       <Badge className="bg-blue-600 text-white text-[9px] font-bold border-none uppercase">
+                           Lance Ativo
+                       </Badge>
+                    )}
+                  </>
+               )}
+            </div>
+        </div>
+        <p className="text-sm font-bold text-slate-800 leading-tight">{o.routeLabel}</p>
+      </div>
+
+      {/* CORPO */}
+      <div className="flex flex-col p-4 gap-3">
+
+        <div className="flex items-start justify-between">
+            <div>
+                <p className="text-[10px] font-bold uppercase text-slate-400">{closed ? "Valor Fechado" : "Valor Teto"}</p>
+                <p className={`text-lg font-black ${closed ? "text-slate-700" : "text-blue-700"}`}>
+                    {formatCurrency(closed ? (o.winningBid ?? o.targetValue) : o.targetValue)}
+                </p>
+                {closed ? (
+                    <p className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                        <Archive size={10}/> Leilão concluído
+                    </p>
+                ) : (
+                    <p className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                        <TrendingDown size={10}/> {o.totalBids || 0} lances ativos
+                    </p>
+                )}
+            </div>
+            {!closed && o.isExpiringSoon && (
+              <Badge className="bg-rose-50 text-rose-600 border-rose-200 text-[9px] font-bold flex items-center gap-1">
+                  <Clock size={10} /> {o.hoursLeft}H
+              </Badge>
+            )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                <span className="text-slate-400 block font-bold uppercase text-[9px]">Coleta</span>
+                <span className="font-semibold text-slate-700">{o.pickupLabel}</span>
+            </div>
+            <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                <span className="text-slate-400 block font-bold uppercase text-[9px]">Entrega</span>
+                <span className="font-semibold text-slate-700">{o.etaLabel}</span>
+            </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-[11px] text-slate-600">
+                <Box size={14} className="text-slate-400" />
+                <span className="font-medium">{o.totalWeight} • {o.totalVolume}</span>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+                {o.requirements.map((req) => (
+                    <Badge key={req} variant="outline" className={`text-[9px] font-bold uppercase tracking-wide border ${getRequirementBadge(req)}`}>
+                        {req}
+                    </Badge>
+                ))}
+            </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="px-4 pb-4">
+        {closed ? (
+          <Button asChild variant="outline" className="w-full font-bold h-8 text-xs border-slate-300 text-slate-700 hover:bg-slate-50">
+            <Link to={o.activeRouteId ? `/active-route-tracking/${o.activeRouteId}` : "/active-routes"}>
+                Acompanhar Rota Ativa <ArrowRight size={14} className="ml-1" />
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild variant={hasBid ? "outline" : "default"} className={`w-full font-bold h-8 text-xs ${
+              hasBid ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "bg-slate-900 hover:bg-slate-800 text-white"
+          }`}>
+            <Link to={`/bid-analysis/${o.segmentId}`}>
+                {hasBid ? "Ver Detalhes do Lance" : "Analisar e Dar Lance"}
+            </Link>
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function OffersGrid({ offers, emptyMessage }) {
+  if (offers.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center py-16 text-sm text-slate-400">
+        {emptyMessage}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {offers.map((o) => (
+        <OfferCard key={o.id} o={o} />
+      ))}
+    </div>
+  )
 }
 
 export default function FreightsOffersOverview() {
@@ -66,16 +209,19 @@ export default function FreightsOffersOverview() {
 
   const isEmpty = !listPending && !listError && ofertas.length === 0
 
+  const openOffers = filteredOfertas.filter((o) => !isClosed(o))
+  const closedOffers = filteredOfertas.filter(isClosed)
+
   return (
     <AppShell title="Mural de Fretes">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col gap-4 overflow-hidden">
-        
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col gap-4 overflow-hidden">
+
         {/* BARRA DE TOPO */}
         <div className="flex shrink-0 flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3 pt-1">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900">Mural de Oportunidades</h1>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative w-72">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
