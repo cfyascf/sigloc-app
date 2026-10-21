@@ -13,7 +13,7 @@ import { cargoItemsMock, getCargoItemById } from "@/constants/logistics-mock"
 // eslint-disable-next-line react/prop-types
 function DetailItem({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4">
+    <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-card p-4">
       <div className="mt-0.5 rounded-md bg-blue-50 p-2 text-blue-600">
         <Icon size={16} />
       </div>
@@ -78,15 +78,15 @@ export default function LoadDetails() {
           </Link>
 
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="border-slate-200 bg-white text-slate-700" onClick={openUpdateDialog}>
+            <Button variant="outline" className="border-slate-200 bg-card text-slate-700" onClick={openUpdateDialog}>
               Atualizar Item
             </Button>
             {load.linkedSegmentId ? (
               <div className="flex flex-wrap gap-3">
-                <Button asChild variant="outline" className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
+                <Button asChild variant="outline" className="border-slate-200 bg-card text-slate-700 hover:bg-slate-50">
                   <Link to={`/segment-details/${load.linkedSegmentId}`}>Abrir trecho</Link>
                 </Button>
-                <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
+                <Button asChild className="bg-blue-600 text-white hover:brightness-90">
                   <Link to={`/auction-bids/${load.linkedSegmentId}`}>Ver lances do trecho</Link>
                 </Button>
               </div>
@@ -237,7 +237,7 @@ export default function LoadDetails() {
               <Button variant="outline" onClick={() => setIsUpdateOpen(false)}>
                 Cancelar
               </Button>
-              <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={handleSaveUpdate}>
+              <Button className="bg-blue-600 text-white hover:brightness-90" onClick={handleSaveUpdate}>
                 Salvar alterações
               </Button>
             </DialogFooter>

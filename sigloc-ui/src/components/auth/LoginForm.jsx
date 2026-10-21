@@ -105,7 +105,7 @@ export function LoginForm() {
         <Button
           type="submit"
           disabled={pending}
-          className="mt-2 w-full bg-blue-600 text-white hover:bg-blue-700"
+          className="mt-2 w-full bg-blue-600 text-white hover:brightness-90"
         >
           {credentialAction.pending ? (
             <><LoaderCircle className="animate-spin" aria-hidden="true" /> Entrando...</>

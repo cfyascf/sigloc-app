@@ -38,10 +38,10 @@ export default function CreateFreightAuction() {
           </Link>
 
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="border-slate-200 bg-white text-slate-700" onClick={() => navigate("/freights-panel") }>
+            <Button variant="outline" className="border-slate-200 bg-card text-slate-700" onClick={() => navigate("/freights-panel") }>
               Cancelar
             </Button>
-            <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={handlePublish}>
+            <Button className="bg-blue-600 text-white hover:brightness-90" onClick={handlePublish}>
               <Gavel size={16} className="mr-2" /> Publicar Leilão
             </Button>
           </div>
@@ -62,7 +62,7 @@ export default function CreateFreightAuction() {
               <div className="space-y-2">
                 <label htmlFor="auction-segment" className="text-sm font-medium text-slate-700">Trecho base</label>
                 <Select value={selectedSegmentId} onValueChange={setSelectedSegmentId}>
-                  <SelectTrigger id="auction-segment" className="border-slate-200 bg-white">
+                  <SelectTrigger id="auction-segment" className="border-slate-200 bg-card">
                     <SelectValue placeholder="Selecione o trecho para o leilão" />
                   </SelectTrigger>
                   <SelectContent>
@@ -82,8 +82,8 @@ export default function CreateFreightAuction() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className="bg-blue-100 text-blue-800">{selectedSegment.id}</Badge>
-                    <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">{selectedSegment.itemCount} itens</Badge>
-                    <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">{selectedSegment.legCount} pernas</Badge>
+                    <Badge variant="outline" className="border-slate-200 bg-card text-slate-600">{selectedSegment.itemCount} itens</Badge>
+                    <Badge variant="outline" className="border-slate-200 bg-card text-slate-600">{selectedSegment.legCount} pernas</Badge>
                   </div>
                   <div className="mt-3 space-y-2 text-sm text-slate-700">
                     <p className="font-semibold text-slate-900">{selectedSegment.name}</p>
@@ -109,7 +109,7 @@ export default function CreateFreightAuction() {
                 <div className="space-y-2">
                   <label htmlFor="auction-duration" className="text-sm font-medium text-slate-700">Duração do leilão</label>
                   <Select value={auctionDuration} onValueChange={setAuctionDuration}>
-                    <SelectTrigger id="auction-duration" className="border-slate-200 bg-white">
+                    <SelectTrigger id="auction-duration" className="border-slate-200 bg-card">
                       <SelectValue placeholder="Selecione a duração" />
                     </SelectTrigger>
                     <SelectContent>
@@ -143,7 +143,7 @@ export default function CreateFreightAuction() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Ex: transportar preferencialmente com veículo baú refrigerado, atender janela curta de coleta..."
-                  className="min-h-[140px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-300"
+                  className="min-h-[140px] w-full rounded-md border border-slate-200 bg-card px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-300"
                 />
               </div>
 
@@ -153,7 +153,7 @@ export default function CreateFreightAuction() {
                 </div>
                 <div className="mt-3 grid gap-2 md:grid-cols-2">
                   {selectedItems.map((item) => (
-                    <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                    <div key={item.id} className="rounded-lg border border-slate-200 bg-card p-3">
                       <p className="text-sm font-medium text-slate-800">{item.id} • {item.productName}</p>
                       <p className="mt-1 text-xs text-slate-500">{item.quantityLabel} • {item.routeLabel}</p>
                     </div>
@@ -200,7 +200,7 @@ export default function CreateFreightAuction() {
                 <p className="text-sm text-slate-600">
                   Ao publicar, o trecho completo ficará visível para as transportadoras com sua composição, paradas e itens envolvidos.
                 </p>
-                <Button className="w-full bg-blue-600 text-white hover:bg-blue-700" onClick={handlePublish}>
+                <Button className="w-full bg-blue-600 text-white hover:brightness-90" onClick={handlePublish}>
                   <Plus size={16} className="mr-2" /> Publicar agora
                 </Button>
                 {isPublished && (

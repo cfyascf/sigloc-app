@@ -76,7 +76,7 @@ export default function CarrierDashboard() {
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
         
         {/* O GRANDE CARD BRANCO UNIFICADOR */}
-        <div className="flex-1 bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 bg-card border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col min-h-0 overflow-hidden">
 
           {pending && !data ? (
             <div className="flex flex-1 items-center justify-center gap-2 text-slate-400">
@@ -116,7 +116,7 @@ export default function CarrierDashboard() {
               
               {/* Frota Ativa */}
               <div className="flex items-center gap-3 bg-slate-50/60 p-3 rounded-lg border border-slate-100">
-                <div className="p-2 bg-white rounded-md text-slate-600 border border-slate-100">
+                <div className="p-2 bg-card rounded-md text-slate-600 border border-slate-100">
                   <Truck size={16} />
                 </div>
                 <div className="flex-1">
@@ -125,14 +125,14 @@ export default function CarrierDashboard() {
                     <span className="text-sm font-black text-slate-800">{formatPercentage(fleetOperation)}</span>
                   </div>
                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                    <div className="bg-slate-700 h-full rounded-full" style={{ width: `${fleetOperation}%` }} />
+                    <div className="bg-zinc-700 h-full rounded-full" style={{ width: `${fleetOperation}%` }} />
                   </div>
                 </div>
               </div>
 
               {/* Aproveitamento de Capacidade */}
               <div className="flex items-center gap-3 bg-slate-50/60 p-3 rounded-lg border border-slate-100">
-                <div className="p-2 bg-white rounded-md text-slate-600 border border-slate-100">
+                <div className="p-2 bg-card rounded-md text-slate-600 border border-slate-100">
                   <Scale size={16} />
                 </div>
                 <div className="flex-1">
@@ -141,14 +141,14 @@ export default function CarrierDashboard() {
                     <span className="text-sm font-black text-slate-800">{formatPercentage(capacityUtilization)}</span>
                   </div>
                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                    <div className="bg-slate-700 h-full rounded-full" style={{ width: `${capacityUtilization}%` }} />
+                    <div className="bg-zinc-700 h-full rounded-full" style={{ width: `${capacityUtilization}%` }} />
                   </div>
                 </div>
               </div>
 
               {/* Taxa de Vitória (Win Rate) */}
               <div className="flex items-center gap-3 bg-slate-50/60 p-3 rounded-lg border border-slate-100">
-                <div className="p-2 bg-white rounded-md text-emerald-600 border border-slate-100">
+                <div className="p-2 bg-card rounded-md text-emerald-600 border border-slate-100">
                   <Trophy size={16} />
                 </div>
                 <div className="flex-1">

@@ -1,9 +1,66 @@
-/* eslint-disable react/prop-types */
-import { createContext, useCallback, useContext, useMemo, useState } from "react"
+/* eslint-disable react/prop-types, react-refresh/only-export-components */
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useAuth } from "./AuthContext"
 import { ROLES } from "@/constants/roles"
 
 const BrandContext = createContext()
+
+const STORAGE_KEY = "fg-brand-prefs"
+
+// As cores de cada tema ficam em src/themes.css ([data-brand="id"]).
+export const THEMES = [
+  { id: "corporate", name: "Azul Corporativo", kind: "light", description: "Branco com azul. Limpo e profissional." },
+  { id: "ocean", name: "Oceano", kind: "light", description: "Claro com tons de verde-água." },
+  { id: "forest", name: "Floresta", kind: "light", description: "Verde suave sobre fundo off-white." },
+  { id: "latte", name: "Lilás", kind: "light", description: "Fundo claro com destaque lilás." },
+  { id: "solarized", name: "Areia", kind: "light", description: "Creme com destaque em azul." },
+  { id: "githublight", name: "Cinza Neutro", kind: "light", description: "Branco e cinza com destaque azul. Bem legível." },
+  { id: "nordlight", name: "Gelo", kind: "light", description: "Branco-gelo com azul acinzentado." },
+  { id: "gruvlight", name: "Mel", kind: "light", description: "Creme quente com destaque laranja." },
+  { id: "midnight", name: "Meia-noite", kind: "dark", description: "Azul-marinho profundo." },
+  { id: "github", name: "Grafite", kind: "dark", description: "Cinza-azulado escuro com destaque azul." },
+  { id: "nord", name: "Polar", kind: "dark", description: "Cinza-azulado com destaque azul-gelo." },
+  { id: "dracula", name: "Ametista", kind: "dark", description: "Grafite com destaque roxo." },
+  { id: "tokyo", name: "Crepúsculo", kind: "dark", description: "Azul-noite com destaque azul suave." },
+  { id: "gruvbox", name: "Cobre", kind: "dark", description: "Marrom escuro com destaque laranja." },
+  { id: "mocha", name: "Lavanda", kind: "dark", description: "Roxo-acinzentado escuro com destaque lilás." },
+  { id: "industrial", name: "Industrial", kind: "dark", description: "Preto grafite com destaque verde." },
+]
+
+const THEME_IDS = new Set(THEMES.map((theme) => theme.id))
+
+// Classes do shell (sidebar e cabeçalho) apoiadas nas variáveis do tema.
+const brandStyle = {
+  sidebarBg: "bg-sidebar",
+  sidebarBorder: "border-sidebar-border",
+  navText: "text-sidebar-foreground",
+  navHover: "hover:bg-sidebar-accent hover:text-sidebar-strong",
+  navActive:
+    "border border-sidebar-active-border bg-sidebar-active text-sidebar-active-foreground font-semibold",
+  accent: "text-brand",
+  brandBg: "bg-primary",
+  brandIcon: "text-primary-foreground",
+  headerBg: "bg-header",
+  textMain: "text-header-foreground",
+  textMuted: "text-header-foreground/60",
+  footerBg: "bg-sidebar-accent",
+}
+
+const DEFAULT_PREFS = {
+  [ROLES.CONTRACTOR]: "corporate",
+  [ROLES.CARRIER]: "industrial",
+  [ROLES.DEVELOPER]: "midnight",
+}
+
+function readPrefs() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY))
+    if (stored && typeof stored === "object") return { ...DEFAULT_PREFS, ...stored }
+  } catch {
+    // preferências corrompidas: volta ao padrão
+  }
+  return DEFAULT_PREFS
+}
 
 export function BrandProvider({ children }) {
   const { user } = useAuth()
@@ -11,111 +68,46 @@ export function BrandProvider({ children }) {
   // resolution stays valid on public pages (e.g. the auth screen).
   const role = user?.role ?? ROLES.CONTRACTOR
 
-  const [brandPrefs, setBrandPrefs] = useState(() => {
-    const stored = localStorage.getItem("fg-brand-prefs")
-    if (stored) return JSON.parse(stored)
-    return {
-      [ROLES.CONTRACTOR]: "corporate",
-      [ROLES.CARRIER]: "industrial",
-      [ROLES.DEVELOPER]: "midnight",
-    }
-  })
+  const [brandPrefs, setBrandPrefs] = useState(readPrefs)
 
-  const styles = {
-    midnight: {
-      id: "midnight",
-      name: "Midnight Premium",
-      sidebarBg: "bg-[#0B1120]",
-      sidebarBorder: "border-blue-900/30",
-      navText: "text-slate-400",
-      navHover: "hover:bg-white/5 hover:text-white",
-      navActive: "border border-blue-500/40 bg-blue-600 text-white",
-      accent: "text-blue-500",
-      brandBg: "bg-blue-600",
-      brandIcon: "text-white",
-      headerBg: "bg-[#0B1120]",
-      textMain: "text-white",
-      textMuted: "text-slate-400",
-      footerBg: "bg-white/5",
-    },
-    industrial: {
-      id: "industrial",
-      name: "Industrial Night",
-      sidebarBg: "bg-zinc-950",
-      sidebarBorder: "border-zinc-900",
-      navText: "text-zinc-400",
-      navHover: "hover:bg-zinc-900 hover:text-white",
-      navActive:
-        "bg-emerald-900/30 text-emerald-400 border border-emerald-900/50",
-      accent: "text-emerald-500",
-      brandBg: "bg-emerald-500",
-      brandIcon: "text-white",
-      headerBg: "bg-zinc-950",
-      textMain: "text-white",
-      textMuted: "text-zinc-500",
-      footerBg: "bg-zinc-900/50",
-    },
-    corporate: {
-      id: "corporate",
-      name: "Corporate Clean",
-      sidebarBg: "bg-white",
-      sidebarBorder: "border-slate-200",
-      navText: "text-slate-600",
-      navHover: "hover:bg-slate-100 hover:text-slate-900",
-      navActive: "border border-blue-200 bg-blue-50 text-blue-700 font-semibold",
-      accent: "text-blue-600",
-      brandBg: "bg-blue-600",
-      brandIcon: "text-white",
-      headerBg: "bg-white",
-      textMain: "text-slate-800",
-      textMuted: "text-slate-500",
-      footerBg: "bg-slate-50",
-    },
-    sunset: {
-      id: "sunset",
-      name: "Sunset Cargo",
-      sidebarBg: "bg-[#1c0f0a]",
-      sidebarBorder: "border-amber-900/30",
-      navText: "text-amber-500",
-      navHover: "hover:bg-amber-900/30 hover:text-amber-100",
-      navActive: "border border-amber-500/40 bg-amber-600 text-white",
-      accent: "text-amber-500",
-      brandBg: "bg-amber-600",
-      brandIcon: "text-white",
-      headerBg: "bg-[#1c0f0a]",
-      textMain: "text-orange-50",
-      textMuted: "text-amber-600/70",
-      footerBg: "bg-white/5",
-    },
-  }
+  const stored = brandPrefs[role]
+  const currentKey = THEME_IDS.has(stored) ? stored : DEFAULT_PREFS[role] ?? "corporate"
+  const currentTheme = THEMES.find((theme) => theme.id === currentKey)
 
-  const currentThemeKey = brandPrefs[role] || "midnight"
-  const currentBrandStyle = styles[currentThemeKey]
+  const isPublic = !user
+
+  // Sem sessão (login, cadastro etc.) o tema não se aplica: usa o visual original.
+  useLayoutEffect(() => {
+    const root = document.documentElement
+    root.dataset.brand = isPublic ? "public" : currentKey
+    root.classList.toggle("dark", !isPublic && currentTheme.kind === "dark")
+  }, [isPublic, currentKey, currentTheme.kind])
 
   const setBrand = useCallback(
     (styleKey) => {
+      if (!THEME_IDS.has(styleKey)) return
       const newPrefs = { ...brandPrefs, [role]: styleKey }
       setBrandPrefs(newPrefs)
-      localStorage.setItem("fg-brand-prefs", JSON.stringify(newPrefs))
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newPrefs))
+      } catch {
+        // sem armazenamento: o tema vale só nesta sessão
+      }
     },
     [brandPrefs, role]
   )
 
   const value = useMemo(
     () => ({
-      brand: currentBrandStyle,
+      brand: brandStyle,
       setBrand,
-      currentKey: currentThemeKey,
-      availableThemes: Object.values(styles),
+      currentKey,
+      availableThemes: THEMES,
     }),
-    [currentBrandStyle, setBrand, currentThemeKey, styles]
+    [setBrand, currentKey]
   )
 
-  return (
-    <BrandContext.Provider value={value}>
-      {children}
-    </BrandContext.Provider>
-  )
+  return <BrandContext.Provider value={value}>{children}</BrandContext.Provider>
 }
 
 export const useBrand = () => useContext(BrandContext)

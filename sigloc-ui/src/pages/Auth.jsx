@@ -12,7 +12,7 @@ export default function Auth() {
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans">
       {/* Lado Esquerdo: Branding / Apresentação */}
-      <div className="hidden w-1/2 flex-col justify-between bg-slate-900 p-12 text-white lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between bg-zinc-900 p-12 text-white lg:flex">
         <div>
           <div className="mb-8 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600">
             <Shield size={28} className="text-white" />
@@ -40,13 +40,13 @@ export default function Auth() {
             <TabsList className="mb-8 grid w-full grid-cols-2 bg-slate-200/50 p-1">
               <TabsTrigger
                 value="login"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                className="data-[state=active]:bg-card data-[state=active]:shadow-sm"
               >
                 Entrar
               </TabsTrigger>
               <TabsTrigger
                 value="register"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                className="data-[state=active]:bg-card data-[state=active]:shadow-sm"
               >
                 Criar Conta
               </TabsTrigger>

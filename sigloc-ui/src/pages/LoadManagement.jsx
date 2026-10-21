@@ -221,7 +221,7 @@ export default function LoadManagement() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por trecho, produto ou cidade..."
-                className="h-9 border-slate-200 bg-white pl-9 text-xs"
+                className="h-9 border-slate-200 bg-card pl-9 text-xs"
               />
             </div>
 
@@ -231,7 +231,7 @@ export default function LoadManagement() {
               className={
                 isSelectionMode
                   ? "h-9 border-blue-200 bg-blue-50 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                  : "h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  : "h-9 border-slate-200 bg-card text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
               }
               onClick={() =>
                 isSelectionMode
@@ -248,7 +248,7 @@ export default function LoadManagement() {
 
             <Button
               asChild
-              className="h-9 bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700"
+              className="h-9 bg-blue-600 text-xs font-semibold text-white hover:brightness-90"
             >
               <Link to="/create-load">
                 <Plus size={14} className="mr-1.5" /> Novo Trecho
@@ -294,7 +294,7 @@ export default function LoadManagement() {
             {selectedSegmentIds.length > 0 && (
               <button
                 onClick={handleProceed}
-                className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-700 md:mt-0"
+                className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:brightness-90 md:mt-0"
               >
                 {isForAuction ? "Configurar Leilão" : "Avançar Roteirização"}{" "}
                 <ArrowRight size={14} className="animate-pulse" />
@@ -327,14 +327,14 @@ export default function LoadManagement() {
                       variant="outline"
                       size="sm"
                       onClick={() => setDeletingId(null)}
-                      className="h-8 border-slate-200 bg-white text-xs font-semibold text-slate-600"
+                      className="h-8 border-slate-200 bg-card text-xs font-semibold text-slate-600"
                     >
                       Cancelar
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => confirmDelete(segment.id)}
-                      className="h-8 bg-rose-600 text-xs font-bold text-white hover:bg-rose-700"
+                      className="h-8 bg-rose-600 text-xs font-bold text-white hover:brightness-90"
                     >
                       Sim, Excluir
                     </Button>
@@ -350,8 +350,8 @@ export default function LoadManagement() {
                   isChecked
                     ? "border-blue-300 bg-blue-50/40 ring-1 ring-blue-200"
                     : isEditingThis
-                      ? "border-blue-300 bg-white"
-                      : "border-slate-200 bg-white"
+                      ? "border-blue-300 bg-card"
+                      : "border-slate-200 bg-card"
                 }`}
               >
                 {/* LINHA DO ITEM */}
@@ -429,7 +429,7 @@ export default function LoadManagement() {
 
                   {/* MENUS FLUTUANTES DE AÇÃO */}
                   {!isSelectionMode && !isEditingThis && (
-                    <div className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-1 bg-white pl-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    <div className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-1 bg-card pl-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -466,7 +466,7 @@ export default function LoadManagement() {
                               productName: e.target.value,
                             })
                           }
-                          className="h-9 bg-white text-xs focus:border-blue-500 focus:ring-blue-500"
+                          className="h-9 bg-card text-xs focus:border-blue-500 focus:ring-blue-500"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -478,7 +478,7 @@ export default function LoadManagement() {
                           onChange={(e) =>
                             setEditForm({ ...editForm, origin: e.target.value })
                           }
-                          className="h-9 bg-white text-xs focus:border-blue-500 focus:ring-blue-500"
+                          className="h-9 bg-card text-xs focus:border-blue-500 focus:ring-blue-500"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -493,7 +493,7 @@ export default function LoadManagement() {
                               destination: e.target.value,
                             })
                           }
-                          className="h-9 bg-white text-xs focus:border-blue-500 focus:ring-blue-500"
+                          className="h-9 bg-card text-xs focus:border-blue-500 focus:ring-blue-500"
                         />
                       </div>
 
@@ -512,7 +512,7 @@ export default function LoadManagement() {
                                 weightKg: Number(e.target.value),
                               })
                             }
-                            className="h-9 border-slate-200 bg-white pr-8 text-xs focus:border-blue-500 focus:ring-blue-500"
+                            className="h-9 border-slate-200 bg-card pr-8 text-xs focus:border-blue-500 focus:ring-blue-500"
                           />
                           <span className="absolute top-2.5 right-2.5 text-[10px] font-semibold text-slate-400">
                             kg
@@ -534,7 +534,7 @@ export default function LoadManagement() {
                                 volumeM3: Number(e.target.value),
                               })
                             }
-                            className="h-9 border-slate-200 bg-white pr-8 text-xs focus:border-blue-500 focus:ring-blue-500"
+                            className="h-9 border-slate-200 bg-card pr-8 text-xs focus:border-blue-500 focus:ring-blue-500"
                           />
                           <span className="absolute top-2.5 right-2.5 text-[10px] font-semibold text-slate-400">
                             m³
@@ -551,7 +551,7 @@ export default function LoadManagement() {
                             setEditForm({ ...editForm, bodyType: v })
                           }
                         >
-                          <SelectTrigger className="h-9 border-slate-200 bg-white text-xs focus:border-blue-500 focus:ring-blue-500">
+                          <SelectTrigger className="h-9 border-slate-200 bg-card text-xs focus:border-blue-500 focus:ring-blue-500">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -586,7 +586,7 @@ export default function LoadManagement() {
                             })
                           }
                           placeholder="Ex: Hoje até às 18:00h"
-                          className="h-9 bg-white text-xs focus:border-blue-500 focus:ring-blue-500"
+                          className="h-9 bg-card text-xs focus:border-blue-500 focus:ring-blue-500"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -607,7 +607,7 @@ export default function LoadManagement() {
                                 targetPrice: Number(e.target.value),
                               })
                             }
-                            className="h-9 border-slate-200 bg-white pl-8 font-mono text-xs font-semibold focus:border-blue-500 focus:ring-blue-500"
+                            className="h-9 border-slate-200 bg-card pl-8 font-mono text-xs font-semibold focus:border-blue-500 focus:ring-blue-500"
                           />
                         </div>
                       </div>
@@ -623,14 +623,14 @@ export default function LoadManagement() {
                           variant="outline"
                           size="sm"
                           onClick={cancelEditing}
-                          className="h-8 bg-white text-xs font-semibold"
+                          className="h-8 bg-card text-xs font-semibold"
                         >
                           <X size={14} className="mr-1.5" /> Cancelar
                         </Button>
                         <Button
                           size="sm"
                           onClick={saveEdit}
-                          className="h-8 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700"
+                          className="h-8 bg-blue-600 text-xs font-bold text-white hover:brightness-90"
                         >
                           <Save size={14} className="mr-1.5" /> Salvar
                           Alterações

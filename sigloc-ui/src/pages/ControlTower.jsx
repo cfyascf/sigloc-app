@@ -200,7 +200,7 @@ export default function ControlTower() {
   return (
     <AppShell title="Torre de Controle - Monitoramento de Execução">
       <div className="mx-auto grid max-w-7xl gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
-        <Card className="border-slate-200 bg-white shadow-sm xl:sticky xl:top-6 xl:self-start">
+        <Card className="border-slate-200 bg-card shadow-sm xl:sticky xl:top-6 xl:self-start">
           <CardHeader className="border-b border-slate-100 pb-5">
             <CardTitle className="text-lg font-semibold text-slate-900">Rotas ativas</CardTitle>
           </CardHeader>
@@ -217,7 +217,7 @@ export default function ControlTower() {
                   className={`w-full rounded-2xl border p-4 text-left transition-all ${
                     isSelected
                       ? "border-sky-300 bg-sky-50/70 shadow-sm"
-                      : "border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-white"
+                      : "border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-card"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -232,7 +232,7 @@ export default function ControlTower() {
 
                   <p className="mt-3 text-sm text-slate-500">{route.itinerary}</p>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-slate-100 bg-white p-3 text-sm">
+                  <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-slate-100 bg-card p-3 text-sm">
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Frete</p>
                       <p className="mt-1 font-semibold text-slate-900">{formatCurrency(route.closingValue)}</p>
@@ -263,7 +263,7 @@ export default function ControlTower() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card className="border-slate-200 bg-card shadow-sm">
             <CardHeader className="border-b border-slate-100 pb-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -325,20 +325,20 @@ export default function ControlTower() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card className="border-slate-200 bg-card shadow-sm">
             <CardHeader className="border-b border-slate-100 pb-5">
               <CardTitle className="text-lg font-semibold text-slate-900">Comprovação de entrega</CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
               <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center transition-colors hover:border-slate-400 hover:bg-slate-100/60">
                 <input type="file" className="hidden" onChange={handlePodUpload} />
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card text-slate-600 shadow-sm">
                   <FileText size={20} />
                 </div>
                 <p className="mt-4 text-sm font-medium text-slate-900">
                   Selecionar comprovante assinado
                 </p>
-                <Button type="button" variant="outline" className="mt-5 border-slate-200 bg-white">
+                <Button type="button" variant="outline" className="mt-5 border-slate-200 bg-card">
                   Enviar comprovante
                 </Button>
               </label>

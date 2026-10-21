@@ -31,7 +31,7 @@ export function GoogleAuthButton({
         type="button"
         disabled
         title="Configure VITE_GOOGLE_CLIENT_ID para habilitar o login com Google"
-        className="flex h-9 w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-400"
+        className="flex h-9 w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-200 bg-card text-sm font-medium text-slate-400"
       >
         <GoogleGlyph className="opacity-40" />
         Continuar com Google
@@ -61,7 +61,7 @@ export function GoogleAuthButton({
         logo_alignment="center"
       />
       {disabled ? (
-        <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-white/80 text-sm font-medium text-slate-700" role="status">
+        <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-card/80 text-sm font-medium text-slate-700" role="status">
           <LoaderCircle className="animate-spin" aria-hidden="true" />
           Processando...
         </div>

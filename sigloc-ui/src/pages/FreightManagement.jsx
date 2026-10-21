@@ -82,14 +82,14 @@ export default function FleetManagement() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative w-72">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por placa, modelo, status..." className="h-9 border-slate-200 bg-white pl-9 text-xs" />
+              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por placa, modelo, status..." className="h-9 border-slate-200 bg-card pl-9 text-xs" />
             </div>
 
-            <Button variant="outline" className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+            <Button variant="outline" className="h-9 border-slate-200 bg-card text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
               <Settings2 size={14} className="mr-1.5" /> Filtros
             </Button>
 
-            <Button asChild className="h-9 bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700">
+            <Button asChild className="h-9 bg-blue-600 text-xs font-semibold text-white hover:brightness-90">
               <Link to="/register-vehicle"><Plus size={14} className="mr-1.5" /> Novo Veículo</Link>
             </Button>
           </div>
@@ -109,8 +109,8 @@ export default function FleetManagement() {
                     <span className="text-sm font-bold">Excluir permanentemente o veículo {vehicle.plate}?</span>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setDeletingId(null)} className="h-8 text-xs font-semibold bg-white border-slate-200 text-slate-600">Cancelar</Button>
-                    <Button size="sm" onClick={() => confirmDelete(vehicle.id)} className="h-8 text-xs font-bold bg-rose-600 text-white hover:bg-rose-700">Sim, Excluir</Button>
+                    <Button variant="outline" size="sm" onClick={() => setDeletingId(null)} className="h-8 text-xs font-semibold bg-card border-slate-200 text-slate-600">Cancelar</Button>
+                    <Button size="sm" onClick={() => confirmDelete(vehicle.id)} className="h-8 text-xs font-bold bg-rose-600 text-white hover:brightness-90">Sim, Excluir</Button>
                   </div>
                 </div>
               )
@@ -121,8 +121,8 @@ export default function FleetManagement() {
                 key={vehicle.id}
                 className={`group relative flex w-full flex-col rounded-xl border transition-all ${
                   isEditingThis 
-                    ? "border-blue-300 bg-white" 
-                    : "border-slate-200 bg-white"
+                    ? "border-blue-300 bg-card" 
+                    : "border-slate-200 bg-card"
                 }`}
               >
                 {/* LINHA PRINCIPAL VISÍVEL */}
@@ -173,7 +173,7 @@ export default function FleetManagement() {
 
                   {/* AÇÕES: ESCONDIDAS POR PADRÃO */}
                   {!isEditingThis && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 bg-white pl-2 transition-opacity duration-200">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 bg-card pl-2 transition-opacity duration-200">
                       <Button variant="ghost" size="icon" onClick={() => startEditing(vehicle)} className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0 transition-colors">
                         <Pencil size={14} />
                       </Button>
@@ -192,15 +192,15 @@ export default function FleetManagement() {
                       {/* LINHA 1: Identificação Básica */}
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Placa do Veículo</label>
-                        <Input value={editForm.plate} onChange={(e) => setEditForm({...editForm, plate: e.target.value})} className="h-9 text-xs font-mono font-bold bg-white focus:border-blue-500 focus:ring-blue-500 uppercase" />
+                        <Input value={editForm.plate} onChange={(e) => setEditForm({...editForm, plate: e.target.value})} className="h-9 text-xs font-mono font-bold bg-card focus:border-blue-500 focus:ring-blue-500 uppercase" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marca / Modelo</label>
-                        <Input value={editForm.model} onChange={(e) => setEditForm({...editForm, model: e.target.value})} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                        <Input value={editForm.model} onChange={(e) => setEditForm({...editForm, model: e.target.value})} className="h-9 text-xs bg-card focus:border-blue-500 focus:ring-blue-500" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Motorista Atribuído</label>
-                        <Input value={editForm.driver} onChange={(e) => setEditForm({...editForm, driver: e.target.value})} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                        <Input value={editForm.driver} onChange={(e) => setEditForm({...editForm, driver: e.target.value})} className="h-9 text-xs bg-card focus:border-blue-500 focus:ring-blue-500" />
                       </div>
 
                       {/* LINHA 2: Capacidade e Equipamento */}
@@ -209,7 +209,7 @@ export default function FleetManagement() {
                           <Scale size={12} className="text-slate-400" /> Capacidade (Peso)
                         </label>
                         <div className="relative">
-                          <Input type="number" value={editForm.weightKg} onChange={(e) => setEditForm({...editForm, weightKg: Number(e.target.value)})} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                          <Input type="number" value={editForm.weightKg} onChange={(e) => setEditForm({...editForm, weightKg: Number(e.target.value)})} className="h-9 border-slate-200 pr-8 text-xs bg-card focus:border-blue-500 focus:ring-blue-500" />
                           <span className="absolute right-2.5 top-2.5 text-[10px] font-semibold text-slate-400">kg</span>
                         </div>
                       </div>
@@ -218,14 +218,14 @@ export default function FleetManagement() {
                           <Box size={12} className="text-slate-400" /> Cubagem (Volume)
                         </label>
                         <div className="relative">
-                          <Input type="number" value={editForm.volumeM3} onChange={(e) => setEditForm({...editForm, volumeM3: Number(e.target.value)})} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                          <Input type="number" value={editForm.volumeM3} onChange={(e) => setEditForm({...editForm, volumeM3: Number(e.target.value)})} className="h-9 border-slate-200 pr-8 text-xs bg-card focus:border-blue-500 focus:ring-blue-500" />
                           <span className="absolute right-2.5 top-2.5 text-[10px] font-semibold text-slate-400">m³</span>
                         </div>
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tipo de Carroceria</label>
                         <Select value={editForm.bodyType} onValueChange={(v) => setEditForm({...editForm, bodyType: v})}>
-                          <SelectTrigger className="h-9 border-slate-200 text-xs bg-white focus:border-blue-500 focus:ring-blue-500">
+                          <SelectTrigger className="h-9 border-slate-200 text-xs bg-card focus:border-blue-500 focus:ring-blue-500">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -243,12 +243,12 @@ export default function FleetManagement() {
                         <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                           <MapPin size={12} className="text-slate-400" /> Localização / Pátio Atual
                         </label>
-                        <Input value={editForm.location} onChange={(e) => setEditForm({...editForm, location: e.target.value})} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                        <Input value={editForm.location} onChange={(e) => setEditForm({...editForm, location: e.target.value})} className="h-9 text-xs bg-card focus:border-blue-500 focus:ring-blue-500" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status Operacional</label>
                         <Select value={editForm.status} onValueChange={(v) => setEditForm({...editForm, status: v})}>
-                          <SelectTrigger className="h-9 border-slate-200 text-xs bg-white focus:border-blue-500 focus:ring-blue-500">
+                          <SelectTrigger className="h-9 border-slate-200 text-xs bg-card focus:border-blue-500 focus:ring-blue-500">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -263,10 +263,10 @@ export default function FleetManagement() {
                     <div className="flex items-center justify-between border-t border-slate-200 pt-4">
                       <p className="text-[10px] text-slate-500 flex items-center gap-1.5"><AlertCircle size={12}/> Os dados do veículo serão atualizados imediatamente no sistema.</p>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={cancelEditing} className="h-8 text-xs font-semibold bg-white">
+                        <Button variant="outline" size="sm" onClick={cancelEditing} className="h-8 text-xs font-semibold bg-card">
                           <X size={14} className="mr-1.5" /> Cancelar
                         </Button>
-                        <Button size="sm" onClick={saveEdit} className="h-8 text-xs font-bold bg-blue-600 text-white hover:bg-blue-700">
+                        <Button size="sm" onClick={saveEdit} className="h-8 text-xs font-bold bg-blue-600 text-white hover:brightness-90">
                           <Save size={14} className="mr-1.5" /> Salvar Veículo
                         </Button>
                       </div>
