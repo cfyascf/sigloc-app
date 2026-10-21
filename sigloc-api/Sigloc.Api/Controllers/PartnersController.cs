@@ -37,4 +37,16 @@ public class PartnersController : ControllerBase
         var result = await _partnerNetworkService.GetNetworkAsync(companyId, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// DELETE /api/partnerships/{connectionId} - desfaz uma parceria sem removê-la.
+    /// A conexão passa a inativa (encerrada) e continua visível no histórico. Pode ser
+    /// acionada por qualquer um dos lados da parceria.
+    /// </summary>
+    [HttpDelete("{connectionId:guid}")]
+    public async Task<IActionResult> Remove(Guid connectionId, CancellationToken cancellationToken)
+    {
+        await _partnerNetworkService.RemovePartnershipAsync(User.GetCompanyId(), connectionId, cancellationToken);
+        return NoContent();
+    }
 }

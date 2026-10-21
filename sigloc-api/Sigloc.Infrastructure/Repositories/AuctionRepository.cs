@@ -130,10 +130,12 @@ public class AuctionRepository : IAuctionRepository
         DateTimeOffset now,
         int page,
         int pageSize,
+        FreightOfferBoardFilter filter = FreightOfferBoardFilter.Open,
         CancellationToken cancellationToken = default)
     {
         // B2B filter (Networking Restrito): only auctions whose contractor has an ACTIVE
-        // partnership with the carrier. Only open, non-expired auctions are eligible.
+        // partnership with the carrier. The lifecycle view switches between the live board
+        // (open, non-expired) and history (closed, cancelled or expired).
         var baseQuery =
             from auction in _dbContext.Auctions.AsNoTracking()
             join route in _dbContext.ConsolidatedRoutes.AsNoTracking()
@@ -144,8 +146,9 @@ public class AuctionRepository : IAuctionRepository
                 on route.ContractorId equals contractor.Id
             where partnership.CarrierId == carrierId
                 && partnership.Status == PartnershipStatus.Active
-                && auction.Status == AuctionStatus.Open
-                && auction.ExpiresAt > now
+                && (filter == FreightOfferBoardFilter.Open
+                    ? auction.Status == AuctionStatus.Open && auction.ExpiresAt > now
+                    : auction.Status != AuctionStatus.Open || auction.ExpiresAt <= now)
             select new { auction, route, contractor };
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -163,8 +166,11 @@ public class AuctionRepository : IAuctionRepository
 
         var totalItems = await baseQuery.CountAsync(cancellationToken);
 
-        var pageRows = await baseQuery
-            .OrderBy(x => x.auction.ExpiresAt)
+        var orderedQuery = filter == FreightOfferBoardFilter.Open
+            ? baseQuery.OrderBy(x => x.auction.ExpiresAt)
+            : baseQuery.OrderByDescending(x => x.auction.ExpiresAt);
+
+        var pageRows = await orderedQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);

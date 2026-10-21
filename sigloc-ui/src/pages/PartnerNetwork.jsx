@@ -9,6 +9,8 @@ import {
   Plus,
   ShieldCheck,
   Star,
+  Unlink,
+  X,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
@@ -66,8 +68,10 @@ function formatExpiry({ hoursRemaining, expiresAt } = {}) {
   return `Expira em ${Math.ceil(hoursRemaining / 24)} dia(s)`
 }
 
-function PartnerCard({ partner, isCarrierView }) {
+function PartnerCard({ partner, isCarrierView, onRemove, removing }) {
   const statusClassName = statusStyles[partner.status] || "border-slate-200 bg-slate-50 text-slate-600"
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false)
+  const canRemove = typeof onRemove === "function" && partner.status === "Ativo"
 
   return (
     <article className="flex flex-col rounded-xl border border-slate-200 bg-white">
@@ -152,7 +156,7 @@ function PartnerCard({ partner, isCarrierView }) {
         )}
 
         {isCarrierView && (
-          <div className="mt-auto pt-1">
+          <div className="pt-1">
             <Button asChild className="h-9 w-full bg-slate-900 text-xs font-bold text-white hover:bg-slate-800">
               <Link to={`/freights-offers-overview?partner=${encodeURIComponent(partner.name)}`}>
                 Ver Ofertas Disponíveis <ArrowRight size={14} className="ml-1.5" />
@@ -160,6 +164,49 @@ function PartnerCard({ partner, isCarrierView }) {
             </Button>
           </div>
         )}
+
+        {canRemove ? (
+          <div className="mt-auto border-t border-slate-100 pt-3">
+            {confirmingRemoval ? (
+              <div className="space-y-2 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                <p className="text-xs font-medium text-rose-700">
+                  Encerrar a parceria com {partner.name}? A conexão ficará inativa e permanecerá no histórico.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => onRemove(partner)}
+                    disabled={removing}
+                    className="h-8 flex-1 bg-rose-600 text-xs font-bold text-white hover:bg-rose-700"
+                  >
+                    {removing ? (
+                      <>
+                        <Loader2 size={13} className="mr-1.5 animate-spin" /> Encerrando...
+                      </>
+                    ) : (
+                      "Confirmar"
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setConfirmingRemoval(false)}
+                    disabled={removing}
+                    className="h-8 flex-1 border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    <X size={13} className="mr-1.5" /> Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => setConfirmingRemoval(true)}
+                className="h-9 w-full border-rose-200 bg-white text-xs font-bold text-rose-600 hover:bg-rose-50"
+              >
+                <Unlink size={14} className="mr-1.5" /> Encerrar Parceria
+              </Button>
+            )}
+          </div>
+        ) : null}
       </div>
     </article>
   )
@@ -231,12 +278,14 @@ export default function PartnerNetwork() {
   const [activeInvite, setActiveInvite] = useState(null)
   const [copied, setCopied] = useState(false)
   const [connectSuccess, setConnectSuccess] = useState(null)
+  const [removingId, setRemovingId] = useState(null)
 
   const networkAction = useAsyncAction(() => partnerService.getPartnerNetwork())
   const carrierNetworkAction = useAsyncAction(() => partnerService.getCarrierNetwork())
   const activeInviteAction = useAsyncAction(() => authService.getActiveInvite())
   const createInviteAction = useAsyncAction(() => authService.createInvite())
   const connectAction = useAsyncAction((token) => authService.connectByInvite(token))
+  const removeAction = useAsyncAction((connectionId) => partnerService.removePartnership(connectionId))
 
   const loadNetwork = useCallback(async () => {
     const result = await networkAction.run()
@@ -306,6 +355,27 @@ export default function PartnerNetwork() {
       setActiveInvite(result.data)
     }
   }, [createInviteAction])
+
+  const handleRemovePartnership = useCallback(
+    async (partner) => {
+      if (!partner?.id || removeAction.pending) {
+        return
+      }
+
+      setRemovingId(partner.id)
+      const result = await removeAction.run(partner.id)
+      setRemovingId(null)
+
+      if (result.ok) {
+        setPartners((current) =>
+          current.map((item) =>
+            item.id === partner.id ? { ...item, status: "Encerrado" } : item
+          )
+        )
+      }
+    },
+    [removeAction]
+  )
 
   const filteredPartners = partners
 
@@ -381,6 +451,12 @@ export default function PartnerNetwork() {
           </section>
         </div>
 
+        {removeAction.error ? (
+          <p className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-rose-600">
+            <AlertCircle size={13} /> {removeAction.error.message}
+          </p>
+        ) : null}
+
         <div className="min-h-0 flex-1 overflow-hidden">
           {networkStatus.pending ? (
             <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-500">
@@ -410,7 +486,13 @@ export default function PartnerNetwork() {
           ) : (
             <div className="grid gap-4 overflow-y-auto pr-2 pb-6 md:grid-cols-2 xl:grid-cols-3">
               {filteredPartners.map((partner) => (
-                <PartnerCard key={partner.id} partner={partner} isCarrierView={isCarrierView} />
+                <PartnerCard
+                  key={partner.id}
+                  partner={partner}
+                  isCarrierView={isCarrierView}
+                  onRemove={handleRemovePartnership}
+                  removing={removingId === partner.id}
+                />
               ))}
             </div>
           )}

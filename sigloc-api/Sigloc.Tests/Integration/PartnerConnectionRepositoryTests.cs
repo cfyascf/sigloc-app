@@ -104,4 +104,47 @@ public class PartnerConnectionRepositoryTests : IDisposable
         result.Should().HaveCount(2);
         result.Should().OnlyContain(c => c.Contractor != null);
     }
+
+    [Fact]
+    public async Task GetTrackedByIdAsync_returns_tracked_connection()
+    {
+        var contractor = TestData.Contractor(cnpj: "99999999000199");
+        var carrier = TestData.Carrier(cnpj: "99999999000100");
+        var connection = Connection(contractor.Id, carrier.Id);
+
+        var seed = _db.CreateContext();
+        seed.Contractors.Add(contractor);
+        seed.Carriers.Add(carrier);
+        seed.PartnerConnections.Add(connection);
+        await seed.SaveChangesAsync();
+
+        var ctx = _db.CreateContext();
+        var tracked = await new PartnerConnectionRepository(ctx).GetTrackedByIdAsync(connection.Id);
+
+        tracked.Should().NotBeNull();
+        ctx.Entry(tracked!).State.Should().Be(Microsoft.EntityFrameworkCore.EntityState.Unchanged);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_persists_status_change_for_soft_removal()
+    {
+        var contractor = TestData.Contractor(cnpj: "10101010000110");
+        var carrier = TestData.Carrier(cnpj: "10101010000111");
+        var connection = Connection(contractor.Id, carrier.Id, PartnershipStatus.Active);
+
+        var seed = _db.CreateContext();
+        seed.Contractors.Add(contractor);
+        seed.Carriers.Add(carrier);
+        seed.PartnerConnections.Add(connection);
+        await seed.SaveChangesAsync();
+
+        var ctx = _db.CreateContext();
+        var repo = new PartnerConnectionRepository(ctx);
+        var tracked = await repo.GetTrackedByIdAsync(connection.Id);
+        tracked!.Status = PartnershipStatus.Rejected;
+        await repo.UpdateAsync(tracked);
+
+        var reloaded = await new PartnerConnectionRepository(_db.CreateContext()).GetTrackedByIdAsync(connection.Id);
+        reloaded!.Status.Should().Be(PartnershipStatus.Rejected);
+    }
 }

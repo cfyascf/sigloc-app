@@ -160,6 +160,36 @@ public class AuctionRepositoryCarrierTests : IDisposable
     }
 
     [Fact]
+    public async Task SearchAvailableForCarrierAsync_closed_filter_returns_history_and_excludes_open()
+    {
+        var openRoute = Route(_contractorId);
+        var closedRoute = Route(_contractorId);
+        var expiredRoute = Route(_contractorId);
+
+        var ctx = _db.CreateContext();
+        ctx.Contractors.Add(TestData.Contractor(_contractorId, cnpj: "11111111000111", companyName: "Partner Co"));
+        ctx.ConsolidatedRoutes.AddRange(openRoute, closedRoute, expiredRoute);
+        ctx.Auctions.AddRange(
+            Auction(openRoute.Id, AuctionStatus.Open),
+            Auction(closedRoute.Id, AuctionStatus.Closed),
+            Auction(expiredRoute.Id, AuctionStatus.Open, DateTimeOffset.UtcNow.AddMinutes(-5)));
+        ctx.RouteSegments.AddRange(
+            Segment(_contractorId, openRoute.Id),
+            Segment(_contractorId, closedRoute.Id),
+            Segment(_contractorId, expiredRoute.Id));
+        ctx.PartnerConnections.Add(Partnership(_contractorId));
+        await ctx.SaveChangesAsync();
+
+        var repo = new AuctionRepository(_db.CreateContext());
+        var (items, total) = await repo.SearchAvailableForCarrierAsync(
+            _carrierId, null, DateTimeOffset.UtcNow, 1, 10, FreightOfferBoardFilter.Closed);
+
+        total.Should().Be(2);
+        items.Select(i => i.Route.Id).Should().BeEquivalentTo(new[] { closedRoute.Id, expiredRoute.Id });
+        items.Select(i => i.Route.Id).Should().NotContain(openRoute.Id);
+    }
+
+    [Fact]
     public async Task SearchAvailableForCarrierAsync_filters_by_search_term()
     {
         var routeA = Route(_contractorId);

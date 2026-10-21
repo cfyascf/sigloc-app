@@ -209,6 +209,14 @@ export default function AppShell({ title, children, contentClassName, innerClass
                 </>
               ) : null}
               <DropdownMenuItem
+                onClick={() => navigate("/profile")}
+                className="cursor-pointer text-xs font-semibold"
+              >
+                <Settings size={14} className="mr-2" />
+                Meu Perfil
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
                 onClick={handleLogout}
                 className="cursor-pointer text-xs font-semibold"
               >

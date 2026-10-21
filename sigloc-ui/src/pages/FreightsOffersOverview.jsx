@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from "react"
-import { Search, Box, SlidersHorizontal, TrendingDown, Clock, AlertCircle, Loader2 } from "lucide-react"
+import { Search, Box, SlidersHorizontal, TrendingDown, Clock, AlertCircle, Loader2, Archive } from "lucide-react"
 import { Link, useSearchParams } from "react-router-dom"
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { listFreightOffers } from "@/services/freight-offer-service"
 import { RISK } from "@/constants/risk"
+
+const BOARD_STATUS = { OPEN: "OPEN", CLOSED: "CLOSED" }
 
 const SEARCH_DEBOUNCE_MS = 350
 const PAGE_SIZE = 50
@@ -177,7 +180,10 @@ export default function FreightsOffersOverview() {
   const [searchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get("partner") || "")
   const [debouncedSearch, setDebouncedSearch] = useState(searchTerm.trim())
+  const [boardStatus, setBoardStatus] = useState(BOARD_STATUS.OPEN)
   const [ofertas, setOfertas] = useState([])
+
+  const isHistory = boardStatus === BOARD_STATUS.CLOSED
 
   const listAction = useAsyncAction((query) => listFreightOffers(query))
   const { run: runList } = listAction
@@ -195,13 +201,14 @@ export default function FreightsOffersOverview() {
   const loadOffers = useCallback(async () => {
     const result = await runList({
       search: debouncedSearch || undefined,
+      status: boardStatus,
       page: 1,
       pageSize: PAGE_SIZE,
     })
     if (result.ok) {
       setOfertas(result.data.items)
     }
-  }, [runList, debouncedSearch])
+  }, [runList, debouncedSearch, boardStatus])
 
   useEffect(() => {
     loadOffers()
@@ -238,6 +245,20 @@ export default function FreightsOffersOverview() {
           </div>
         </div>
 
+        {/* ABAS: ABERTAS / HISTÓRICO */}
+        <div className="shrink-0">
+          <Tabs value={boardStatus} onValueChange={setBoardStatus}>
+            <TabsList className="bg-slate-100">
+              <TabsTrigger value={BOARD_STATUS.OPEN} className="text-xs font-semibold">
+                Oportunidades Abertas
+              </TabsTrigger>
+              <TabsTrigger value={BOARD_STATUS.CLOSED} className="text-xs font-semibold">
+                <Archive size={13} className="mr-1.5" /> Histórico
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         {/* GRID DE OFERTAS */}
         <div className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto pr-2 pb-6">
@@ -245,7 +266,7 @@ export default function FreightsOffersOverview() {
             {listPending && (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
                 <Loader2 size={20} className="animate-spin text-slate-400" />
-                <p>Carregando oportunidades...</p>
+                <p>{isHistory ? "Carregando histórico..." : "Carregando oportunidades..."}</p>
               </div>
             )}
 
@@ -265,8 +286,8 @@ export default function FreightsOffersOverview() {
 
             {isEmpty && (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
-                <Box size={20} className="text-slate-400" />
-                <p>Nenhuma oportunidade disponível no momento.</p>
+                {isHistory ? <Archive size={20} className="text-slate-400" /> : <Box size={20} className="text-slate-400" />}
+                <p>{isHistory ? "Nenhuma oferta encerrada no histórico." : "Nenhuma oportunidade disponível no momento."}</p>
               </div>
             )}
 
@@ -277,7 +298,7 @@ export default function FreightsOffersOverview() {
                 const hasBid = !!o.bidStatus;
                 
                 return (
-                  <div key={o.id} className={`group flex flex-col rounded-xl border border-slate-200 bg-white transition-all overflow-hidden ${hasBid ? "border-t-4 border-t-blue-600" : ""}`}>
+                  <div key={o.id} className={`group flex flex-col rounded-xl border border-slate-200 bg-white transition-all overflow-hidden ${isHistory ? "opacity-80" : ""} ${hasBid && !isHistory ? "border-t-4 border-t-blue-600" : ""}`}>
                     
                     {/* CABEÇALHO */}
                     <div className="bg-slate-50/50 px-4 py-2.5 border-b border-slate-100">
@@ -285,8 +306,11 @@ export default function FreightsOffersOverview() {
                           <p className="text-[9px] font-bold uppercase text-slate-400 tracking-wider truncate">{o.contractor}</p>
                           <div className="flex gap-1.5 items-center">
                              {getRiskBadge(o.risk)}
-                             {/* Badge de Lance Ativo */}
-                             {hasBid && (
+                             {isHistory ? (
+                                <Badge className="bg-slate-200 text-slate-600 text-[9px] font-bold border-none uppercase shadow-none">
+                                    Encerrada
+                                </Badge>
+                             ) : hasBid && (
                                 <Badge className="bg-blue-600 text-white text-[9px] font-bold border-none uppercase shadow-none">
                                     Lance Ativo
                                 </Badge>
@@ -307,7 +331,7 @@ export default function FreightsOffersOverview() {
                                   <TrendingDown size={10}/> {o.totalBids || 0} lances ativos
                               </p>
                           </div>
-                          {o.isExpiringSoon && (
+                          {!isHistory && o.isExpiringSoon && (
                             <Badge className="bg-rose-50 text-rose-600 border-rose-200 text-[9px] font-bold flex items-center gap-1">
                                 <Clock size={10} /> {o.hoursLeft}H
                             </Badge>
@@ -343,11 +367,11 @@ export default function FreightsOffersOverview() {
 
                     {/* FOOTER */}
                     <div className="px-4 pb-4">
-                      <Button asChild variant={hasBid ? "outline" : "default"} className={`w-full font-bold h-8 text-xs ${
-                          hasBid ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "bg-slate-900 hover:bg-slate-800 text-white"
+                      <Button asChild variant="outline" className={`w-full font-bold h-8 text-xs ${
+                          isHistory || hasBid ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
                       }`}>
                         <Link to={`/bid-analysis/${o.id}`}>
-                            {hasBid ? "Ver Detalhes do Lance" : "Analisar e Dar Lance"}
+                            {isHistory ? "Ver Detalhes" : hasBid ? "Ver Detalhes do Lance" : "Analisar e Dar Lance"}
                         </Link>
                       </Button>
                     </div>

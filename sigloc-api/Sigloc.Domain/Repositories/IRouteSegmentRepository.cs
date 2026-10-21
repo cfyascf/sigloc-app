@@ -34,6 +34,14 @@ public interface IRouteSegmentRepository
         bool tracked,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Loads the tracked segments linked to a consolidated route so callers can release
+    /// them (reset status and clear the route link) inside a transaction.
+    /// </summary>
+    Task<IReadOnlyList<RouteSegment>> GetTrackedByRouteAsync(
+        Guid routeId,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(RouteSegment segment, CancellationToken cancellationToken = default);
 
     /// <summary>

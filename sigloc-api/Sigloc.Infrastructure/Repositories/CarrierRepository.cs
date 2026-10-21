@@ -21,6 +21,19 @@ public class CarrierRepository : ICarrierRepository
             .FirstOrDefaultAsync(c => c.Cnpj == cnpj, cancellationToken);
     }
 
+    public Task<Carrier?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Carriers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+    }
+
+    public Task<Carrier?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Carriers
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+    }
+
     public Task<bool> CnpjExistsAsync(string cnpj, CancellationToken cancellationToken = default)
     {
         return _dbContext.Carriers
@@ -31,5 +44,11 @@ public class CarrierRepository : ICarrierRepository
     public async Task AddAsync(Carrier carrier, CancellationToken cancellationToken = default)
     {
         await _dbContext.Carriers.AddAsync(carrier, cancellationToken);
+    }
+
+    public async Task UpdateAsync(Carrier carrier, CancellationToken cancellationToken = default)
+    {
+        _dbContext.Carriers.Update(carrier);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

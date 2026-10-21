@@ -206,6 +206,51 @@ public class AuctionServiceTests
         await _notifier.Received(1).AuctionOpenedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), _contractorId, Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task CreateAsync_deadline_window_shorter_than_route_time_throws_Validation()
+    {
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var seg = Segment(
+            contractorId: _contractorId,
+            status: SegmentStatus.Available,
+            pickup: pickup,
+            delivery: pickup.AddHours(10),
+            products: TestData.Product());
+        seg.EstimatedTimeHours = 30; // 30h route needs more than the 10h window
+
+        _segmentRepository.GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), true, Arg.Any<CancellationToken>())
+            .Returns(new[] { seg });
+
+        var act = () => _service.CreateAsync(_contractorId,
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddDays(1), AutomaticAward: false));
+
+        var assertion = await act.Should().ThrowAsync<ValidationException>();
+        assertion.Which.Errors.Should().ContainSingle(e => e.Field == "deliveryDeadline");
+        await _auctionRepository.DidNotReceive().AddAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_deadline_window_equal_to_route_time_is_allowed()
+    {
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var seg = Segment(
+            contractorId: _contractorId,
+            status: SegmentStatus.Available,
+            pickup: pickup,
+            delivery: pickup.AddHours(8),
+            products: TestData.Product());
+        seg.EstimatedTimeHours = 8; // window exactly equals the route time
+
+        _segmentRepository.GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), true, Arg.Any<CancellationToken>())
+            .Returns(new[] { seg });
+
+        var result = await _service.CreateAsync(_contractorId,
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddDays(1), AutomaticAward: false));
+
+        result.Auction.Status.Should().Be(AuctionStatus.Open.ToWire());
+        await _auctionRepository.Received(1).AddAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
+    }
+
     // =====================================================================
     // SearchAsync
     // =====================================================================
@@ -389,14 +434,39 @@ public class AuctionServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_deletes_when_found()
+    public async Task DeleteAsync_soft_cancels_and_releases_route_when_found()
     {
-        var auction = Auction();
+        var route = Route();
+        var auction = Auction(route.Id);
+        var segment = Segment();
+        segment.Status = SegmentStatus.Routed;
+        segment.RouteId = route.Id;
+        segment.RouteSequence = 1;
+
         _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
+        _segmentRepository.GetTrackedByRouteAsync(route.Id, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { segment });
 
         await _service.DeleteAsync(_contractorId, auction.Id);
 
-        await _auctionRepository.Received(1).DeleteAsync(auction, Arg.Any<CancellationToken>());
+        auction.Status.Should().Be(AuctionStatus.Cancelled);
+        route.Status.Should().Be(RouteStatus.Planned);
+        segment.Status.Should().Be(SegmentStatus.Available);
+        segment.RouteId.Should().BeNull();
+        segment.RouteSequence.Should().BeNull();
+        await _auctionRepository.DidNotReceive().DeleteAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_throws_when_auction_not_open()
+    {
+        var auction = Auction(status: AuctionStatus.Closed);
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+
+        var act = () => _service.DeleteAsync(_contractorId, auction.Id);
+
+        await act.Should().ThrowAsync<AuctionNotOpenException>();
     }
 
     // =====================================================================

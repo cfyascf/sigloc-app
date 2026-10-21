@@ -1,3 +1,4 @@
+using Sigloc.Application.Exceptions;
 using Sigloc.Application.Services;
 using Sigloc.Domain.Entities;
 using Sigloc.Domain.Enums;
@@ -245,5 +246,92 @@ public class PartnerNetworkServiceTests
         result.TotalActive.Should().Be(0);
         result.TotalPending.Should().Be(0);
         result.Partners.Should().BeEmpty();
+    }
+
+    // ---------------- RemovePartnershipAsync ----------------
+
+    [Fact]
+    public async Task RemovePartnershipAsync_soft_ends_when_contractor_is_party()
+    {
+        var connection = new PartnerConnection
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = _contractorId,
+            CarrierId = _carrierId,
+            Status = PartnershipStatus.Active,
+        };
+        _connections.GetTrackedByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
+
+        await _service.RemovePartnershipAsync(_contractorId, connection.Id);
+
+        connection.Status.Should().Be(PartnershipStatus.Rejected);
+        await _connections.Received(1).UpdateAsync(connection, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemovePartnershipAsync_soft_ends_when_carrier_is_party()
+    {
+        var connection = new PartnerConnection
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = _contractorId,
+            CarrierId = _carrierId,
+            Status = PartnershipStatus.Pending,
+        };
+        _connections.GetTrackedByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
+
+        await _service.RemovePartnershipAsync(_carrierId, connection.Id);
+
+        connection.Status.Should().Be(PartnershipStatus.Rejected);
+        await _connections.Received(1).UpdateAsync(connection, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemovePartnershipAsync_throws_when_connection_missing()
+    {
+        var id = Guid.NewGuid();
+        _connections.GetTrackedByIdAsync(id, Arg.Any<CancellationToken>()).Returns((PartnerConnection?)null);
+
+        var act = () => _service.RemovePartnershipAsync(_contractorId, id);
+
+        await act.Should().ThrowAsync<PartnershipNotFoundException>();
+        await _connections.DidNotReceive().UpdateAsync(Arg.Any<PartnerConnection>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemovePartnershipAsync_throws_when_requester_not_a_party()
+    {
+        var connection = new PartnerConnection
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = _contractorId,
+            CarrierId = _carrierId,
+            Status = PartnershipStatus.Active,
+        };
+        _connections.GetTrackedByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
+
+        var act = () => _service.RemovePartnershipAsync(Guid.NewGuid(), connection.Id);
+
+        await act.Should().ThrowAsync<PartnershipNotFoundException>();
+        connection.Status.Should().Be(PartnershipStatus.Active);
+        await _connections.DidNotReceive().UpdateAsync(Arg.Any<PartnerConnection>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemovePartnershipAsync_is_idempotent_when_already_rejected()
+    {
+        var connection = new PartnerConnection
+        {
+            Id = Guid.NewGuid(),
+            ContractorId = _contractorId,
+            CarrierId = _carrierId,
+            Status = PartnershipStatus.Rejected,
+        };
+        _connections.GetTrackedByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
+
+        await _service.RemovePartnershipAsync(_contractorId, connection.Id);
+
+        connection.Status.Should().Be(PartnershipStatus.Rejected);
+        await _connections.DidNotReceive().UpdateAsync(Arg.Any<PartnerConnection>(), Arg.Any<CancellationToken>());
     }
 }

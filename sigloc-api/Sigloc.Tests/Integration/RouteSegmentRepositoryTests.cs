@@ -248,4 +248,35 @@ public class RouteSegmentRepositoryTests : IDisposable
         (await new RouteSegmentRepository(assertCtx).GetByIdAsync(segment.Id, _contractorId)).Should().BeNull();
         assertCtx.ProductRouteSegments.Any(i => i.RouteSegmentId == segment.Id).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task GetTrackedByRouteAsync_returns_only_route_segments_and_tracks_them()
+    {
+        var routeId = Guid.NewGuid();
+        var onRouteA = Segment(_contractorId, destination: "A", status: SegmentStatus.Routed);
+        var onRouteB = Segment(_contractorId, destination: "B", status: SegmentStatus.Routed);
+        onRouteA.RouteId = routeId;
+        onRouteB.RouteId = routeId;
+        var offRoute = Segment(_contractorId, destination: "C");
+
+        var seedCtx = _db.CreateContext();
+        seedCtx.RouteSegments.AddRange(onRouteA, onRouteB, offRoute);
+        await seedCtx.SaveChangesAsync();
+
+        var ctx = _db.CreateContext();
+        var result = await new RouteSegmentRepository(ctx).GetTrackedByRouteAsync(routeId);
+
+        result.Should().HaveCount(2);
+        result.Select(s => s.DestinationAddress).Should().BeEquivalentTo(new[] { "A", "B" });
+        result.Should().OnlyContain(s => ctx.Entry(s).State == Microsoft.EntityFrameworkCore.EntityState.Unchanged);
+    }
+
+    [Fact]
+    public async Task GetTrackedByRouteAsync_returns_empty_for_route_without_segments()
+    {
+        var result = await new RouteSegmentRepository(_db.CreateContext())
+            .GetTrackedByRouteAsync(Guid.NewGuid());
+
+        result.Should().BeEmpty();
+    }
 }
