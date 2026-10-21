@@ -40,9 +40,10 @@ public class FreightOfferService : IFreightOfferService
 
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
         var now = DateTimeOffset.UtcNow;
+        var boardFilter = ParseBoardFilter(query.Status);
 
         var (items, totalItems) = await _auctionRepository.SearchAvailableForCarrierAsync(
-            carrierId, search, now, page, pageSize, cancellationToken);
+            carrierId, search, now, page, pageSize, boardFilter, cancellationToken);
 
         var auctionIds = items.Select(i => i.Auction.Id).ToList();
 
@@ -231,4 +232,9 @@ public class FreightOfferService : IFreightOfferService
 
     private static string? NormalizeFilterValue(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();
+
+    private static FreightOfferBoardFilter ParseBoardFilter(string? value)
+        => string.Equals(NormalizeFilterValue(value), "CLOSED", StringComparison.Ordinal)
+            ? FreightOfferBoardFilter.Closed
+            : FreightOfferBoardFilter.Open;
 }

@@ -107,6 +107,15 @@ public class RouteSegmentRepository : IRouteSegmentRepository
         return await query.ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<RouteSegment>> GetTrackedByRouteAsync(
+        Guid routeId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.RouteSegments
+            .Where(s => s.RouteId == routeId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(RouteSegment segment, CancellationToken cancellationToken = default)
     {
         await _dbContext.RouteSegments.AddAsync(segment, cancellationToken);

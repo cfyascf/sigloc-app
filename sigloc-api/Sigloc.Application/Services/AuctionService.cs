@@ -75,6 +75,8 @@ public class AuctionService : IAuctionService
 
         var aggregate = await RouteAggregator.AggregateAsync(segmentIds, segments, _geocodingService, cancellationToken);
 
+        ValidateDeadlineWindow(segments, aggregate.EstimatedTimeHours);
+
         var openedAt = DateTimeOffset.UtcNow;
 
         var result = await _unitOfWork.ExecuteInTransactionAsync(async ct =>
@@ -255,7 +257,37 @@ public class AuctionService : IAuctionService
         var auction = await _auctionRepository.GetTrackedByIdAsync(id, contractorId, cancellationToken)
             ?? throw new AuctionNotFoundException(id);
 
-        await _auctionRepository.DeleteAsync(auction, cancellationToken);
+        // Only an open auction (no winner selected yet) can be cancelled. A closed or
+        // already-cancelled auction is immutable.
+        if (auction.Status != AuctionStatus.Open)
+        {
+            throw new AuctionNotOpenException(id);
+        }
+
+        var route = await _routeRepository.GetTrackedByIdAsync(auction.RouteId, cancellationToken);
+        var segments = await _segmentRepository.GetTrackedByRouteAsync(auction.RouteId, cancellationToken);
+
+        await _unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            // Soft inactivate: keep the record so it still surfaces in the history tab.
+            auction.Status = AuctionStatus.Cancelled;
+
+            // Release the consolidated route and its segments so they can be reused.
+            if (route is not null)
+            {
+                route.Status = RouteStatus.Planned;
+            }
+
+            foreach (var segment in segments)
+            {
+                segment.Status = SegmentStatus.Available;
+                segment.RouteId = null;
+                segment.RouteSequence = null;
+            }
+
+            await _unitOfWork.SaveChangesAsync(ct);
+            return true;
+        }, cancellationToken);
     }
 
     public async Task<BidRankingDto> GetBidRankingAsync(Guid contractorId, Guid auctionId, CancellationToken cancellationToken = default)
@@ -815,6 +847,37 @@ public class AuctionService : IAuctionService
         }
 
         return expiresAt.Value;
+    }
+
+    /// <summary>
+    /// Guards against publishing a route whose delivery window is physically impossible:
+    /// the span between the earliest segment pickup deadline and the latest segment
+    /// delivery deadline must be at least the whole-route estimated travel time, otherwise
+    /// no carrier could ever complete the route before the deadline.
+    /// </summary>
+    private static void ValidateDeadlineWindow(IReadOnlyList<RouteSegment> segments, double estimatedTimeHours)
+    {
+        if (segments.Count == 0)
+        {
+            return;
+        }
+
+        var firstPickup = segments.Min(s => s.PickupDeadline);
+        var lastDelivery = segments.Max(s => s.DeliveryDeadline);
+
+        var availableHours = (lastDelivery - firstPickup).TotalHours;
+
+        if (availableHours < estimatedTimeHours)
+        {
+            throw new ValidationException(
+                new[]
+                {
+                    new ValidationError(
+                        "deliveryDeadline",
+                        $"The window between the first pickup deadline and the last delivery deadline ({Math.Round(availableHours, 2)}h) is shorter than the estimated route time ({Math.Round(estimatedTimeHours, 2)}h). The carrier could never complete the route on time.")
+                },
+                "Could not start the auction.");
+        }
     }
 
     private static CreateAuctionResponseDto MapToResponse(Auction auction, ConsolidatedRoute route, int updatedSegments)

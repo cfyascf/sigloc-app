@@ -111,8 +111,18 @@ export async function getCarrierNetwork(options) {
   }
 }
 
+/**
+ * Desfaz uma parceria (soft-remove). A conexão passa a inativa/encerrada e
+ * continua visível no histórico; pode ser acionada por qualquer lado.
+ * @param {string} connectionId id da conexão (campo `id` do parceiro na UI).
+ */
+export async function removePartnership(connectionId, options) {
+  await apiClient.delete(`${BASE}/${connectionId}`, options)
+}
+
 export const partnerService = {
   getPartnerNetwork,
   getCarrierNetwork,
   partnershipStatusLabel,
+  removePartnership,
 }

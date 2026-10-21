@@ -21,6 +21,12 @@ public class ContractorRepository : IContractorRepository
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
 
+    public Task<Contractor?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Contractors
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+    }
+
     public Task<bool> CnpjExistsAsync(string cnpj, CancellationToken cancellationToken = default)
     {
         return _dbContext.Contractors
@@ -31,5 +37,11 @@ public class ContractorRepository : IContractorRepository
     public async Task AddAsync(Contractor contractor, CancellationToken cancellationToken = default)
     {
         await _dbContext.Contractors.AddAsync(contractor, cancellationToken);
+    }
+
+    public async Task UpdateAsync(Contractor contractor, CancellationToken cancellationToken = default)
+    {
+        _dbContext.Contractors.Update(contractor);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

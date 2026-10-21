@@ -28,7 +28,11 @@ public interface IAuctionService
     /// </summary>
     Task<UpdateAuctionResponseDto> UpdateAsync(Guid contractorId, Guid id, UpdateAuctionRequestDto dto, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes the auction for the owning contractor.</summary>
+    /// <summary>
+    /// Cancels (soft inactivates) an open auction for the owning contractor without
+    /// selecting a winner: the auction is kept with status <c>Cancelled</c> so it remains
+    /// visible in the history, and its consolidated route and segments are released for reuse.
+    /// </summary>
     Task DeleteAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>

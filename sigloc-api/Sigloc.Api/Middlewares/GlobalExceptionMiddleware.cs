@@ -167,6 +167,14 @@ public class GlobalExceptionHandlerMiddleware
                     message = contractorNotFound.Message
                 }),
 
+            CompanyNotFoundException companyNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "EMPRESA_NAO_ENCONTRADA",
+                    message = companyNotFound.Message
+                }),
+
             InvalidInviteException invalidInvite => (
                 (int)HttpStatusCode.BadRequest,
                 new
@@ -181,6 +189,14 @@ public class GlobalExceptionHandlerMiddleware
                 {
                     error = "PARCERIA_JA_EXISTE",
                     message = partnershipExists.Message
+                }),
+
+            PartnershipNotFoundException partnershipNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "PARCERIA_NAO_ENCONTRADA",
+                    message = partnershipNotFound.Message
                 }),
 
             InvalidCredentialsException invalidCredentials => (

@@ -1,5 +1,6 @@
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
+using Sigloc.Application.Exceptions;
 using Sigloc.Domain.Entities;
 using Sigloc.Domain.Enums;
 using Sigloc.Domain.Repositories;
@@ -46,6 +47,28 @@ public class PartnerNetworkService : IPartnerNetworkService
             .ToList();
 
         return new CarrierNetworkDto(totalActive, totalPending, partners);
+    }
+
+    public async Task RemovePartnershipAsync(Guid companyId, Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        var connection = await _connections.GetTrackedByIdAsync(connectionId, cancellationToken);
+
+        // Scope to the requesting company: only a party of the partnership can end it.
+        if (connection is null ||
+            (connection.ContractorId != companyId && connection.CarrierId != companyId))
+        {
+            throw new PartnershipNotFoundException(connectionId);
+        }
+
+        // Already ended: idempotent no-op.
+        if (connection.Status == PartnershipStatus.Rejected)
+        {
+            return;
+        }
+
+        // Soft end: keep the record so it stays visible as an inactive partnership.
+        connection.Status = PartnershipStatus.Rejected;
+        await _connections.UpdateAsync(connection, cancellationToken);
     }
 
     private static CarrierNetworkPartnerDto MontarContratanteDto(PartnerConnection connection)

@@ -68,10 +68,12 @@ public interface IAuctionRepository
     Task DeleteAsync(Auction auction, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Opportunity board (Mural de Fretes): open, non-expired auctions whose owning
-    /// contractor has an <c>Active</c> partnership with the carrier. Joined to the
-    /// consolidated route and its linked segments (with products) and ordered by
-    /// <c>ExpiresAt</c> ascending (closest to expiring first).
+    /// Opportunity board (Mural de Fretes) for a carrier, scoped to contractors with an
+    /// <c>Active</c> partnership. With <see cref="FreightOfferBoardFilter.Open"/> it returns
+    /// open, non-expired auctions ordered by <c>ExpiresAt</c> ascending (closest to expiring
+    /// first); with <see cref="FreightOfferBoardFilter.Closed"/> it returns the history of
+    /// closed, cancelled or expired auctions ordered by <c>ExpiresAt</c> descending (most
+    /// recently ended first). Joined to the consolidated route and its linked segments.
     /// </summary>
     Task<(IReadOnlyList<CarrierAuctionWithRoute> Items, int TotalItems)> SearchAvailableForCarrierAsync(
         Guid carrierId,
@@ -79,6 +81,7 @@ public interface IAuctionRepository
         DateTimeOffset now,
         int page,
         int pageSize,
+        FreightOfferBoardFilter filter = FreightOfferBoardFilter.Open,
         CancellationToken cancellationToken = default);
 
     /// <summary>

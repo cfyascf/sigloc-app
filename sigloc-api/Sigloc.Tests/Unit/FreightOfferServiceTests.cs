@@ -33,7 +33,7 @@ public class FreightOfferServiceTests
             Id = Guid.NewGuid(),
             ContractorId = Guid.NewGuid(),
             OriginAddress = "Curitiba, PR",
-            DestinationAddress = "São Paulo, SP",
+            DestinationAddress = "SÃ£o Paulo, SP",
             OriginCoordinate = "-49.27,-25.42",
             DestinationCoordinate = "-46.63,-23.55",
             DistanceKm = 400,
@@ -98,7 +98,7 @@ public class FreightOfferServiceTests
         var item = new CarrierAuctionWithRoute(auction, route, new[] { segment }, "Contratante X");
 
         _auctionRepository.SearchAvailableForCarrierAsync(
-                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<CancellationToken>())
+                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
             .Returns((new[] { item }, 1));
 
         _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
@@ -124,7 +124,7 @@ public class FreightOfferServiceTests
     public async Task ListAsync_clamps_page_and_pagesize()
     {
         _auctionRepository.SearchAvailableForCarrierAsync(
-                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 100, Arg.Any<CancellationToken>())
+                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 100, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
             .Returns((Array.Empty<CarrierAuctionWithRoute>(), 0));
 
         _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
@@ -137,14 +137,14 @@ public class FreightOfferServiceTests
         result.Page.Should().Be(1);
         result.PageSize.Should().Be(100);
         await _auctionRepository.Received(1).SearchAvailableForCarrierAsync(
-            _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 100, Arg.Any<CancellationToken>());
+            _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 100, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ListAsync_defaults_pagesize_when_zero()
     {
         _auctionRepository.SearchAvailableForCarrierAsync(
-                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<CancellationToken>())
+                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
             .Returns((Array.Empty<CarrierAuctionWithRoute>(), 0));
         _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<AuctionBidMetrics>());
@@ -160,7 +160,7 @@ public class FreightOfferServiceTests
     public async Task ListAsync_trims_search_and_passes_it_to_repository()
     {
         _auctionRepository.SearchAvailableForCarrierAsync(
-                _carrierId, "curitiba", Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<CancellationToken>())
+                _carrierId, "curitiba", Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
             .Returns((Array.Empty<CarrierAuctionWithRoute>(), 0));
         _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<AuctionBidMetrics>());
@@ -170,7 +170,44 @@ public class FreightOfferServiceTests
         await _service.ListAsync(_carrierId, new FreightOfferQueryDto("  curitiba  ", null, null));
 
         await _auctionRepository.Received(1).SearchAvailableForCarrierAsync(
-            _carrierId, "curitiba", Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<CancellationToken>());
+            _carrierId, "curitiba", Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ListAsync_defaults_to_open_board_filter()
+    {
+        _auctionRepository.SearchAvailableForCarrierAsync(
+                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
+            .Returns((Array.Empty<CarrierAuctionWithRoute>(), 0));
+        _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<AuctionBidMetrics>());
+        _bidRepository.GetCarrierBidStatusesAsync(_carrierId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, BidStatus>());
+
+        await _service.ListAsync(_carrierId, new FreightOfferQueryDto(null, null, null));
+
+        await _auctionRepository.Received(1).SearchAvailableForCarrierAsync(
+            _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, FreightOfferBoardFilter.Open, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("CLOSED")]
+    [InlineData("closed")]
+    [InlineData("  Closed  ")]
+    public async Task ListAsync_maps_closed_status_to_history_filter(string status)
+    {
+        _auctionRepository.SearchAvailableForCarrierAsync(
+                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
+            .Returns((Array.Empty<CarrierAuctionWithRoute>(), 0));
+        _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<AuctionBidMetrics>());
+        _bidRepository.GetCarrierBidStatusesAsync(_carrierId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, BidStatus>());
+
+        await _service.ListAsync(_carrierId, new FreightOfferQueryDto(null, null, status));
+
+        await _auctionRepository.Received(1).SearchAvailableForCarrierAsync(
+            _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, FreightOfferBoardFilter.Closed, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -186,7 +223,7 @@ public class FreightOfferServiceTests
         var item = new CarrierAuctionWithRoute(auction, route, new[] { segment }, "C");
 
         _auctionRepository.SearchAvailableForCarrierAsync(
-                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<CancellationToken>())
+                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
             .Returns((new[] { item }, 1));
         _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new[] { new AuctionBidMetrics(auction.Id, 2000m, 2) });
@@ -207,7 +244,7 @@ public class FreightOfferServiceTests
         var item = new CarrierAuctionWithRoute(auction, Route(), new[] { Segment(products: TestData.Product()) }, "C");
 
         _auctionRepository.SearchAvailableForCarrierAsync(
-                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<CancellationToken>())
+                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
             .Returns((new[] { item }, 1));
         _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<AuctionBidMetrics>());
@@ -232,7 +269,7 @@ public class FreightOfferServiceTests
         var item = new CarrierAuctionWithRoute(auction, Route(), new[] { Segment(products: frozen) }, "C");
 
         _auctionRepository.SearchAvailableForCarrierAsync(
-                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<CancellationToken>())
+                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
             .Returns((new[] { item }, 1));
         _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<AuctionBidMetrics>());
@@ -251,7 +288,7 @@ public class FreightOfferServiceTests
         var item = new CarrierAuctionWithRoute(auction, Route(), new[] { Segment() }, "C");
 
         _auctionRepository.SearchAvailableForCarrierAsync(
-                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<CancellationToken>())
+                _carrierId, null, Arg.Any<DateTimeOffset>(), 1, 20, Arg.Any<FreightOfferBoardFilter>(), Arg.Any<CancellationToken>())
             .Returns((new[] { item }, 1));
         _bidRepository.GetMetricsForAuctionsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<AuctionBidMetrics>());

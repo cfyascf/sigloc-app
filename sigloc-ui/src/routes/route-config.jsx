@@ -44,6 +44,7 @@ import BidAnalysis from "@/pages/BidAnalysis"
 import ProductManagement from "@/pages/ProductManagement"
 import FleetManagement from "@/pages/FleetManagement"
 import PartnerNetwork from "@/pages/PartnerNetwork"
+import Profile from "@/pages/Profile"
 
 import { ROLES } from "@/constants/roles"
 import { Auth as AuthAccess } from "@/constants/auth"
@@ -78,6 +79,7 @@ export const ROUTES = [
 
   // Authenticated only (all roles)
   { path: "/control-tower", element: <ControlTower />, access: AuthAccess.AUTHENTICATED, nav: false },
+  { path: "/profile", element: <Profile />, access: AuthAccess.AUTHENTICATED, nav: false },
   { path: "/register-vehicle",       element: <RegisterVehicle />,       access: AuthAccess.AUTHENTICATED, nav: false },
   {
     path: "/partner-network",

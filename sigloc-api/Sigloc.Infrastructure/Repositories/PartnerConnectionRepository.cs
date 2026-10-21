@@ -39,8 +39,20 @@ public class PartnerConnectionRepository : IPartnerConnectionRepository
             .ToListAsync(cancellationToken);
     }
 
+    public Task<PartnerConnection?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.PartnerConnections
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+    }
+
     public async Task AddAsync(PartnerConnection connection, CancellationToken cancellationToken = default)
     {
         await _dbContext.PartnerConnections.AddAsync(connection, cancellationToken);
+    }
+
+    public async Task UpdateAsync(PartnerConnection connection, CancellationToken cancellationToken = default)
+    {
+        _dbContext.PartnerConnections.Update(connection);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

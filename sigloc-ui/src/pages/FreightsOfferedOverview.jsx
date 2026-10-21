@@ -56,7 +56,25 @@ const toCardModel = (item) => ({
   bidDeadline: formatDeadline(item.expiresAt),
   expiresAt: item.expiresAt ?? null,
   risk: item.riskIndicator || RISK.NORMAL,
+  status: item.status || "OPEN",
 })
+
+/** History badge showing whether an auction was cancelled/deleted or finalized normally. */
+const getHistoryBadge = (status) => {
+  if (status === "CANCELLED") {
+    return (
+      <Badge variant="outline" className="rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 border-rose-200 bg-rose-50 text-rose-700">
+        Excluído
+      </Badge>
+    )
+  }
+
+  return (
+    <Badge variant="outline" className="rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 border-slate-200 bg-slate-50 text-slate-600">
+      Não excluído
+    </Badge>
+  )
+}
 
 /** Converts an ISO timestamp to the value accepted by an `<input type="datetime-local">`. */
 const toDateTimeLocal = (value) => {
@@ -237,6 +255,7 @@ export default function FreightsOfferedOverview() {
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredLeiloes.map((l) => {
+                const isHistory = selectedTab === "history"
                 const isEditing = editingId === l.id
                 const isDeleting = deletingId === l.id
 
@@ -247,7 +266,7 @@ export default function FreightsOfferedOverview() {
                     <div className={`flex items-center justify-between border-b px-4 py-3 min-h-[44px] ${isEditing ? "border-blue-100 bg-blue-50/50" : "border-slate-100 bg-slate-50/50"}`}>
                       
                       <div className="relative h-5 w-full">
-                        {isDeleting ? (
+                        {isHistory ? null : isDeleting ? (
                           <div className="absolute inset-0 flex items-center gap-2 animate-in fade-in">
                             <span className="text-[10px] font-bold text-rose-600">Excluir?</span>
                             <button onClick={() => setDeletingId(null)} disabled={deleteAction.pending} className="text-slate-400 hover:text-slate-600 disabled:opacity-50"><X size={14}/></button>
@@ -267,16 +286,19 @@ export default function FreightsOfferedOverview() {
                         )}
                       </div>
 
-                      {getRiskBadge(l.risk)}
+                      {isHistory ? getHistoryBadge(l.status) : getRiskBadge(l.risk)}
                     </div>
 
                     {/* CORPO DO CARD - Altura mínima fixa para estabilidade */}
                     <div className="flex-1 min-h-[220px] flex flex-col">
                       {isDeleting ? (
-                        <div className="flex-1 p-6 flex flex-col items-center justify-center gap-2 text-rose-500 bg-rose-50/30">
+                        <div className="flex-1 p-6 flex flex-col items-center justify-center gap-2 text-rose-500 bg-rose-50/30 text-center">
                           <AlertCircle size={32} />
+                          <p className="text-[11px] font-medium text-rose-600">
+                            O leilão será encerrado sem escolher vencedor e ficará disponível no histórico como excluído.
+                          </p>
                           {deletingId === l.id && deleteAction.error && (
-                            <p className="text-[10px] font-semibold text-rose-600 text-center">{deleteAction.error.message}</p>
+                            <p className="text-[10px] font-semibold text-rose-600">{deleteAction.error.message}</p>
                           )}
                         </div>
                       ) : isEditing ? (
