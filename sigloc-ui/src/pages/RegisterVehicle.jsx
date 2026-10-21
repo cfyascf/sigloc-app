@@ -53,10 +53,10 @@ export default function RegisterVehicle() {
           </Link>
 
           <div className="flex items-center gap-3">
-            <Button asChild variant="outline" className="h-9 border-slate-200 text-xs font-semibold text-slate-700 bg-card">
+            <Button asChild variant="outline" className="h-9 border-slate-200 text-xs font-semibold text-slate-700 bg-white">
               <Link to="/fleet-management"><X size={14} className="mr-1.5" /> Cancelar</Link>
             </Button>
-            <Button type="submit" form="register-vehicle" disabled={saveAction.pending} className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:brightness-90">
+            <Button type="submit" form="register-vehicle" disabled={saveAction.pending} className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700">
               <Save size={14} className="mr-1.5" /> {saveAction.pending ? "Salvando..." : "Salvar Veículo"}
             </Button>
           </div>
@@ -74,7 +74,7 @@ export default function RegisterVehicle() {
                   ======================================================== */}
               
               {/* Bloco 1: Identificação Básica (Esquerda, Topo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-5 rounded-t-xl">
                   <Truck size={16} className="text-blue-600" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Identificação do Veículo</h2>
@@ -111,7 +111,7 @@ export default function RegisterVehicle() {
               </div>
 
               {/* Bloco 2: Alocação e Localização (Direita, Topo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-5 rounded-t-xl">
                   <User size={16} className="text-emerald-600" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Atribuição Física</h2>
@@ -124,7 +124,7 @@ export default function RegisterVehicle() {
                     <div className="absolute bottom-5 left-3.5 top-8 w-px border-l-2 border-dashed border-slate-200" />
                     
                     <div className="relative space-y-2 pl-8">
-                      <span className="absolute left-1.5 top-2.5 h-4 w-4 rounded-full border-[3px] border-card bg-zinc-800" />
+                      <span className="absolute left-1.5 top-2.5 h-4 w-4 rounded-full border-[3px] border-white bg-slate-800" />
                       <label className="text-xs font-bold text-slate-600">Motorista Responsável</label>
                       <Input 
                         placeholder="Nome do motorista (Opcional)" 
@@ -135,7 +135,7 @@ export default function RegisterVehicle() {
                     </div>
 
                     <div className="relative space-y-2 pl-8">
-                      <span className="absolute left-1.5 top-2.5 h-4 w-4 rounded-full border-[3px] border-card bg-emerald-500" />
+                      <span className="absolute left-1.5 top-2.5 h-4 w-4 rounded-full border-[3px] border-white bg-emerald-500" />
                       <label className="text-xs font-bold text-slate-600">Pátio / Localização Atual</label>
                       <Input 
                         placeholder="Ex: Curitiba, PR" 
@@ -153,7 +153,7 @@ export default function RegisterVehicle() {
                   ======================================================== */}
 
               {/* Bloco 3: Dimensionamento e Equipamento (Esquerda, Baixo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-5 rounded-t-xl">
                   <Scale size={16} className="text-blue-600" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Capacidade da Carroceria</h2>
@@ -164,7 +164,7 @@ export default function RegisterVehicle() {
                     <label htmlFor="axle-count" className="text-xs font-bold text-slate-600">Quantidade de eixos</label>
                     <Input id="axle-count" type="number" min="1" step="1" required value={formData.axleCount} onChange={(event) => setFormData({ ...formData, axleCount: event.target.value })} />
                     <label htmlFor="refrigeration" className="block text-xs font-bold text-slate-600">Refrigeração</label>
-                    <select id="refrigeration" value={formData.refrigerationLevel} onChange={(event) => setFormData({ ...formData, refrigerationLevel: Number(event.target.value) })} className="h-10 w-full rounded-md border border-slate-200 bg-card px-3 text-sm">
+                    <select id="refrigeration" value={formData.refrigerationLevel} onChange={(event) => setFormData({ ...formData, refrigerationLevel: Number(event.target.value) })} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm">
                       {Object.entries(REFRIGERATION_BY_VALUE).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
                     <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={formData.hasMopp} onChange={(event) => setFormData({ ...formData, hasMopp: event.target.checked })} /> Possui MOPP</label>
@@ -222,7 +222,7 @@ export default function RegisterVehicle() {
               </div>
 
               {/* Bloco 4: Status Operacional (Direita, Baixo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-5 rounded-t-xl">
                   <Activity size={16} className="text-amber-600" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Disponibilidade e Status</h2>

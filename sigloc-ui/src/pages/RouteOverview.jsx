@@ -46,7 +46,7 @@ export default function RouteOverview() {
     <AppShell 
       title="Gestão de Trechos da Frota"
       actions={
-        <Button asChild className="w-full bg-zinc-900 text-white hover:bg-zinc-800 md:w-auto">
+        <Button asChild className="w-full bg-slate-900 text-white hover:bg-slate-800 md:w-auto">
           <Link to="/load-management">
             <Plus size={16} className="mr-2" />
             Criar rota

@@ -166,7 +166,7 @@ export function InviteRegisterForm({ token, onSuccess, onExistingCarrier }) {
         <Button
           type="submit"
           disabled={pending}
-          className="mt-2 w-full bg-zinc-900 text-white hover:bg-zinc-800"
+          className="mt-2 w-full bg-slate-900 text-white hover:bg-slate-800"
         >
           {credentialAction.pending ? "Criando conta..." : "Criar Conta e Conectar"}
         </Button>

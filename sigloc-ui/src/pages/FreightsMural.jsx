@@ -46,10 +46,10 @@ export default function FreightsMural() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por cliente ou rota..."
-                className="h-9 border-slate-200 bg-card pl-9 text-xs"
+                className="h-9 border-slate-200 bg-white pl-9 text-xs"
               />
             </div>
-            <Button variant="outline" className="h-9 border-slate-200 bg-card text-xs font-semibold text-slate-700">
+            <Button variant="outline" className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700">
               <Filter size={14} className="mr-1.5 text-slate-500" /> Filtros
             </Button>
           </div>
@@ -61,7 +61,7 @@ export default function FreightsMural() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               
               {filteredOfertas.map((o) => (
-                <div key={o.id} className="group relative flex flex-col rounded-xl border border-slate-200 bg-card shadow-sm hover:shadow-md transition-all">
+                <div key={o.id} className="group relative flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all">
                   
                   {/* HEADER DO CARD: Contratante + Budget */}
                   <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 py-3">
@@ -112,7 +112,7 @@ export default function FreightsMural() {
 
                     {/* AÇÃO PRINCIPAL */}
                     <div className="mt-auto pt-4 border-t border-slate-100">
-                      <Button asChild className="w-full bg-blue-600 hover:brightness-90 text-white font-bold h-9 text-xs">
+                      <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 text-xs">
                         <Link to={`/freight-bid/${o.id}`}>Analisar e Dar Lance <ArrowRight size={14} className="ml-2" /></Link>
                       </Button>
                     </div>

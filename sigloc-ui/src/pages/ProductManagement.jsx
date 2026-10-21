@@ -42,7 +42,7 @@ function ListItem({ product, selected, onSelect }) {
     <button
       onClick={() => onSelect(product.id)}
       className={`flex w-full items-start gap-4 p-4 text-left transition-colors focus:outline-none ${
-        selected ? "bg-blue-50/50" : "bg-card hover:bg-slate-50/70"
+        selected ? "bg-blue-50/50" : "bg-white hover:bg-slate-50/70"
       }`}
     >
       <div
@@ -265,7 +265,7 @@ export default function ProductManagement() {
     <AppShell title="Catálogo de Produtos">
       <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl gap-6 overflow-hidden">
         {/* PAINEL ESQUERDO: LISTAGEM */}
-        <div className="flex w-full flex-col rounded-xl border border-slate-200 bg-card lg:w-1/2 xl:w-[45%]">
+        <div className="flex w-full flex-col rounded-xl border border-slate-200 bg-white lg:w-1/2 xl:w-[45%]">
           <div className="flex shrink-0 flex-col gap-3 border-b border-slate-100 p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-800">
@@ -274,7 +274,7 @@ export default function ProductManagement() {
               <Button
                 size="sm"
                 onClick={() => navigate("/register-product")}
-                className="h-8 bg-blue-600 text-xs font-bold text-white hover:brightness-90"
+                className="h-8 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700"
               >
                 <Plus size={14} className="mr-1.5" /> Novo SKU
               </Button>
@@ -285,7 +285,7 @@ export default function ProductManagement() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por nome ou código..."
-                className="h-9 border-slate-200 bg-slate-50 pl-9 text-xs focus:bg-card"
+                className="h-9 border-slate-200 bg-slate-50 pl-9 text-xs focus:bg-white"
               />
             </div>
           </div>
@@ -328,7 +328,7 @@ export default function ProductManagement() {
         </div>
 
         {/* PAINEL DIREITO: DETALHES / EDIÇÃO */}
-        <div className="hidden w-full flex-col rounded-xl border border-slate-200 bg-card lg:flex lg:w-1/2 xl:w-[55%]">
+        <div className="hidden w-full flex-col rounded-xl border border-slate-200 bg-white lg:flex lg:w-1/2 xl:w-[55%]">
           {!selectedId ? (
             <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-slate-500">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50">
@@ -362,7 +362,7 @@ export default function ProductManagement() {
                   {!isEditing && (
                     <Badge
                       variant="outline"
-                      className="ml-2 bg-card text-[9px] text-slate-400"
+                      className="ml-2 bg-white text-[9px] text-slate-400"
                     >
                       Somente Leitura
                     </Badge>
@@ -374,7 +374,7 @@ export default function ProductManagement() {
                       variant="outline"
                       size="sm"
                       onClick={handleStartEdit}
-                      className="h-8 bg-card text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      className="h-8 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
                       <Pencil size={14} className="mr-1.5" /> Editar
                     </Button>
@@ -435,14 +435,14 @@ export default function ProductManagement() {
                     <Button
                       variant="outline"
                       disabled={saveAction.pending}
-                      className="h-8 bg-card text-xs font-semibold text-slate-700"
+                      className="h-8 bg-white text-xs font-semibold text-slate-700"
                       onClick={handleCancelEdit}
                     >
                       <X size={14} className="mr-1.5" /> Cancelar
                     </Button>
                     <Button
                       disabled={saveAction.pending}
-                      className="h-8 bg-blue-600 text-xs font-bold text-white hover:brightness-90"
+                      className="h-8 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700"
                       onClick={handleSave}
                     >
                       {saveAction.pending ? (

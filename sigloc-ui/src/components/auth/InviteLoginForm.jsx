@@ -110,7 +110,7 @@ export function InviteLoginForm({ token, onConnected }) {
         <Button
           type="submit"
           disabled={pending}
-          className="mt-2 w-full bg-blue-600 text-white hover:brightness-90"
+          className="mt-2 w-full bg-blue-600 text-white hover:bg-blue-700"
         >
           {pending ? "Conectando..." : "Entrar e Conectar"}
         </Button>

@@ -70,10 +70,10 @@ function PartnerCard({ partner, isCarrierView }) {
   const statusClassName = statusStyles[partner.status] || "border-slate-200 bg-slate-50 text-slate-600"
 
   return (
-    <article className="flex flex-col rounded-xl border border-slate-200 bg-card">
+    <article className="flex flex-col rounded-xl border border-slate-200 bg-white">
       <div className="flex h-[52px] items-center justify-between gap-3 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-sm font-black text-white">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-black text-white">
             {partner.logoLetter}
           </div>
           <div className="min-w-0">
@@ -115,7 +115,7 @@ function PartnerCard({ partner, isCarrierView }) {
         )}
 
         {isCarrierView ? (
-          <div className="rounded-lg border border-slate-100 bg-card p-3">
+          <div className="rounded-lg border border-slate-100 bg-white p-3">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Código de conexão</p>
             <p className="mt-1 text-sm font-bold text-slate-800">{partner.inviteCode}</p>
             <p className="mt-1 text-xs text-slate-500">Use esse código para validar o convite recebido.</p>
@@ -123,14 +123,14 @@ function PartnerCard({ partner, isCarrierView }) {
         ) : (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-card p-3">
+              <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white p-3">
                 <Star size={14} className="shrink-0 text-amber-500" />
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nota média</p>
                   <p className="mt-0.5 text-sm font-bold text-slate-800">{formatRating(partner.averageRating)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-card p-3">
+              <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white p-3">
                 <ShieldCheck
                   size={14}
                   className={`shrink-0 ${partner.hasActiveInsurancePolicy ? "text-emerald-600" : "text-slate-300"}`}
@@ -144,7 +144,7 @@ function PartnerCard({ partner, isCarrierView }) {
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-100 bg-card p-3">
+            <div className="rounded-lg border border-slate-100 bg-white p-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Última interação</p>
               <p className="mt-1 text-sm font-bold text-slate-800">{formatDateTime(partner.lastInteraction)}</p>
             </div>
@@ -153,7 +153,7 @@ function PartnerCard({ partner, isCarrierView }) {
 
         {isCarrierView && (
           <div className="mt-auto pt-1">
-            <Button asChild className="h-9 w-full bg-zinc-900 text-xs font-bold text-white hover:bg-zinc-800">
+            <Button asChild className="h-9 w-full bg-slate-900 text-xs font-bold text-white hover:bg-slate-800">
               <Link to={`/freights-offers-overview?partner=${encodeURIComponent(partner.name)}`}>
                 Ver Ofertas Disponíveis <ArrowRight size={14} className="ml-1.5" />
               </Link>
@@ -185,7 +185,7 @@ function ActiveInviteBlock({ invite, pending, error, onCopy, onGenerate, copied 
         )}
         <Button
           onClick={onGenerate}
-          className="h-9 w-full bg-blue-600 text-xs font-bold text-white hover:brightness-90"
+          className="h-9 w-full bg-blue-600 text-xs font-bold text-white hover:bg-blue-700"
         >
           <Plus size={14} className="mr-1.5" /> Gerar Convite
         </Button>
@@ -206,7 +206,7 @@ function ActiveInviteBlock({ invite, pending, error, onCopy, onGenerate, copied 
       <Button
         variant="outline"
         onClick={onCopy}
-        className="mt-1 h-9 w-full border-slate-200 bg-card text-xs font-bold text-slate-700 hover:bg-slate-50"
+        className="mt-1 h-9 w-full border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50"
       >
         {copied ? (
           <>
@@ -318,7 +318,7 @@ export default function PartnerNetwork() {
       <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col gap-5 overflow-hidden">
         <div className="grid shrink-0 gap-4 lg:grid-cols-[1.5fr_1fr]">
 
-          <section className="rounded-xl border border-slate-200 bg-card p-5">
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
             {isCarrierView ? (
               <>
                 <div className="flex items-center gap-2">
@@ -340,7 +340,7 @@ export default function PartnerNetwork() {
                   <Button
                     onClick={handleConnect}
                     disabled={!connectionValue.trim() || connectAction.pending}
-                    className="h-10 bg-blue-600 text-xs font-bold text-white hover:brightness-90"
+                    className="h-10 bg-blue-600 text-xs font-bold text-white hover:bg-blue-700"
                   >
                     {connectAction.pending ? (
                       <>
@@ -393,7 +393,7 @@ export default function PartnerNetwork() {
               <Button
                 variant="outline"
                 onClick={networkStatus.retry}
-                className="h-9 border-slate-200 bg-card text-xs font-bold text-slate-700 hover:bg-slate-50"
+                className="h-9 border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50"
               >
                 Tentar novamente
               </Button>

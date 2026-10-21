@@ -2,18 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
-@import "./themes.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --color-header: var(--header);
-    --color-header-foreground: var(--header-foreground);
-    --color-brand: var(--brand);
-    --color-sidebar-strong: var(--sidebar-strong);
-    --color-sidebar-active: var(--sidebar-active);
-    --color-sidebar-active-foreground: var(--sidebar-active-foreground);
-    --color-sidebar-active-border: var(--sidebar-active-border);
     --font-heading: var(--font-sans);
     --font-sans: 'Inter Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
@@ -58,13 +50,13 @@
 
 @layer utilities {
   .glass-panel {
-    background: color-mix(in oklab, var(--card) 88%, transparent);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 251, 252, 0.82));
     backdrop-filter: blur(10px);
   }
 
   .planner-hero {
     background-image:
-      linear-gradient(135deg, color-mix(in oklab, var(--primary) 85%, black), var(--primary) 60%, color-mix(in oklab, var(--primary) 65%, var(--brand)));
+      linear-gradient(135deg, rgba(28, 92, 122, 0.96), rgba(48, 120, 156, 0.88) 55%, rgba(227, 180, 52, 0.82));
   }
 
   .focus-ring-strong {
@@ -73,21 +65,72 @@
 }
 
 :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.52 0.13 211);
+    --primary-foreground: oklch(0.985 0.01 210);
+    --secondary: oklch(0.96 0.016 196);
+    --secondary-foreground: oklch(0.26 0.03 220);
+    --muted: oklch(0.975 0.006 210);
+    --muted-foreground: oklch(0.5 0.02 220);
+    --accent: oklch(0.95 0.03 85);
+    --accent-foreground: oklch(0.3 0.03 70);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.915 0.012 220);
+    --input: oklch(0.915 0.012 220);
+    --ring: oklch(0.64 0.08 210);
+    --chart-1: oklch(0.77 0.11 196);
+    --chart-2: oklch(0.68 0.14 211);
+    --chart-3: oklch(0.62 0.16 235);
+    --chart-4: oklch(0.73 0.13 85);
+    --chart-5: oklch(0.58 0.12 165);
     --radius: 0.625rem;
+    --sidebar: oklch(0.985 0.006 205);
+    --sidebar-foreground: oklch(0.18 0.015 220);
+    --sidebar-primary: oklch(0.52 0.13 211);
+    --sidebar-primary-foreground: oklch(0.985 0.01 210);
+    --sidebar-accent: oklch(0.95 0.02 205);
+    --sidebar-accent-foreground: oklch(0.22 0.02 220);
+    --sidebar-border: oklch(0.915 0.012 220);
+    --sidebar-ring: oklch(0.64 0.08 210);
 }
 
-/* Cores vêm de themes.css ([data-brand] em <html>) */
-
-[data-brand="public"] body {
-  background-image:
-    radial-gradient(circle at top left, rgba(79, 164, 196, 0.16), transparent 30%),
-    radial-gradient(circle at top right, rgba(245, 197, 66, 0.14), transparent 24%),
-    linear-gradient(180deg, rgba(246, 251, 253, 0.96), rgba(255, 255, 255, 0.9));
-  background-attachment: fixed;
-}
-
-[data-brand="public"] .planner-hero {
-  background-image: linear-gradient(135deg, rgba(28, 92, 122, 0.96), rgba(48, 120, 156, 0.88) 55%, rgba(227, 180, 52, 0.82));
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.432 0.232 292.759);
+    --primary-foreground: oklch(0.969 0.016 293.756);
+    --secondary: oklch(0.274 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.811 0.111 293.571);
+    --chart-2: oklch(0.606 0.25 292.717);
+    --chart-3: oklch(0.541 0.281 293.009);
+    --chart-4: oklch(0.491 0.27 292.581);
+    --chart-5: oklch(0.432 0.232 292.759);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.606 0.25 292.717);
+    --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {
@@ -96,12 +139,17 @@
     }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(circle at top left, rgba(79, 164, 196, 0.16), transparent 30%),
+      radial-gradient(circle at top right, rgba(245, 197, 66, 0.14), transparent 24%),
+      linear-gradient(180deg, rgba(246, 251, 253, 0.96), rgba(255, 255, 255, 0.9));
+    background-attachment: fixed;
     }
   html {
     @apply font-sans;
     }
 
   ::selection {
-    background: color-mix(in oklab, var(--primary) 25%, transparent);
+    background: rgba(63, 126, 158, 0.18);
   }
 }

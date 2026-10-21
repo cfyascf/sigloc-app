@@ -54,7 +54,7 @@ export default function TransporterManagement() {
     <AppShell 
       title="Gestão de transportadores"
       actions={
-        <Button className="w-full bg-zinc-900 text-white hover:bg-zinc-800 md:w-auto">
+        <Button className="w-full bg-slate-900 text-white hover:bg-slate-800 md:w-auto">
           <Plus size={16} className="mr-2" /> 
           Novo Transportador
         </Button>

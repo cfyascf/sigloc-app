@@ -202,10 +202,10 @@ export default function FreightsOfferedOverview() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por trecho..."
-                className="h-9 border-slate-200 bg-card pl-9 text-xs"
+                className="h-9 border-slate-200 bg-white pl-9 text-xs"
               />
             </div>
-            <Button variant="outline" className="h-9 border-slate-200 bg-card text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            <Button variant="outline" className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50">
               <SlidersHorizontal size={14} className="mr-1.5 text-slate-500" /> Filtros
             </Button>
           </div>
@@ -215,11 +215,11 @@ export default function FreightsOfferedOverview() {
           <div className="h-full overflow-y-auto pr-2 pb-6">
 
             {listPending ? (
-              <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-card p-10 text-sm text-slate-500">
+              <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-500">
                 <Loader2 size={16} className="animate-spin" /> Carregando {selectedTab === "active" ? "leilões em andamento" : "histórico de leilões"}...
               </div>
             ) : listAction.error ? (
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-card p-6">
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-6">
                 <FormAlert message={listAction.error.message} />
                 <Button
                   variant="outline"
@@ -231,7 +231,7 @@ export default function FreightsOfferedOverview() {
                 </Button>
               </div>
             ) : filteredLeiloes.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-card p-10 text-center text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
                 {selectedTab === "active" ? "Nenhum leilão em andamento encontrado." : "Nenhum leilão no histórico encontrado."}
               </div>
             ) : (
@@ -241,7 +241,7 @@ export default function FreightsOfferedOverview() {
                 const isDeleting = deletingId === l.id
 
                 return (
-                  <div key={l.id} className="group relative flex flex-col rounded-xl border border-slate-200 bg-card transition-all overflow-hidden">
+                  <div key={l.id} className="group relative flex flex-col rounded-xl border border-slate-200 bg-white transition-all overflow-hidden">
                     
                     {/* CABEÇALHO DO CARD - Azulado no Edit Mode */}
                     <div className={`flex items-center justify-between border-b px-4 py-3 min-h-[44px] ${isEditing ? "border-blue-100 bg-blue-50/50" : "border-slate-100 bg-slate-50/50"}`}>
@@ -280,7 +280,7 @@ export default function FreightsOfferedOverview() {
                           )}
                         </div>
                       ) : isEditing ? (
-                        <div className="p-4 space-y-3 bg-card animate-in fade-in duration-200 h-full flex flex-col">
+                        <div className="p-4 space-y-3 bg-white animate-in fade-in duration-200 h-full flex flex-col">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold uppercase text-slate-500">Prazo (Deadline)</label>
                             <Input type="datetime-local" value={editForm.deadline ?? ""} onChange={(e) => setEditForm({...editForm, deadline: e.target.value})} className="h-8 text-xs border-slate-200" />
@@ -290,7 +290,7 @@ export default function FreightsOfferedOverview() {
                           )}
                           <div className="flex gap-2 justify-end mt-auto pt-4 border-t border-slate-100">
                             <Button size="sm" variant="ghost" onClick={cancelEditing} disabled={updateAction.pending} className="h-8 text-xs">Cancelar</Button>
-                            <Button size="sm" onClick={saveEdit} disabled={updateAction.pending} className="h-8 text-xs bg-blue-600 hover:brightness-90 text-white">
+                            <Button size="sm" onClick={saveEdit} disabled={updateAction.pending} className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">
                               {updateAction.pending ? <Loader2 size={14} className="animate-spin" /> : "Salvar"}
                             </Button>
                           </div>

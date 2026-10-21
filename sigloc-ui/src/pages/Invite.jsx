@@ -25,7 +25,7 @@ function InviteShell({ children }) {
           </h1>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-card p-8 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           {children}
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function Invite() {
           title="Parceria estabelecida!"
           description={`Sua conexão com ${connected || contractorName} foi criada com sucesso.`}
         >
-          <Button asChild className="mt-2 bg-blue-600 text-white hover:brightness-90">
+          <Button asChild className="mt-2 bg-blue-600 text-white hover:bg-blue-700">
             <Link to="/partner-network">
               Ver Rede de Parceiros <ArrowRight size={16} className="ml-1.5" />
             </Link>
@@ -159,7 +159,7 @@ export default function Invite() {
             description={autoConnectAction.error.message}
           >
             <Button
-              className="mt-2 bg-blue-600 text-white hover:brightness-90"
+              className="mt-2 bg-blue-600 text-white hover:bg-blue-700"
               onClick={() =>
                 autoConnectAction.run().then((result) => {
                   if (result.ok || result.error?.code === "PARCERIA_JA_EXISTE") {
@@ -216,13 +216,13 @@ export default function Invite() {
         <TabsList className="mb-6 grid w-full grid-cols-2 bg-slate-200/50 p-1">
           <TabsTrigger
             value="register"
-            className="data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
           >
             Criar Conta
           </TabsTrigger>
           <TabsTrigger
             value="login"
-            className="data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
           >
             Já tenho conta
           </TabsTrigger>
