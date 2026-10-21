@@ -72,7 +72,7 @@ const toRouteModel = (detail) => {
 
 function getStopBadgeClass(index, totalStops) {
   if (index === 0) {
-    return "bg-zinc-800"
+    return "bg-slate-800"
   }
 
   if (index === totalStops - 1) {
@@ -124,11 +124,11 @@ export default function SegmentDetails() {
           </div>
 
           {detailPending ? (
-            <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-card p-10 text-sm text-slate-500">
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-500">
               <Loader2 size={16} className="animate-spin" /> Carregando detalhes da rota...
             </div>
           ) : detailAction.error ? (
-            <div className="space-y-3 rounded-xl border border-slate-200 bg-card p-6">
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-6">
               <FormAlert message={detailAction.error.message} />
               <Button
                 variant="outline"
@@ -140,7 +140,7 @@ export default function SegmentDetails() {
               </Button>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-card p-10 text-center text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
               Rota não encontrada.
             </div>
           )}
@@ -191,7 +191,7 @@ export default function SegmentDetails() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* BLOCO 1: Capacidade e Equipamento */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-5">
                   <Truck size={16} className="text-blue-600" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Exigência do Caminhão</h2>
@@ -215,7 +215,7 @@ export default function SegmentDetails() {
               </div>
 
               {/* BLOCO 2: Termômetro Financeiro e Leilão */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-5">
                   <DollarSign size={16} className="text-emerald-600" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Cenário Financeiro da Rota</h2>
@@ -247,13 +247,13 @@ export default function SegmentDetails() {
             </div>
 
             {/* BLOCO 3: ITINERÁRIO (O Mapa da Viagem) */}
-            <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+            <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
                 <div className="flex items-center gap-2">
                   <MapPinned size={16} className="text-emerald-600" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Plano de Viagem (Milking Run)</h2>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-400 bg-card px-2 py-1 rounded border border-slate-200">{route.totalDistanceKm} km totais</span>
+                <span className="text-xs font-mono font-bold text-slate-400 bg-white px-2 py-1 rounded border border-slate-200">{route.totalDistanceKm} km totais</span>
               </div>
               
               <div className="p-5 flex flex-col md:flex-row gap-6 md:gap-2 justify-between">
@@ -265,7 +265,7 @@ export default function SegmentDetails() {
                     )}
                     
                     <div className="relative z-10 flex flex-col items-center text-center">
-                      <div className={`h-6 w-6 rounded-full border-4 border-card flex items-center justify-center text-[10px] font-black text-white ${getStopBadgeClass(index, route.itinerary.length)}`}>
+                      <div className={`h-6 w-6 rounded-full border-4 border-white flex items-center justify-center text-[10px] font-black text-white ${getStopBadgeClass(index, route.itinerary.length)}`}>
                         {index + 1}
                       </div>
                       <p className="text-xs font-bold text-slate-800 mt-2">{stop.city}</p>
@@ -278,7 +278,7 @@ export default function SegmentDetails() {
             </div>
 
             {/* BLOCO 4: OS TRECHOS QUE COMPÕEM A ROTA */}
-            <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+            <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
                 <div className="flex items-center gap-2">
                   <Layers size={16} className="text-blue-600" />

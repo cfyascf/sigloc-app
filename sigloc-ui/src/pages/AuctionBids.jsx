@@ -93,7 +93,7 @@ export default function AuctionBids() {
 
           <div className="flex items-center gap-3">
             {auctionId && (
-              <Button asChild variant="outline" className="h-9 border-slate-200 text-xs font-semibold text-slate-700 bg-card">
+              <Button asChild variant="outline" className="h-9 border-slate-200 text-xs font-semibold text-slate-700 bg-white">
                 <Link to={`/route-segment-details/${auctionId}`}>
                   <ExternalLink size={14} className="mr-1.5" /> Detalhes da Rota
                 </Link>
@@ -116,7 +116,7 @@ export default function AuctionBids() {
 
         {/* CONTEXTO DA ROTA - A TRÍPLICE RESTRIÇÃO (Escopo, Tempo, Custo) */}
         {routeSummary && (
-          <div className="flex shrink-0 flex-col md:flex-row rounded-xl border border-slate-200 bg-card mb-5 divide-y md:divide-y-0 md:divide-x divide-slate-100 overflow-hidden">
+          <div className="flex shrink-0 flex-col md:flex-row rounded-xl border border-slate-200 bg-white mb-5 divide-y md:divide-y-0 md:divide-x divide-slate-100 overflow-hidden">
             
             {/* Bloco 1: O Escopo (Físico) */}
             <div className="flex-1 p-5 flex flex-col justify-center">
@@ -139,7 +139,7 @@ export default function AuctionBids() {
               </p>
               <div className="space-y-2.5">
                 {/* Card Coleta */}
-                <div className="flex items-center justify-between bg-card px-3 py-2 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-200">
                     <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-amber-500" />
                         <span className="text-xs font-bold text-slate-700">Primeira Coleta</span>
@@ -147,7 +147,7 @@ export default function AuctionBids() {
                         <span className="text-xs font-black text-slate-800">{formatDeadline(routeSummary.firstPickupDeadline)}</span>
                 </div>
                 {/* Card Entrega */}
-                <div className="flex items-center justify-between bg-card px-3 py-2 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-200">
                     <div className="flex items-center gap-2">
                         <CheckCircle2 size={14} className="text-emerald-500" />
                         <span className="text-xs font-bold text-slate-700">Última Entrega</span>
@@ -215,7 +215,7 @@ export default function AuctionBids() {
                       className={`relative flex flex-col rounded-xl border p-4 transition-all ${
                         highlight 
                           ? "border-emerald-300 bg-emerald-50/20 ring-1 ring-emerald-100" 
-                          : "border-slate-200 bg-card"
+                          : "border-slate-200 bg-white"
                       }`}
                     >
                       
@@ -272,8 +272,8 @@ export default function AuctionBids() {
                                 onClick={() => handleAward(bid.bidId)}
                                 className={`h-9 px-5 text-xs font-bold tracking-wide transition-colors ${
                                   isTopRank 
-                                    ? "bg-emerald-600 hover:brightness-90 text-white" 
-                                    : "bg-card border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                    ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                                    : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                                 }`}
                               >
                                 {awarding ? <Loader2 size={14} className="animate-spin" /> : <><CheckCircle2 size={14} className="mr-1.5" /> Adjudicar Vencedor</>}

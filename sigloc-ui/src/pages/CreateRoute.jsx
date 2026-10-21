@@ -84,7 +84,7 @@ export default function CreateRoute() {
             <Button asChild variant="outline" className="border-slate-200">
               <Link to="/load-management">Cancelar</Link>
             </Button>
-            <Button className="bg-sky-600 text-white hover:brightness-90" onClick={() => navigate("/load-management")}>
+            <Button className="bg-sky-700 text-white hover:bg-sky-800" onClick={() => navigate("/load-management")}>
               <Save size={16} className="mr-2" /> Salvar Trecho
             </Button>
           </div>
@@ -93,7 +93,7 @@ export default function CreateRoute() {
         <section className="planner-hero overflow-hidden rounded-[28px] p-6 text-white shadow-lg shadow-sky-950/10 md:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr] lg:items-end">
             <div className="space-y-4">
-              <Badge className="border border-card/20 bg-card/12 text-white hover:bg-card/15">Fluxo guiado do planejador</Badge>
+              <Badge className="border border-white/20 bg-white/12 text-white hover:bg-white/15">Fluxo guiado do planejador</Badge>
               <div className="space-y-3">
                 <h1 className="max-w-3xl text-3xl font-semibold tracking-tight md:text-4xl">
                   Monte um trecho pronto para negociação, com clareza operacional desde a primeira parada.
@@ -104,7 +104,7 @@ export default function CreateRoute() {
               </div>
             </div>
 
-            <div className="glass-panel rounded-3xl border border-card/20 p-5 text-slate-900">
+            <div className="glass-panel rounded-3xl border border-white/20 p-5 text-slate-900">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Prontidão</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                 <div>
@@ -126,7 +126,7 @@ export default function CreateRoute() {
           </div>
         </section>
 
-        <section className="glass-panel rounded-[24px] border border-card/60 p-4 shadow-sm">
+        <section className="glass-panel rounded-[24px] border border-white/60 p-4 shadow-sm">
           <div className="grid gap-3 md:grid-cols-3">
             {steps.map((step, index) => {
               const isActive = currentStep === index
@@ -138,7 +138,7 @@ export default function CreateRoute() {
                   type="button"
                   aria-current={isActive ? "step" : undefined}
                   onClick={() => setCurrentStep(index)}
-                  className={`focus-ring-strong rounded-2xl border px-4 py-4 text-left transition-colors ${isActive ? "border-sky-300 bg-card shadow-sm" : "border-slate-200/80 bg-card/70 hover:bg-card"}`}
+                  className={`focus-ring-strong rounded-2xl border px-4 py-4 text-left transition-colors ${isActive ? "border-sky-300 bg-white shadow-sm" : "border-slate-200/80 bg-white/70 hover:bg-white"}`}
                 >
                   <div className="flex items-center gap-3">
                     <span className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${getStepBadgeClass(isActive, isDone)}`}>
@@ -172,7 +172,7 @@ export default function CreateRoute() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             {currentStep === 0 && (
-              <Card className="glass-panel gap-0 border-card/60 py-0 shadow-sm">
+              <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
                 <CardHeader className="border-b border-slate-200/70 pb-5">
                   <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                     <Route size={18} className="mr-2 text-blue-600" /> Identidade do Trecho
@@ -184,13 +184,13 @@ export default function CreateRoute() {
                 <CardContent className="space-y-6 pt-6">
                   <div className="space-y-2">
                     <label htmlFor="segment-name" className="text-sm font-medium text-slate-700">Nome do trecho</label>
-                    <Input id="segment-name" value={segmentName} onChange={(e) => setSegmentName(e.target.value)} className="focus-ring-strong border-slate-200 bg-card/90" />
+                    <Input id="segment-name" value={segmentName} onChange={(e) => setSegmentName(e.target.value)} className="focus-ring-strong border-slate-200 bg-white/90" />
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-medium text-slate-700">Paradas do trecho</p>
-                      <Button type="button" variant="outline" size="sm" className="border-slate-200 bg-card" onClick={addStop}>
+                      <Button type="button" variant="outline" size="sm" className="border-slate-200 bg-white" onClick={addStop}>
                         <Plus size={14} className="mr-1" /> Adicionar parada
                       </Button>
                     </div>
@@ -204,7 +204,7 @@ export default function CreateRoute() {
                           <Input
                             value={stop.value}
                             onChange={(e) => updateStop(index, e.target.value)}
-                            className="focus-ring-strong border-slate-200 bg-card/90 pl-9"
+                            className="focus-ring-strong border-slate-200 bg-white/90 pl-9"
                             placeholder={`Parada ${index + 1}`}
                           />
                         </div>
@@ -223,12 +223,12 @@ export default function CreateRoute() {
                       id="segment-note"
                       value={plannerNote}
                       onChange={(e) => setPlannerNote(e.target.value)}
-                      className="focus-ring-strong min-h-[140px] w-full rounded-2xl border border-slate-200 bg-card/90 px-4 py-3 text-sm text-slate-700 outline-none"
+                      className="focus-ring-strong min-h-[140px] w-full rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-700 outline-none"
                     />
                   </div>
 
                   <div className="flex justify-end">
-                    <Button type="button" className="bg-sky-600 text-white hover:brightness-90" onClick={() => setCurrentStep(1)}>
+                    <Button type="button" className="bg-sky-700 text-white hover:bg-sky-800" onClick={() => setCurrentStep(1)}>
                       Próximo passo <ChevronRight size={16} className="ml-2" />
                     </Button>
                   </div>
@@ -237,7 +237,7 @@ export default function CreateRoute() {
             )}
 
             {currentStep === 1 && (
-              <Card className="glass-panel gap-0 border-card/60 py-0 shadow-sm">
+              <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
                 <CardHeader className="border-b border-slate-200/70 pb-5">
                   <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                     <Boxes size={18} className="mr-2 text-blue-600" /> Itens que entram no trecho
@@ -257,14 +257,14 @@ export default function CreateRoute() {
                           type="button"
                           aria-pressed={isSelected}
                           onClick={() => toggleItem(cargo.id)}
-                          className={`focus-ring-strong rounded-2xl border p-4 text-left transition-colors ${isSelected ? "border-sky-300 bg-sky-50 shadow-sm" : "border-slate-200 bg-card/90 hover:bg-card"}`}
+                          className={`focus-ring-strong rounded-2xl border p-4 text-left transition-colors ${isSelected ? "border-sky-300 bg-sky-50 shadow-sm" : "border-slate-200 bg-white/90 hover:bg-white"}`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="text-sm font-semibold text-slate-900">{cargo.id} • {cargo.productName}</p>
                               <p className="mt-1 text-xs text-slate-500">{cargo.routeLabel}</p>
                             </div>
-                            <Badge className={isSelected ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-700"}>
+                            <Badge className={isSelected ? "bg-sky-700 text-white" : "bg-slate-100 text-slate-700"}>
                               {isSelected ? "Selecionado" : cargo.status}
                             </Badge>
                           </div>
@@ -281,10 +281,10 @@ export default function CreateRoute() {
                   <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 md:flex-row md:items-center md:justify-between">
                     <p className="text-sm text-slate-600">Valide primeiro a coerência da composição. O preço vem depois.</p>
                     <div className="flex gap-3">
-                      <Button type="button" variant="outline" className="border-slate-200 bg-card" onClick={() => setCurrentStep(0)}>
+                      <Button type="button" variant="outline" className="border-slate-200 bg-white" onClick={() => setCurrentStep(0)}>
                         Voltar
                       </Button>
-                      <Button type="button" className="bg-sky-600 text-white hover:brightness-90" onClick={() => setCurrentStep(2)}>
+                      <Button type="button" className="bg-sky-700 text-white hover:bg-sky-800" onClick={() => setCurrentStep(2)}>
                         Próximo passo <ChevronRight size={16} className="ml-2" />
                       </Button>
                     </div>
@@ -294,7 +294,7 @@ export default function CreateRoute() {
             )}
 
             {currentStep === 2 && (
-              <Card className="glass-panel gap-0 border-card/60 py-0 shadow-sm">
+              <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
                 <CardHeader className="border-b border-slate-200/70 pb-5">
                   <CardTitle className="flex items-center text-lg font-bold text-slate-800">
                     <Sparkles size={18} className="mr-2 text-blue-600" /> Estratégia de publicação
@@ -307,18 +307,18 @@ export default function CreateRoute() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <label htmlFor="segment-target-fare" className="text-sm font-medium text-slate-700">Tarifa-alvo do trecho</label>
-                      <Input id="segment-target-fare" type="number" value={targetFare} onChange={(e) => setTargetFare(e.target.value)} className="focus-ring-strong border-slate-200 bg-card/90" />
+                      <Input id="segment-target-fare" type="number" value={targetFare} onChange={(e) => setTargetFare(e.target.value)} className="focus-ring-strong border-slate-200 bg-white/90" />
                       <p className="text-xs text-slate-500">
                         Referência atual da composição: {Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(suggestedFloor)}.
                       </p>
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="segment-deadline" className="text-sm font-medium text-slate-700">Prazo sugerido para publicação</label>
-                      <Input id="segment-deadline" type="datetime-local" value={bidDeadline} onChange={(e) => setBidDeadline(e.target.value)} className="focus-ring-strong border-slate-200 bg-card/90" />
+                      <Input id="segment-deadline" type="datetime-local" value={bidDeadline} onChange={(e) => setBidDeadline(e.target.value)} className="focus-ring-strong border-slate-200 bg-white/90" />
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-card/90 p-5">
+                  <div className="rounded-2xl border border-slate-200 bg-white/90 p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Checklist de prontidão</p>
                     <div className="mt-4 grid gap-3 md:grid-cols-3">
                       <div className="rounded-xl bg-slate-50 p-4">
@@ -337,10 +337,10 @@ export default function CreateRoute() {
                   </div>
 
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <Button type="button" variant="outline" className="border-slate-200 bg-card" onClick={() => setCurrentStep(1)}>
+                    <Button type="button" variant="outline" className="border-slate-200 bg-white" onClick={() => setCurrentStep(1)}>
                       Voltar
                     </Button>
-                    <Button className="bg-sky-600 text-white hover:brightness-90" onClick={() => navigate("/load-management")}>
+                    <Button className="bg-sky-700 text-white hover:bg-sky-800" onClick={() => navigate("/load-management")}>
                       <Save size={16} className="mr-2" /> Concluir planejamento
                     </Button>
                   </div>
@@ -350,7 +350,7 @@ export default function CreateRoute() {
           </div>
 
           <div className="space-y-6">
-            <Card className="glass-panel gap-0 border-card/60 py-0 shadow-sm">
+            <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
               <CardHeader className="border-b border-slate-200/70">
                 <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-800">
                   <Sparkles size={18} className="text-blue-600" /> Resumo operacional
@@ -378,7 +378,7 @@ export default function CreateRoute() {
               </CardContent>
             </Card>
 
-            <Card className="glass-panel gap-0 border-card/60 py-0 shadow-sm">
+            <Card className="glass-panel gap-0 border-white/60 py-0 shadow-sm">
               <CardHeader className="border-b border-slate-200/70">
                 <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-800">
                   <Workflow size={18} className="text-blue-600" /> Lógica do planejador

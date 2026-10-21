@@ -5,6 +5,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google"
 
 import "./index.css"
 import App from "./App.jsx"
+import { ThemeProvider } from "@/components/theme-provider"
 import { ToastProvider } from "@/components/ui/toast"
 import { AuthProvider } from "./contexts/AuthContext"
 import { BrandProvider } from "./contexts/BrandContext"
@@ -26,6 +27,7 @@ function withGoogle(children) {
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
+    <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <AuthProvider>
         <BrandProvider>
           <ToastProvider>
@@ -35,5 +37,6 @@ createRoot(document.getElementById("root")).render(
           </ToastProvider>
         </BrandProvider>
       </AuthProvider>
+    </ThemeProvider>
   </StrictMode>
 )

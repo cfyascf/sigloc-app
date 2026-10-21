@@ -16,7 +16,6 @@ import { NavLink, useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { useBrand } from "@/contexts/BrandContext"
 import { Button } from "@/components/ui/button"
-import AppearanceDialog from "@/components/appearance-dialog"
 import { ROLE_OPTIONS, ROLES } from "@/constants/roles"
 import { getNavItems } from "@/routes/route-config"
 import { cn } from "@/lib/utils"
@@ -33,8 +32,7 @@ const SIDEBAR_STORAGE_KEY = "sigloc_sidebar_collapsed"
 
 export default function AppShell({ title, children, contentClassName, innerClassName }) {
   const { user, setRole, logout } = useAuth()
-  const { brand } = useBrand()
-  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false)
+  const { brand, setBrand, currentKey, availableThemes } = useBrand()
   const navigate = useNavigate()
   const isAdmin = user.role === ROLES.DEVELOPER
 
@@ -74,7 +72,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background font-sans text-foreground">
+    <div className="flex h-screen overflow-hidden bg-slate-100 font-sans">
       {/* SIDEBAR COM TEMA DINÂMICO */}
       <aside
         className={cn(
@@ -187,7 +185,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
             <DropdownMenuContent align="start" className="w-52">
               {isAdmin ? (
                 <>
-                  <DropdownMenuLabel className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                  <DropdownMenuLabel className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
                     Alternar Perfil
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -254,21 +252,52 @@ export default function AppShell({ title, children, contentClassName, innerClass
               <Bell size={20} />
             </Button>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsAppearanceOpen(true)}
-              title="Aparência"
-              className={cn("hover:bg-black/5", brand.textMuted)}
-            >
-              <Settings size={20} />
-            </Button>
-            <AppearanceDialog open={isAppearanceOpen} onOpenChange={setIsAppearanceOpen} />
+            {/* Menu de Configurações (Engrenagem) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("hover:bg-black/5", brand.textMuted)}
+                >
+                  <Settings size={20} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
+                  Personalizar Tema
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {/* Iterando sobre os temas disponíveis no Contexto */}
+                {availableThemes.map((t) => (
+                  <DropdownMenuItem
+                    key={t.id}
+                    onClick={() => setBrand(t.id)}
+                    className={cn(
+                      "cursor-pointer font-medium",
+                      currentKey === t.id &&
+                        "bg-blue-50 text-blue-600 focus:bg-blue-100 focus:text-blue-700"
+                    )}
+                  >
+                    <Palette
+                      size={16}
+                      className={cn(
+                        "mr-2",
+                        currentKey === t.id ? "text-blue-600" : "text-slate-400"
+                      )}
+                    />
+                    {t.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
           </div>
         </header>
 
         {/* Conteúdo */}
-        <div className={cn("flex-1 overflow-auto bg-background p-8", contentClassName)}>
+        <div className={cn("flex-1 overflow-auto bg-slate-50 p-8", contentClassName)}>
           <div className={cn("mx-auto max-w-7xl animate-in duration-500 fade-in", innerClassName)}>
             {children}
           </div>

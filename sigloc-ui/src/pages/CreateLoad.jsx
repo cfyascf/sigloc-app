@@ -85,13 +85,13 @@ export default function CreateSegment() {
             <Button
               asChild
               variant="outline"
-              className="h-9 border-slate-200 bg-card text-xs font-semibold text-slate-700"
+              className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700"
             >
               <Link to="/load-management">
                 <X size={14} className="mr-1.5" /> Cancelar
               </Link>
             </Button>
-            <Button className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:brightness-90">
+            <Button className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700">
               <Save size={14} className="mr-1.5" /> Salvar Trecho Operacional
             </Button>
           </div>
@@ -105,7 +105,7 @@ export default function CreateSegment() {
                   ======================================================== */}
 
               {/* Bloco 1: Identificação da Mercadoria (Esquerda, Topo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] shrink-0 items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
                   <PackageOpen size={16} className="text-blue-600" />
                   <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
@@ -125,7 +125,7 @@ export default function CreateSegment() {
                         <SelectValue placeholder="Buscar e adicionar produto à carga..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <div className="sticky top-0 z-10 border-b border-slate-100 bg-card/95 px-2 py-2 backdrop-blur-sm">
+                        <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-2 py-2 backdrop-blur-sm">
                           <div className="relative">
                             <Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" />
                             <Input
@@ -172,7 +172,7 @@ export default function CreateSegment() {
                         {selectedProducts.map((product) => (
                           <div
                             key={product.value}
-                            className="flex items-center justify-between rounded-lg border border-slate-200 bg-card p-2 shadow-sm transition-all hover:border-slate-300"
+                            className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-2 shadow-sm transition-all hover:border-slate-300"
                           >
                             <div className="flex min-w-0 items-center gap-2.5">
                               <span className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-slate-600 uppercase">
@@ -208,7 +208,7 @@ export default function CreateSegment() {
                       variant="outline"
                       size="sm"
                       onClick={() => navigate("/create-product")}
-                      className="h-8 border-slate-200 bg-card text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                      className="h-8 border-slate-200 bg-white text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
                     >
                       <Plus size={13} className="mr-1.5" /> Cadastrar produto
                     </Button>
@@ -217,7 +217,7 @@ export default function CreateSegment() {
               </div>
 
               {/* Bloco 3: Malha Logística (Direita, Topo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] shrink-0 items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
                   <MapPinned size={16} className="text-emerald-600" />
                   <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
@@ -230,7 +230,7 @@ export default function CreateSegment() {
                     <div className="absolute top-8 bottom-5 left-3.5 w-px border-l-2 border-dashed border-slate-200" />
 
                     <div className="relative space-y-2 pl-8">
-                      <span className="absolute top-2.5 left-1.5 h-4 w-4 rounded-full border-[3px] border-card bg-zinc-800" />
+                      <span className="absolute top-2.5 left-1.5 h-4 w-4 rounded-full border-[3px] border-white bg-slate-800" />
                       <label className="text-xs font-bold text-slate-600">
                         Local de Coleta (Origem)
                       </label>
@@ -241,7 +241,7 @@ export default function CreateSegment() {
                     </div>
 
                     <div className="relative space-y-2 pl-8">
-                      <span className="absolute top-2.5 left-1.5 h-4 w-4 rounded-full border-[3px] border-card bg-emerald-500" />
+                      <span className="absolute top-2.5 left-1.5 h-4 w-4 rounded-full border-[3px] border-white bg-emerald-500" />
                       <label className="text-xs font-bold text-slate-600">
                         Local de Entrega (Destino)
                       </label>
@@ -259,7 +259,7 @@ export default function CreateSegment() {
                   ======================================================== */}
 
               {/* Bloco 2: Dimensionamento e Restrição (Esquerda, Baixo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] shrink-0 items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
                   <Truck size={16} className="text-blue-600" />
                   <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
@@ -339,7 +339,7 @@ export default function CreateSegment() {
               </div>
 
               {/* Bloco 4: SLA e Balizamento Financeiro (Direita, Baixo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-card">
+              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] shrink-0 items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
                   <CalendarClock size={16} className="text-amber-600" />
                   <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">

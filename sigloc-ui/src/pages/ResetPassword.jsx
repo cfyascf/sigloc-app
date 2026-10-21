@@ -31,7 +31,7 @@ export default function ResetPassword() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
-      <section className="w-full max-w-md space-y-6 rounded-xl bg-card p-8 shadow-sm">
+      <section className="w-full max-w-md space-y-6 rounded-xl bg-white p-8 shadow-sm">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-slate-900">Definir nova senha</h1>
           <p className="text-sm text-slate-500">Escolha uma senha com pelo menos 8 caracteres.</p>
@@ -41,7 +41,7 @@ export default function ResetPassword() {
           <form noValidate onSubmit={handleSubmit} className="space-y-4">
             <FormField id="password" label="Nova senha" type="password" autoComplete="new-password" required disabled={!token} value={password} onChange={(event) => setPassword(event.target.value)} error={action.fieldErrors.password} />
             <FormField id="confirmation" label="Confirmar nova senha" type="password" autoComplete="new-password" required disabled={!token} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} />
-            <Button type="submit" disabled={!token || action.pending} className="w-full bg-blue-600 text-white hover:brightness-90">
+            <Button type="submit" disabled={!token || action.pending} className="w-full bg-blue-600 text-white hover:bg-blue-700">
               {action.pending ? <><LoaderCircle className="animate-spin" aria-hidden="true" /> Atualizando...</> : "Atualizar senha"}
             </Button>
           </form>

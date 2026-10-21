@@ -61,13 +61,13 @@ export default function MyTransports() {
           <Input 
             type="text" 
             placeholder="Buscar por ID, placa ou rota..." 
-            className="border-slate-200 bg-card pl-9 shadow-sm"
+            className="border-slate-200 bg-white pl-9 shadow-sm"
           />
         </div>
       </div>
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="mb-4 bg-card border border-slate-200">
+        <TabsList className="mb-4 bg-white border border-slate-200">
           <TabsTrigger value="active" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
             Em Andamento (2)
           </TabsTrigger>
@@ -77,7 +77,7 @@ export default function MyTransports() {
         </TabsList>
 
         <TabsContent value="active">
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-card shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <Table>
               <TableHeader className="bg-slate-50">
                 <TableRow>
@@ -117,7 +117,7 @@ export default function MyTransports() {
         </TabsContent>
 
         <TabsContent value="history">
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-card shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <Table>
               <TableHeader className="bg-slate-50">
                 <TableRow>

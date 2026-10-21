@@ -24,7 +24,7 @@ const formatDateTime = (value) => {
 }
 
 function getStopBadgeClass(index, totalStops) {
-  if (index === 0) return "bg-zinc-800"
+  if (index === 0) return "bg-slate-800"
   if (index === totalStops - 1) return "bg-emerald-500"
   return "bg-blue-500"
 }
@@ -157,7 +157,7 @@ export default function BidAnalysis() {
                 <div className="flex items-center gap-2 mb-1.5">
                   <Layers size={14} className="text-blue-500" />
                   <span className="font-mono text-xs font-bold text-slate-500">{routeSummary.referenceCode}</span>
-                  <Badge className="bg-zinc-800 text-white text-[9px] uppercase font-bold border-none hover:bg-zinc-800">Em Leilão</Badge>
+                  <Badge className="bg-slate-800 text-white text-[9px] uppercase font-bold border-none hover:bg-slate-800">Em Leilão</Badge>
                 </div>
                 <h1 className="text-xl font-black text-slate-900">{routeSummary.shortItinerary}</h1>
               </div>
@@ -198,7 +198,7 @@ export default function BidAnalysis() {
                     {myBid && (
                       <Badge className="bg-blue-600 text-white text-[9px] font-bold border-none uppercase hover:bg-blue-600">Lance Ativo</Badge>
                     )}
-                    <Badge variant="outline" className="border-blue-200 bg-card text-blue-700 text-[9px]">Teto: {formatCurrency(ceiling)}</Badge>
+                    <Badge variant="outline" className="border-blue-200 bg-white text-blue-700 text-[9px]">Teto: {formatCurrency(ceiling)}</Badge>
                   </div>
                 </div>
 
@@ -219,7 +219,7 @@ export default function BidAnalysis() {
                   {/* Input de Valor */}
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">{myBid ? "Atualizar Valor da Proposta" : "Valor da Proposta"}</p>
-                    <div className="bg-card border border-slate-300 rounded-lg p-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+                    <div className="bg-white border border-slate-300 rounded-lg p-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
                       <div className="flex items-center px-2">
                         <span className="text-xs font-bold text-slate-400">R$</span>
                         <Input
@@ -234,10 +234,10 @@ export default function BidAnalysis() {
 
                   {/* Botões de Ação Rápida */}
                   <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" onClick={applyLeaderBid} disabled={bestLeaderOffer == null} className="text-[10px] font-bold border-slate-200 bg-card text-slate-600 h-7">
+                    <Button variant="outline" size="sm" onClick={applyLeaderBid} disabled={bestLeaderOffer == null} className="text-[10px] font-bold border-slate-200 bg-white text-slate-600 h-7">
                       Cobrir Líder
                     </Button>
-                    <Button variant="outline" size="sm" onClick={applyFloorBid} className="text-[10px] font-bold border-slate-200 bg-card text-slate-600 h-7">
+                    <Button variant="outline" size="sm" onClick={applyFloorBid} className="text-[10px] font-bold border-slate-200 bg-white text-slate-600 h-7">
                       Piso ANTT
                     </Button>
                   </div>
@@ -268,7 +268,7 @@ export default function BidAnalysis() {
                               className={`w-full text-left border rounded-lg p-3 transition-all ${
                                 isSelected
                                   ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
-                                  : "border-slate-200 bg-card hover:border-slate-300 hover:bg-slate-50"
+                                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                               }`}
                             >
                               <div className="flex items-start justify-between mb-2">
@@ -309,7 +309,7 @@ export default function BidAnalysis() {
                   <Button
                     disabled={!selectedVehicleId || submitting}
                     onClick={handleSubmit}
-                    className="w-full bg-blue-600 hover:brightness-90 text-white font-bold h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {myBid ? "Atualizando lance..." : "Enviando lance..."}</>
@@ -323,7 +323,7 @@ export default function BidAnalysis() {
               </div>
 
               {/* 2. ESTRATÉGIA E RANKING */}
-              <div className="rounded-xl border border-slate-200 bg-card p-4 flex flex-col justify-between">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 flex flex-col justify-between">
                 <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2 text-xs">
                   <Activity size={14} className="text-slate-500" /> Mercado & Concorrência
                 </h3>
@@ -360,7 +360,7 @@ export default function BidAnalysis() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               {/* Informações Críticas do Produto */}
-              <div className="rounded-xl border border-slate-200 bg-card p-4 space-y-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
                   <PackageOpen size={14} className="text-blue-600" />
                   <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Manuseio & Restrições</h2>
@@ -389,7 +389,7 @@ export default function BidAnalysis() {
               </div>
 
               {/* Capacidade e Veículo */}
-              <div className="rounded-xl border border-slate-200 bg-card p-4 space-y-3 flex flex-col">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 flex flex-col">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
                   <Truck size={14} className="text-blue-600" />
                   <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Exigência de Equipamento</h2>
@@ -412,7 +412,7 @@ export default function BidAnalysis() {
             </div>
 
             {/* ITINERÁRIO */}
-            <div className="rounded-xl border border-slate-200 bg-card">
+            <div className="rounded-xl border border-slate-200 bg-white">
               <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
                 <MapPinned size={14} className="text-slate-600" />
                 <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Plano de Viagem (Milking Run)</h2>

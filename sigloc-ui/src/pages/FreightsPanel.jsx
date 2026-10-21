@@ -76,19 +76,19 @@ export default function FreightsPanel() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por ID ou trecho..."
-                className="h-9 border-slate-200 bg-card pl-9 text-xs"
+                className="h-9 border-slate-200 bg-white pl-9 text-xs"
               />
             </div>
             <Button
               variant="outline"
-              className="h-9 border-slate-200 bg-card text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               <SlidersHorizontal size={14} className="mr-1.5 text-slate-500" />{" "}
               Filtros
             </Button>
             <Button
               asChild
-              className="h-9 bg-blue-600 text-xs font-semibold text-white hover:brightness-90"
+              className="h-9 bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700"
             >
               <Link
                 to="/load-management"
@@ -110,7 +110,7 @@ export default function FreightsPanel() {
                 return (
                   <div
                     key={l.id}
-                    className="group relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-card transition-all"
+                    className="group relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-all"
                   >
                     {/* CABEÇALHO DO CARD - Azulado no Edit Mode */}
                     <div
@@ -173,7 +173,7 @@ export default function FreightsPanel() {
                           <AlertCircle size={32} />
                         </div>
                       ) : isEditing ? (
-                        <div className="flex h-full animate-in flex-col space-y-3 bg-card p-4 duration-200 fade-in">
+                        <div className="flex h-full animate-in flex-col space-y-3 bg-white p-4 duration-200 fade-in">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase">
                               Nome do Leilão
@@ -216,7 +216,7 @@ export default function FreightsPanel() {
                             <Button
                               size="sm"
                               onClick={saveEdit}
-                              className="h-8 bg-blue-600 text-xs text-white hover:brightness-90"
+                              className="h-8 bg-blue-600 text-xs text-white hover:bg-blue-700"
                             >
                               Salvar
                             </Button>
