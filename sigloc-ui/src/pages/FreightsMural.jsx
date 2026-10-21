@@ -30,7 +30,7 @@ export default function FreightsMural() {
 
   return (
     <AppShell title="Mural de Fretes">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col gap-4 overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col gap-4 overflow-hidden">
         
         {/* BARRA DE TOPO */}
         <div className="flex shrink-0 flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3 pt-1">
@@ -61,7 +61,7 @@ export default function FreightsMural() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               
               {filteredOfertas.map((o) => (
-                <div key={o.id} className="group relative flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all">
+                <div key={o.id} className="group relative flex flex-col rounded-xl border border-slate-200 bg-white transition-all">
                   
                   {/* HEADER DO CARD: Contratante + Budget */}
                   <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 py-3">

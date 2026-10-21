@@ -36,7 +36,7 @@ export default function RegisterProduct() {
     <AppShell title="Novo Cadastro de SKU">
       <form
         onSubmit={handleSubmit}
-        className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-5xl flex-col overflow-hidden"
+        className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden"
       >
         <div className="mb-5 flex shrink-0 items-center justify-between border-b border-slate-200 pb-3 pt-1">
           <Link to="/product-management">

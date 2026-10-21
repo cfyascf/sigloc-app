@@ -61,7 +61,7 @@ export default function FreightsPanel() {
 
   return (
     <AppShell title="Painel de Leilões">
-      <div className="mx-auto flex h-[calc(100vh-8.5rem)] max-w-7xl flex-col gap-4 overflow-hidden">
+      <div className="flex h-[calc(100vh-8.5rem)] flex-col gap-4 overflow-hidden">
         <div className="flex shrink-0 flex-col justify-between gap-4 border-b border-slate-100 pt-1 pb-3 md:flex-row md:items-center">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900">
@@ -137,11 +137,7 @@ export default function FreightsPanel() {
                           </div>
                         ) : (
                           <>
-                            <span className="absolute inset-0 flex items-center font-mono text-[10px] font-bold text-slate-500 opacity-100 transition-opacity duration-200 group-hover:opacity-0">
-                              {l.id}
-                            </span>
-
-                            <div className="absolute inset-0 hidden items-center gap-1 transition-opacity duration-200 group-hover:flex">
+                            <div className="absolute inset-0 flex items-center gap-1">
                               <Button
                                 size="icon"
                                 variant="ghost"

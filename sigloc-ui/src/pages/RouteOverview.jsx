@@ -59,7 +59,7 @@ export default function RouteOverview() {
        
 
         {/* Tabela de Rotas */}
-        <Card className="border-slate-200 shadow-sm">
+        <Card className="border-slate-200">
           <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-4">
             <CardTitle className="text-lg font-semibold flex items-center text-slate-800">
               <Map size={18} className="mr-2 text-blue-600" />
@@ -71,7 +71,6 @@ export default function RouteOverview() {
             <Table>
               <TableHeader className="bg-slate-50">
                 <TableRow>
-                  <TableHead className="w-[120px] font-semibold">ID da Rota</TableHead>
                   <TableHead className="font-semibold">Nome</TableHead>
                   <TableHead className="font-semibold">Local de Saída</TableHead>
                   <TableHead className="font-semibold">Destino</TableHead>
@@ -81,17 +80,13 @@ export default function RouteOverview() {
               <TableBody>
                 {rotas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                    <TableCell colSpan={4} className="text-center py-8 text-slate-500">
                       Nenhum trecho cadastrado no momento.
                     </TableCell>
                   </TableRow>
                 ) : (
                   rotas.map((rota) => (
                     <TableRow key={rota.id} className="hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="font-medium text-slate-600">
-                        {rota.id}
-                      </TableCell>
-                      
                       <TableCell className="font-semibold text-slate-800">
                         {rota.nome}
                       </TableCell>

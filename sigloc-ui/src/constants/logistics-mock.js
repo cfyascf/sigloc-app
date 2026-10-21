@@ -214,7 +214,8 @@ export const freightOffersMock = [
     pickupLabel: "18/05/2026 08:00",
     etaLabel: "21/05/2026 12:00",
     itemsSummary: ["100 kg de peito de frango", "2 bicicletas"],
-    bidStatus: "SENT"
+    bidStatus: "SENT",
+    status: "OPEN", // OPEN | CLOSED (encerrada / virou rota ativa)
   },
   {
     id: "OFT-9924",
@@ -233,7 +234,8 @@ export const freightOffersMock = [
     availableVehicles: 0,
     pickupLabel: "20/05/2026 07:30",
     etaLabel: "20/05/2026 20:00",
-    itemsSummary: ["6 motores elétricos"]
+    itemsSummary: ["6 motores elétricos"],
+    status: "OPEN",
   },
   {
     id: "OFT-9925",
@@ -253,6 +255,12 @@ export const freightOffersMock = [
     pickupLabel: "20/05/2026 14:00",
     etaLabel: "21/05/2026 13:00",
     itemsSummary: ["24 caixas de vacina influenza"],
+    // Oferta encerrada: o leilão terminou e virou uma rota ativa.
+    status: "CLOSED",
+    closedReason: "ROUTED",
+    activeRouteId: "TRC-203",
+    closedAt: "19/05/2026 09:00",
+    winningBid: 6100,
   },
 ]
 
