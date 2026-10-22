@@ -32,8 +32,8 @@ public class PostgresMonitoringTests
         db.TripMonitorings.Add(new TripMonitoring { Id = Guid.NewGuid(), TripId = h.State.Trip.Id,
             LastCalculatedEta = TripMonitoringServiceTests.Now.AddHours(2), LastPingAt = TripMonitoringServiceTests.Now });
         await db.SaveChangesAsync();
-        var migrations = db.Database.GetMigrations().ToList();
-        await db.GetService<IMigrator>().MigrateAsync(migrations[^2]);
+        // Pinned by name: later migrations must not shift the rollback target.
+        await db.GetService<IMigrator>().MigrateAsync("20261001185055_AddOnDemandTripMonitoring");
         await db.Database.MigrateAsync();
         db.ChangeTracker.Clear();
         var legacy = await db.TripMonitorings.SingleAsync();

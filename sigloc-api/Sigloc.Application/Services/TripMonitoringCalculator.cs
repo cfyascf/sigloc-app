@@ -8,10 +8,10 @@ public static class TripMonitoringCalculator
     public static bool IsFresh(TripMonitoring? snapshot, DateTimeOffset now) =>
         snapshot?.LastSuccessfulCalculationAt is { } time && time <= now && now - time < TimeSpan.FromMinutes(15);
     public static bool IsTerminal(Trip trip) => trip.Status is TripStatus.Delivered or TripStatus.Cancelled;
-    public static string Status(Trip trip, TripMonitoring? snapshot) => trip.Status switch
+    public static string Status(Trip trip, string effectiveRisk) => trip.Status switch
     {
         TripStatus.Delivered => "ENTREGUE", TripStatus.Cancelled => "CANCELADA",
-        _ when snapshot?.Risk == "CRITIC" => "ATRASADO",
+        _ when effectiveRisk == TripRiskEvaluator.Critical => "ATRASADO",
         TripStatus.InTransit => "EM_TRANSITO", _ => "AGUARDANDO_COLETA"
     };
     public static (double Traveled, double Progress) Progress(double total, double remaining, bool finished)

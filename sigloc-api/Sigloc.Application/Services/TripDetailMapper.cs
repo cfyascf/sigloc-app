@@ -14,13 +14,14 @@ public static class TripDetailMapper
     {
         var m = state.Snapshot;
         var next = TripStopCompletion.FirstPending(state.Trip);
+        var risk = TripRiskEvaluator.Effective(m?.Risk, state.Occurrences);
         return new TripDetailDto(state.Trip.Id, state.Route.Id, Reference(state.Trip.Id),
-            TripMonitoringCalculator.Status(state.Trip, m), m?.Risk ?? "NAO_MONITORADO",
+            TripMonitoringCalculator.Status(state.Trip, risk), risk,
             state.Carrier.TradeName ?? state.Carrier.CompanyName, state.Vehicle.Plate, state.Vehicle.Driver, state.Vehicle.DriverPhone,
             m?.LastProgressPercentage, double.IsFinite(state.Route.TotalDistanceKm) && state.Route.TotalDistanceKm > 0 ? state.Route.TotalDistanceKm : 0,
             m?.TraveledDistanceKm, m?.RemainingDistanceKm,
             TripMonitoringCalculator.Utilization(state.Route.TotalVolumeM3, state.Vehicle.CapacityVolume), m?.LastCalculatedEta,
-            m?.NextStopDeadline, m?.Latitude, m?.Longitude, m?.LastPingAt, m?.LastSuccessfulCalculationAt, renewed, stale,
+            NextDeadline(next), m?.Latitude, m?.Longitude, m?.LastPingAt, m?.LastSuccessfulCalculationAt, renewed, stale,
             stale ? "Não foi possível atualizar o monitoramento. Exibindo a última posição disponível." : null,
             state.Trip.Stops.OrderBy(s => s.Sequence).Select(s => new TripStopDto(s.Id, s.Sequence, s.City, s.State, s.Latitude, s.Longitude,
                 s.IsCompleted ? "CONCLUIDA" : s == next ? "EM_TRANSITO" : "PENDENTE", s.CompletedAt, s.CompletionSource,
@@ -28,4 +29,8 @@ public static class TripDetailMapper
                     a.Kind == StopActionKind.Pickup ? "COLETA" : "ENTREGA", a.Deadline, a.CompletedAt, a.CompletionSource)).ToList())).ToList(),
             state.Events.OrderByDescending(e => e.OccurredAt).ThenBy(e => e.Id).Take(50).Select(e => new TripEventDto(e.Id, e.Kind, e.Description, e.OccurredAt)).ToList());
     }
+
+    /// <summary>Earliest open action deadline of the first pending stop.</summary>
+    public static DateTimeOffset? NextDeadline(TripStop? next) =>
+        next?.Actions.Where(a => !a.IsCompleted).Min(a => (DateTimeOffset?)a.Deadline);
 }

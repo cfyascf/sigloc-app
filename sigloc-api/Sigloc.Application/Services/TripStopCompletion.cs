@@ -25,8 +25,10 @@ public static class TripStopCompletion
     /// <summary>
     /// Completes <paramref name="stop"/> and its pending actions. <paramref name="sourceFor"/> chooses the
     /// completion source per action kind; the stop takes the delivery source when it delivered anything.
+    /// Occurrences blocked on this stop are closed with a single summary event.
     /// </summary>
-    public static void Complete(TripState state, TripStop stop, DateTimeOffset at, Func<StopActionKind, string> sourceFor)
+    public static void Complete(TripState state, TripStop stop, DateTimeOffset at, Func<StopActionKind, string> sourceFor,
+        Guid operationId, DateTimeOffset now)
     {
         var pendingActions = stop.Actions.Where(a => !a.IsCompleted).ToList();
         foreach (var action in pendingActions)
@@ -42,6 +44,14 @@ public static class TripStopCompletion
             state.Trip.Status = TripStatus.InTransit; state.Trip.StartedAt ??= at;
             state.Route.Status = RouteStatus.InTransit;
         }
+        var resolved = state.Occurrences.Where(o => o.ResolvedAt == null && o.BlockingStopId == stop.Id).ToList();
+        foreach (var occurrence in resolved)
+        {
+            occurrence.ResolvedAt = at; occurrence.ResolutionSource = stop.CompletionSource;
+        }
+        if (resolved.Count > 0)
+            AddEvent(state, operationId, "OCORRENCIA_ENCERRADA",
+                $"{resolved.Count} ocorrência(s) encerrada(s) com a conclusão da parada {stop.Sequence}.", now);
         if (FirstPending(state.Trip) == null) Finish(state, at);
     }
 

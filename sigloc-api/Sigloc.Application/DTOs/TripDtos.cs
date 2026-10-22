@@ -69,7 +69,7 @@ public record TripDetailDto(
     [JsonPropertyName("motorista")] public TripDriverDto DriverInfo => new(Driver, DriverPhone, Plate, Carrier);
     [JsonPropertyName("saudeOperacao")] public TripOperationalHealthDto OperationalHealth => new(
         ProgressPercentage, TraveledDistanceKm, TotalDistanceKm, UtilizationPercentage, NewEta,
-        Risk == "CRITIC" ? "ATRASADO" : "NO_PRAZO", IsCacheRenewed);
+        Risk switch { "CRITIC" => "ATRASADO", "WARNING" => "ATENCAO", _ => "NO_PRAZO" }, IsCacheRenewed);
     [JsonPropertyName("contextoGeografico")] public TripGeographicContextDto GeographicContext => new(
         Latitude == null || Longitude == null ? null : new TripCoordinateDto(Latitude.Value, Longitude.Value), LastPositionAt);
     [JsonPropertyName("linhaDoTempo")] public IReadOnlyList<TripTimelineNodeDto> Timeline => BuildTimeline(Stops);

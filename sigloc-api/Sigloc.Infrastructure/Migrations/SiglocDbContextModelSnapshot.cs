@@ -745,6 +745,65 @@ namespace Sigloc.Infrastructure.Migrations
                     b.ToTable("TripMonitoringEvent", (string)null);
                 });
 
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripOccurrence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BlockingStopId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("ReportedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ReportedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResolutionSource")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TripId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockingStopId");
+
+                    b.HasIndex("ReportedByUserId");
+
+                    b.HasIndex("TripId", "ResolvedAt");
+
+                    b.ToTable("TripOccurrence", (string)null);
+                });
+
             modelBuilder.Entity("Sigloc.Domain.Entities.TripStop", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1148,6 +1207,26 @@ namespace Sigloc.Infrastructure.Migrations
 
             modelBuilder.Entity("Sigloc.Domain.Entities.TripMonitoringEvent", b =>
                 {
+                    b.HasOne("Sigloc.Domain.Entities.Trip", null)
+                        .WithMany()
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Sigloc.Domain.Entities.TripOccurrence", b =>
+                {
+                    b.HasOne("Sigloc.Domain.Entities.TripStop", null)
+                        .WithMany()
+                        .HasForeignKey("BlockingStopId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Sigloc.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ReportedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Sigloc.Domain.Entities.Trip", null)
                         .WithMany()
                         .HasForeignKey("TripId")

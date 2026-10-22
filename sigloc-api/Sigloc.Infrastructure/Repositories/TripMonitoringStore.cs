@@ -26,30 +26,37 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
         rows = scope.Party == TripParty.Carrier
             ? rows.Where(x => x.Trip.CarrierId == companyId)
             : rows.Where(x => x.Route.ContractorId == companyId);
+        // Effective risk = ETA risk raised by open occurrences, computed in SQL so filters and paging agree.
+        var scoped = rows.Select(x => new
+        {
+            x.Trip, x.Route, x.Carrier, x.Vehicle, x.Monitoring,
+            Risk = db.TripOccurrences.Any(o => o.TripId == x.Trip.Id && o.ResolvedAt == null && o.Severity == "CRITIC")
+                    || (x.Monitoring != null && x.Monitoring.Risk == "CRITIC") ? "CRITIC"
+                : db.TripOccurrences.Any(o => o.TripId == x.Trip.Id && o.ResolvedAt == null && o.Severity == "WARNING") ? "WARNING"
+                : x.Monitoring == null || x.Monitoring.Risk == null ? "NAO_MONITORADO"
+                : x.Monitoring.Risk
+        });
         if (query.Search is { Length: > 0 } search)
         {
             var normalized = search.ToUpperInvariant();
-            rows = rows.Where(x => ("TRP-" + x.Trip.Id.ToString().Replace("-", "").Substring(0, 6).ToUpper()).Contains(normalized)
+            scoped = scoped.Where(x => ("TRP-" + x.Trip.Id.ToString().Replace("-", "").Substring(0, 6).ToUpper()).Contains(normalized)
                 || x.Carrier.CompanyName.ToUpper().Contains(normalized)
                 || (x.Carrier.TradeName != null && x.Carrier.TradeName.ToUpper().Contains(normalized))
                 || x.Vehicle.Plate.ToUpper().Contains(normalized));
         }
-        if (query.Risk is { } risk)
-            rows = risk == "NAO_MONITORADO"
-                ? rows.Where(x => x.Monitoring == null || x.Monitoring.Risk == null)
-                : rows.Where(x => x.Monitoring != null && x.Monitoring.Risk == risk);
-        if (query.Status == "ATRASADO") rows = rows.Where(x => x.Monitoring != null && x.Monitoring.Risk == "CRITIC");
+        if (query.Risk is { } risk) scoped = scoped.Where(x => x.Risk == risk);
+        if (query.Status == "ATRASADO") scoped = scoped.Where(x => x.Risk == "CRITIC");
         else if (query.Status is { } status)
         {
             var lifecycle = status == "EM_TRANSITO" ? TripStatus.InTransit : TripStatus.AwaitingPickup;
-            rows = rows.Where(x => x.Trip.Status == lifecycle && (x.Monitoring == null || x.Monitoring.Risk != "CRITIC"));
+            scoped = scoped.Where(x => x.Trip.Status == lifecycle && x.Risk != "CRITIC");
         }
-        var total = await rows.CountAsync(ct);
-        var items = await rows.OrderByDescending(x => x.Trip.CreatedAt).ThenBy(x => x.Trip.Id)
+        var total = await scoped.CountAsync(ct);
+        var items = await scoped.OrderByDescending(x => x.Trip.CreatedAt).ThenBy(x => x.Trip.Id)
             .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
             .Select(x => new ActiveTripDto(x.Trip.Id, x.Trip.RouteId, "TRP-" + x.Trip.Id.ToString().Replace("-", "").Substring(0, 6).ToUpper(),
-                x.Monitoring != null && x.Monitoring.Risk == "CRITIC" ? "ATRASADO" : x.Trip.Status == TripStatus.InTransit ? "EM_TRANSITO" : "AGUARDANDO_COLETA",
-                x.Monitoring == null ? "NAO_MONITORADO" : x.Monitoring.Risk ?? "NAO_MONITORADO",
+                x.Risk == "CRITIC" ? "ATRASADO" : x.Trip.Status == TripStatus.InTransit ? "EM_TRANSITO" : "AGUARDANDO_COLETA",
+                x.Risk,
                 x.Carrier.TradeName ?? x.Carrier.CompanyName, x.Vehicle.Plate,
                 db.TripStops.Where(s => s.TripId == x.Trip.Id).OrderBy(s => s.Sequence).Select(s => s.Address).FirstOrDefault()
                     ?? db.RouteSegments.Where(s => s.RouteId == x.Trip.RouteId).OrderBy(s => s.RouteSequence).ThenBy(s => s.PickupDeadline).ThenBy(s => s.Id).Select(s => s.OriginAddress).FirstOrDefault(),
@@ -106,6 +113,7 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
             if (state.Snapshot != null && state.Monitoring == null) db.TripMonitorings.Add(state.Snapshot);
             db.TripTelemetries.AddRange(state.NewTelemetry);
             foreach (var item in state.Events.Where(e => db.Entry(e).State == EntityState.Detached)) db.TripMonitoringEvents.Add(item);
+            foreach (var item in state.Occurrences.Where(o => db.Entry(o).State == EntityState.Detached)) db.TripOccurrences.Add(item);
             if (db.ChangeTracker.HasChanges()) await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return result;
@@ -128,6 +136,7 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
         var segments = await db.RouteSegments.Where(s => s.RouteId == route.Id).Include(s => s.Items).ThenInclude(i => i.Product).ToListAsync(ct);
         var snapshot = await db.TripMonitorings.SingleOrDefaultAsync(m => m.TripId == trip.Id, ct);
         var events = await db.TripMonitoringEvents.Where(e => e.TripId == trip.Id).OrderByDescending(e => e.OccurredAt).ThenBy(e => e.Id).Take(50).ToListAsync(ct);
-        return new TripState(trip, route, vehicle, carrier, segments, snapshot, events);
+        var occurrences = await db.TripOccurrences.Where(o => o.TripId == trip.Id).OrderByDescending(o => o.ReportedAt).ThenBy(o => o.Id).ToListAsync(ct);
+        return new TripState(trip, route, vehicle, carrier, segments, snapshot, events) { Occurrences = occurrences };
     }
 }

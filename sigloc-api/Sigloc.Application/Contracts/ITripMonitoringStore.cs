@@ -7,6 +7,8 @@ public record TripState(Trip Trip, ConsolidatedRoute Route, Vehicle Vehicle, Car
 {
     public TripMonitoring? Snapshot { get; set; } = Monitoring;
     public List<TripTelemetry> NewTelemetry { get; } = new();
+    /// <summary>Every occurrence of the trip, newest first; new ones are persisted on update.</summary>
+    public List<TripOccurrence> Occurrences { get; init; } = new();
 }
 
 public interface ITripMonitoringStore
