@@ -21,7 +21,8 @@ public record ActiveTripDto(
     [property: JsonIgnore] double? ProgressPercentage,
     [property: JsonIgnore] DateTimeOffset? NewEta,
     [property: JsonPropertyName("ultimaAtualizacaoCalculada")] DateTimeOffset? LastUpdated,
-    [property: JsonIgnore] DateTimeOffset? LastPingAt = null)
+    [property: JsonIgnore] DateTimeOffset? LastPingAt = null,
+    [property: JsonPropertyName("embarcador")] string? ShipperName = null)
 {
     [JsonPropertyName("statusGeral")] public string GeneralStatus => Status == "EM_TRANSITO" ? "EM_CURSO" : Status;
     [JsonPropertyName("transportadora")] public TripCarrierDto CarrierInfo => new(Carrier);

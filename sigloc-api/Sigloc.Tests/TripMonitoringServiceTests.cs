@@ -205,7 +205,7 @@ public class TripMonitoringServiceTests
     [Fact]
     public async Task Freshness_is_rechecked_after_lock()
     {
-        var h = new Harness(); h.Store.BeforeRefresh = s => s.Snapshot = new TripMonitoring { LastSuccessfulCalculationAt = Now };
+        var h = new Harness(); h.Store.BeforeRefresh = s => s.Snapshot = new TripMonitoring { LastSuccessfulCalculationAt = Now, Risk = "NORMAL" };
         var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.False(result.IsCacheRenewed); Assert.Equal(0, h.Tracking.Calls);
     }

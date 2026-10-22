@@ -65,7 +65,8 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
                 x.Monitoring == null ? null : x.Monitoring.LastProgressPercentage,
                 x.Monitoring == null ? null : x.Monitoring.LastCalculatedEta,
                 x.Monitoring == null ? null : x.Monitoring.LastSuccessfulCalculationAt,
-                x.Monitoring == null ? null : x.Monitoring.LastPingAt)).ToListAsync(ct);
+                x.Monitoring == null ? null : x.Monitoring.LastPingAt,
+                db.Contractors.Where(c => c.Id == x.Route.ContractorId).Select(c => c.TradeName ?? c.CompanyName).FirstOrDefault())).ToListAsync(ct);
         return new PagedTripsDto(items, query.Page, query.PageSize, total, (int)Math.Ceiling(total / (double)query.PageSize));
     }
 
@@ -139,6 +140,7 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
         var events = await db.TripMonitoringEvents.Where(e => e.TripId == trip.Id).OrderByDescending(e => e.OccurredAt).ThenBy(e => e.Id).Take(50).ToListAsync(ct);
         var occurrences = await db.TripOccurrences.Where(o => o.TripId == trip.Id).OrderByDescending(o => o.ReportedAt).ThenBy(o => o.Id).ToListAsync(ct);
         var proofs = await db.TripProofsOfDelivery.Where(p => p.TripId == trip.Id).OrderByDescending(p => p.UploadedAt).ThenBy(p => p.Id).ToListAsync(ct);
-        return new TripState(trip, route, vehicle, carrier, segments, snapshot, events) { Occurrences = occurrences, Proofs = proofs };
+        var shipper = await db.Contractors.SingleOrDefaultAsync(c => c.Id == route.ContractorId, ct);
+        return new TripState(trip, route, vehicle, carrier, segments, snapshot, events) { Occurrences = occurrences, Proofs = proofs, Shipper = shipper };
     }
 }

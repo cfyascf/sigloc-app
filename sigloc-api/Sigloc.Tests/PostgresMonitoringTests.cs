@@ -92,6 +92,48 @@ public class PostgresMonitoringTests
         Assert.True((await service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true)).IsCacheRenewed);
     }
 
+    [PostgresFact]
+    public async Task Carrier_scope_locks_persists_occurrences_and_filters_by_effective_risk()
+    {
+        await using var fixture = await DatabaseFixture.CreateAsync();
+        var h = await fixture.SeedAsync();
+        var carrierId = h.State.Trip.CarrierId;
+        var userId = Guid.NewGuid();
+        await using (var db = fixture.Factory.CreateDbContext())
+        {
+            db.Add(new User { Id = userId, Email = "motorista@carrier.com", ProfileType = ProfileType.Transportador, CompanyId = carrierId });
+            await db.SaveChangesAsync();
+        }
+        var store = new TripMonitoringStore(fixture.Factory);
+        var monitoring = new TripMonitoringService(store, h.Tracking, h.Routing, h.Clock, new());
+        var files = new CarrierTripServiceTests.FakeFileStorage();
+        var carrier = new CarrierTripService(monitoring, store, files, h.Clock);
+
+        var listed = Assert.Single((await store.SearchAsync(TripScope.ForCarrier(carrierId), new TripQueryDto(), default)).Trips);
+        Assert.Equal("Test contractor", listed.ShipperName);
+        Assert.Empty((await store.SearchAsync(TripScope.ForCarrier(Guid.NewGuid()), new TripQueryDto(), default)).Trips);
+
+        await carrier.ReportOccurrenceAsync(carrierId, userId, h.State.Trip.Id, new("AVARIA_MECANICA", "Motor"));
+        var late = Assert.Single((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(Status: "ATRASADO"), default)).Trips);
+        Assert.Equal("CRITIC", late.Risk);
+        Assert.Empty((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(Risk: "NAO_MONITORADO"), default)).Trips);
+
+        var stops = h.State.Trip.Stops.OrderBy(s => s.Sequence).ToList();
+        await carrier.CompleteStopAsync(carrierId, userId, h.State.Trip.Id, stops[0].Id, null, null);
+        Assert.Single((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(Risk: "NAO_MONITORADO"), default)).Trips);
+        await carrier.CompleteStopAsync(carrierId, userId, h.State.Trip.Id, stops[1].Id,
+            new(new MemoryStream([.. "%PDF-1.7"u8.ToArray()]), "canhoto.pdf", 8), "Recebido");
+
+        await using var check = fixture.Factory.CreateDbContext();
+        Assert.Equal(TripStatus.Delivered, (await check.Trips.SingleAsync()).Status);
+        Assert.All(await check.TripStops.ToListAsync(), s => Assert.True(s.IsCompleted));
+        Assert.NotNull((await check.TripOccurrences.SingleAsync()).ResolvedAt);
+        var proof = await check.TripProofsOfDelivery.SingleAsync();
+        Assert.Equal(stops[1].Id, proof.TripStopId);
+        Assert.True(files.Stored.ContainsKey(proof.StorageKey));
+        Assert.Contains(await check.TripMonitoringEvents.ToListAsync(), e => e.Kind == "PARADA_CONFIRMADA");
+    }
+
     private sealed class DatabaseFixture(string connectionString, string schema) : IAsyncDisposable
     {
         public Factory Factory { get; } = new(new NpgsqlConnectionStringBuilder(connectionString) { SearchPath = schema }.ConnectionString);

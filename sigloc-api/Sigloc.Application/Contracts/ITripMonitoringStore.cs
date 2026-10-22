@@ -11,6 +11,8 @@ public record TripState(Trip Trip, ConsolidatedRoute Route, Vehicle Vehicle, Car
     public List<TripOccurrence> Occurrences { get; init; } = new();
     /// <summary>Proofs of delivery of the trip, newest first; new ones are persisted on update.</summary>
     public List<TripProofOfDelivery> Proofs { get; init; } = new();
+    /// <summary>Shipper that owns the route (contact shown to the carrier).</summary>
+    public Contractor? Shipper { get; init; }
 }
 
 public interface ITripMonitoringStore

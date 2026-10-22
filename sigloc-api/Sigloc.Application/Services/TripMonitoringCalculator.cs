@@ -5,8 +5,12 @@ namespace Sigloc.Application.Services;
 
 public static class TripMonitoringCalculator
 {
+    /// <summary>
+    /// A calculation is reusable for 15 minutes unless its ETA risk was invalidated (a stop was confirmed
+    /// manually since), in which case the next refresh must recalculate.
+    /// </summary>
     public static bool IsFresh(TripMonitoring? snapshot, DateTimeOffset now) =>
-        snapshot?.LastSuccessfulCalculationAt is { } time && time <= now && now - time < TimeSpan.FromMinutes(15);
+        snapshot?.LastSuccessfulCalculationAt is { } time && time <= now && now - time < TimeSpan.FromMinutes(15) && snapshot.Risk != null;
     public static bool IsTerminal(Trip trip) => trip.Status is TripStatus.Delivered or TripStatus.Cancelled;
     public static string Status(Trip trip, string effectiveRisk) => trip.Status switch
     {
