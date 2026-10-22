@@ -3,14 +3,17 @@ using Sigloc.Application.DTOs;
 using Sigloc.Application.Exceptions;
 using Sigloc.Domain.Entities;
 using Sigloc.Domain.Enums;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Sigloc.Application.Services;
 
 public sealed class TripMonitoringService(
     ITripMonitoringStore store, ITripTrackingProvider tracking, ITripRoutingProvider routing,
-    TimeProvider clock, TripMonitoringOptions options) : ITripMonitoringService
+    TimeProvider clock, TripMonitoringOptions options, ILogger<TripMonitoringService>? logger = null) : ITripMonitoringService
 {
     private readonly TripMonitoringOptions _settings = options;
+    private readonly ILogger _logger = logger ?? NullLogger<TripMonitoringService>.Instance;
 
     public Task<PagedTripsDto> SearchAsync(Guid contractorId, TripQueryDto query, CancellationToken ct = default)
     {
@@ -116,9 +119,11 @@ public sealed class TripMonitoringService(
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (TripNotFoundException) { throw; }
-        catch (Exception)
+        catch (Exception exception)
         {
             ct.ThrowIfCancellationRequested();
+            // The stale-data fallback hides the cause from the caller, so record it for diagnosis.
+            _logger.LogWarning(exception, "Monitoring refresh failed for trip {TripId}; returning the previous snapshot.", tripId);
             if (previous.Snapshot == null) throw new TrackingUnavailableException();
             return Map(previous, false, true);
         }

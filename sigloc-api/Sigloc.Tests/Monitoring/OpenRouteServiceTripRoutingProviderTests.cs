@@ -18,7 +18,8 @@ public sealed class OpenRouteServiceTripRoutingProviderTests
         {
             Assert.Equal(HttpMethod.Post, request.Method);
             Assert.Equal("https://routing.example.invalid/openrouteservice/v2/matrix/driving-hgv", request.RequestUri!.AbsoluteUri);
-            Assert.Equal(Secret, Assert.Single(request.Headers.GetValues("Authorization")));
+            Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
+            Assert.Equal(Secret, request.Headers.Authorization.Parameter);
             Assert.DoesNotContain(Secret, request.RequestUri.AbsoluteUri);
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
             Assert.Equal("m", body.RootElement.GetProperty("units").GetString());
@@ -37,6 +38,27 @@ public sealed class OpenRouteServiceTripRoutingProviderTests
 
         Assert.Equal(3, result.RemainingDistanceKm);
         Assert.Equal(60, result.NextStopDurationSeconds);
+        Assert.Equal(1, handler.Calls);
+    }
+
+    [Fact]
+    public async Task SendsBase64PaddedApiKeyWithoutFormatError()
+    {
+        // Real ORS keys are base64 and may end in '='; a raw "Authorization" header add rejects them.
+        const string paddedKey = "dGVzdC1vbmx5LXBhZGRlZC1rZXk=";
+        using var handler = new FakeHttpHandler((request, _) =>
+        {
+            Assert.Equal(paddedKey, request.Headers.Authorization!.Parameter);
+            return Task.FromResult(Json(Matrix(2, (i, j) => j == i + 1 ? 1000 : null, (i, j) => j == i + 1 ? 60 : null)));
+        });
+        using var client = new HttpClient(handler);
+
+        var result = await Routing(client, routing: new OpenRouteServiceSettings
+        {
+            BaseUrl = "https://routing.example.invalid", ApiKey = paddedKey
+        }).CalculateAsync([new(-23, -46), new(-22, -45)]);
+
+        Assert.Equal(1, result.RemainingDistanceKm);
         Assert.Equal(1, handler.Calls);
     }
 
