@@ -98,6 +98,9 @@ export function toCreateDto(vehicle) {
   return {
     ...fields,
     driverPhone: fields.driverPhone || null,
+    // The create endpoint rejects null for these non-nullable strings; blank is accepted.
+    driver: fields.driver ?? "",
+    currentLocation: fields.currentLocation ?? "",
     plate: vehicle.plate?.replace(/[\s-]/g, "").toUpperCase(),
     refrigerationLevel: vehicle.refrigerationLevel ?? 0,
   }

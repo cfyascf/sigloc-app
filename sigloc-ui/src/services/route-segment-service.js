@@ -61,7 +61,8 @@ export function toRequestDto(form) {
     origin: form.origin?.trim() || null,
     destination: form.destination?.trim() || null,
     budgetCeiling: toNumber(form.budgetCeiling),
-    estimatedTollCost: toNumber(form.estimatedTollCost),
+    // The API requires a toll value (>= 0); a blank optional field means "no toll".
+    estimatedTollCost: toNumber(form.estimatedTollCost) ?? 0,
     pickupDeadline: toIso(form.pickupDeadline),
     deliveryDeadline: toIso(form.deliveryDeadline),
     items: (form.items ?? [])
