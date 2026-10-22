@@ -2,7 +2,7 @@
 
 ## GET `/api/viagens/{tripId}/detalhes`
 
-`ActiveRouteTracking` reads `tripId` from `/active-route-tracking/:tripId`. Both opening details and **Consultar localização** invoke the same authenticated GET through `trip-service.js`. There is no ping POST, polling, map dependency, provider credential, or forced-refresh parameter.
+`ActiveRouteTracking` reads `tripId` from `/active-route-tracking/:tripId`. Both opening details and **Consultar localização** invoke the same authenticated GET through `trip-service.js`. There is no ping POST, polling, provider credential, or forced-refresh parameter. The map is rendered client-side with Leaflet and free OpenStreetMap tiles (no API key).
 
 ### Cache and lifecycle
 
@@ -78,7 +78,7 @@
 
 ### Presentation
 
-- Driver/contact and monitoring fields can be null and render as **Não informado**. Coordinates are textual, not a simulated map. Phone links are only offered when a usable number exists.
+- Driver/contact and monitoring fields can be null and render as **Não informado**. The driver position (`latitude`/`longitude`) is plotted on a Leaflet map with OpenStreetMap tiles; coordinates are also shown as text, and an empty state is shown when there is no position. Phone links are only offered when a usable number exists.
 - The browser does not calculate ETA, SLA, route distances, completion or utilization. Utilization over 100% remains visible; unknown is not zero. `novoEta` concerns the next pending stop, not final arrival.
 - The server's supplied stop order is preserved, including revisits. Status drives accessible labels and colors: `CONCLUIDA` green, `EM_TRANSITO` yellow, `PENDENTE` gray. Each action retains its individual pickup/delivery deadline and actual completion timestamp.
 - `GEOFENCE_INFERRED` is explicitly labeled as GPS-inferred, not proof of physical handling. `LEGACY_STATE` can indicate completion with no known actual time; the UI does not invent one.

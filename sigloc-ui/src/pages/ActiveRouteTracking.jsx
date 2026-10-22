@@ -2,6 +2,7 @@ import { useCallback, useRef } from "react"
 import { ArrowLeft, RefreshCw, Truck, MapPinned, Clock, Phone, User, Scale, ArrowRightLeft, Target, MapPin, Loader2 } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import AppShell from "@/components/app-shell"
+import DriverLocationMap from "@/components/driver-location-map"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useTripRequest } from "@/hooks/use-trip-request"
@@ -114,7 +115,7 @@ export default function ActiveRouteTracking() {
             </div>
 
             <div className="lg:col-span-4 space-y-6">
-                {/* SNAPSHOT MAP CARD (Ideia 1 implementada) */}
+                {/* MAPA COM A POSIÇÃO ATUAL DO MOTORISTA */}
                 <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
@@ -122,21 +123,8 @@ export default function ActiveRouteTracking() {
                         </h3>
                         <span className="text-[10px] font-bold text-slate-400">Último Ping: {formatTripDate(trip?.lastPing)}</span>
                     </div>
-                    {/* Visualização estilizada do mapa */}
-                    <div className="h-[200px] bg-slate-50 relative flex items-center justify-center">
-                        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-                        <div className="relative w-full h-full flex items-center justify-center">
-                             {/* Linha da Rota */}
-                             <svg className="absolute w-full h-full" viewBox="0 0 400 200">
-                                <path d="M50 150 Q 200 50 350 150" fill="none" stroke="#94a3b8" strokeWidth="4" strokeDasharray="6 6" />
-                             </svg>
-                             {/* Ponto do Motorista */}
-                             <div className="absolute animate-pulse flex flex-col items-center">
-                                <div className="h-4 w-4 bg-rose-600 rounded-full border-2 border-white" />
-                                <span className="bg-white text-[9px] font-bold px-2 py-0.5 rounded mt-1 text-rose-700">{trip?.latitude == null ? "Sem posição" : `${trip.latitude.toFixed(4)}, ${trip.longitude?.toFixed(4)}`}</span>
-                             </div>
-                        </div>
-                    </div>
+                    <DriverLocationMap latitude={trip?.latitude} longitude={trip?.longitude} label={trip?.driver?.name || trip?.plate} />
+                    {trip?.latitude != null && trip?.longitude != null && <p className="border-t border-slate-100 px-4 py-2 text-[10px] font-mono text-slate-400">{trip.latitude.toFixed(4)}, {trip.longitude.toFixed(4)}</p>}
                 </div>
 
                 <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
