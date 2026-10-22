@@ -11,7 +11,7 @@ namespace Sigloc.Infrastructure.Repositories;
 
 public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> factory) : ITripMonitoringStore
 {
-    public async Task<PagedTripsDto> SearchAsync(Guid contractorId, TripQueryDto query, CancellationToken ct)
+    public async Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         var rows = from t in db.Trips.AsNoTracking()
@@ -20,8 +20,12 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
                    join v in db.Vehicles.AsNoTracking() on t.VehicleId equals v.Id
                    join m in db.TripMonitorings.AsNoTracking() on t.Id equals m.TripId into cache
                    from m in cache.DefaultIfEmpty()
-                   where r.ContractorId == contractorId && t.Status != TripStatus.Delivered && t.Status != TripStatus.Cancelled
-                   select new { Trip = t, Carrier = c, Vehicle = v, Monitoring = m };
+                   where t.Status != TripStatus.Delivered && t.Status != TripStatus.Cancelled
+                   select new { Trip = t, Route = r, Carrier = c, Vehicle = v, Monitoring = m };
+        var companyId = scope.CompanyId;
+        rows = scope.Party == TripParty.Carrier
+            ? rows.Where(x => x.Trip.CarrierId == companyId)
+            : rows.Where(x => x.Route.ContractorId == companyId);
         if (query.Search is { Length: > 0 } search)
         {
             var normalized = search.ToUpperInvariant();
@@ -58,7 +62,7 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
         return new PagedTripsDto(items, query.Page, query.PageSize, total, (int)Math.Ceiling(total / (double)query.PageSize));
     }
 
-    public async Task<TripState?> ReadAsync(Guid contractorId, Guid tripId, CancellationToken ct)
+    public async Task<TripState?> ReadAsync(TripScope scope, Guid tripId, CancellationToken ct)
     {
         await using var strategyContext = await factory.CreateDbContextAsync(ct);
         return await strategyContext.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
@@ -67,14 +71,14 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
             db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
             // Split queries must observe one committed snapshot while another request refreshes.
             await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct);
-            var result = await LoadAsync(db, contractorId, tripId, ct);
+            var result = await LoadAsync(db, scope, tripId, ct);
             await transaction.CommitAsync(ct);
             return result;
         });
     }
 
-    public async Task<TripDetailDto> RefreshAsync(Guid contractorId, Guid tripId,
-        Func<TripState, CancellationToken, Task<TripDetailDto>> refresh, CancellationToken ct)
+    public async Task<T> UpdateAsync<T>(TripScope scope, Guid tripId,
+        Func<TripState, CancellationToken, Task<T>> mutate, CancellationToken ct)
     {
         await using var strategyContext = await factory.CreateDbContextAsync(ct);
         var strategy = strategyContext.Database.CreateExecutionStrategy();
@@ -84,15 +88,21 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
             await using var db = await factory.CreateDbContextAsync(ct);
             await using var transaction = await db.Database.BeginTransactionAsync(ct);
             await db.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '5s'", ct);
-            var locked = await db.Trips.FromSqlInterpolated($"""
-                SELECT t.* FROM "Trip" t
-                JOIN "ConsolidatedRoute" r ON r."Id" = t."RouteId"
-                WHERE t."Id" = {tripId} AND r."ContractorId" = {contractorId}
-                FOR UPDATE OF t
-                """).ToListAsync(ct);
+            var locked = await (scope.Party == TripParty.Carrier
+                ? db.Trips.FromSqlInterpolated($"""
+                    SELECT t.* FROM "Trip" t
+                    WHERE t."Id" = {tripId} AND t."CarrierId" = {scope.CompanyId}
+                    FOR UPDATE OF t
+                    """)
+                : db.Trips.FromSqlInterpolated($"""
+                    SELECT t.* FROM "Trip" t
+                    JOIN "ConsolidatedRoute" r ON r."Id" = t."RouteId"
+                    WHERE t."Id" = {tripId} AND r."ContractorId" = {scope.CompanyId}
+                    FOR UPDATE OF t
+                    """)).ToListAsync(ct);
             if (locked.Count == 0) throw new TripNotFoundException(tripId);
-            var state = await LoadAsync(db, contractorId, tripId, ct) ?? throw new TripNotFoundException(tripId);
-            var result = await refresh(state, ct);
+            var state = await LoadAsync(db, scope, tripId, ct) ?? throw new TripNotFoundException(tripId);
+            var result = await mutate(state, ct);
             if (state.Snapshot != null && state.Monitoring == null) db.TripMonitorings.Add(state.Snapshot);
             db.TripTelemetries.AddRange(state.NewTelemetry);
             foreach (var item in state.Events.Where(e => db.Entry(e).State == EntityState.Detached)) db.TripMonitoringEvents.Add(item);
@@ -102,9 +112,14 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
         });
     }
 
-    private static async Task<TripState?> LoadAsync(SiglocDbContext db, Guid contractorId, Guid tripId, CancellationToken ct)
+    private static async Task<TripState?> LoadAsync(SiglocDbContext db, TripScope scope, Guid tripId, CancellationToken ct)
     {
-        var trip = await db.Trips.Where(t => t.Id == tripId && db.ConsolidatedRoutes.Any(r => r.Id == t.RouteId && r.ContractorId == contractorId))
+        var trips = db.Trips.Where(t => t.Id == tripId);
+        var companyId = scope.CompanyId;
+        trips = scope.Party == TripParty.Carrier
+            ? trips.Where(t => t.CarrierId == companyId)
+            : trips.Where(t => db.ConsolidatedRoutes.Any(r => r.Id == t.RouteId && r.ContractorId == companyId));
+        var trip = await trips
             .Include(t => t.Stops).ThenInclude(s => s.Actions).AsSplitQuery().SingleOrDefaultAsync(ct);
         if (trip == null) return null;
         var route = await db.ConsolidatedRoutes.SingleAsync(r => r.Id == trip.RouteId, ct);

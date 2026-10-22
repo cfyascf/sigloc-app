@@ -49,13 +49,13 @@ public class PostgresMonitoringTests
         await using var fixture = await DatabaseFixture.CreateAsync();
         var h = await fixture.SeedAsync();
         var store = new TripMonitoringStore(fixture.Factory);
-        var result = await store.SearchAsync(h.CompanyId, new TripQueryDto(1, 1), default);
+        var result = await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(1, 1), default);
         Assert.Single(result.Trips); Assert.Equal(1, result.TotalItems);
         Assert.Null(result.Trips[0].ProgressPercentage);
-        Assert.Empty((await store.SearchAsync(Guid.NewGuid(), new TripQueryDto(), default)).Trips);
-        Assert.Empty((await store.SearchAsync(h.CompanyId, new TripQueryDto(2, 1), default)).Trips);
-        Assert.Single((await store.SearchAsync(h.CompanyId, new TripQueryDto(Search: "ABC1D23"), default)).Trips);
-        Assert.Null(await store.ReadAsync(Guid.NewGuid(), h.State.Trip.Id, default));
+        Assert.Empty((await store.SearchAsync(TripScope.ForShipper(Guid.NewGuid()), new TripQueryDto(), default)).Trips);
+        Assert.Empty((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(2, 1), default)).Trips);
+        Assert.Single((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(Search: "ABC1D23"), default)).Trips);
+        Assert.Null(await store.ReadAsync(TripScope.ForShipper(Guid.NewGuid()), h.State.Trip.Id, default));
         await using var db = fixture.Factory.CreateDbContext();
         Assert.Empty(await db.TripMonitorings.ToListAsync()); Assert.Empty(await db.TripTelemetries.ToListAsync());
     }

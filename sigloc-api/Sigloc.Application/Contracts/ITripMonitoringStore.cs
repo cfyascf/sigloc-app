@@ -11,10 +11,15 @@ public record TripState(Trip Trip, ConsolidatedRoute Route, Vehicle Vehicle, Car
 
 public interface ITripMonitoringStore
 {
-    Task<PagedTripsDto> SearchAsync(Guid contractorId, TripQueryDto query, CancellationToken ct);
-    Task<TripState?> ReadAsync(Guid contractorId, Guid tripId, CancellationToken ct);
-    Task<TripDetailDto> RefreshAsync(Guid contractorId, Guid tripId,
-        Func<TripState, CancellationToken, Task<TripDetailDto>> refresh, CancellationToken ct);
+    Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct);
+    Task<TripState?> ReadAsync(TripScope scope, Guid tripId, CancellationToken ct);
+
+    /// <summary>
+    /// Runs <paramref name="mutate"/> against a freshly loaded graph while holding the trip row lock and
+    /// commits every change it made atomically. The callback may be invoked again on a transient retry.
+    /// </summary>
+    Task<T> UpdateAsync<T>(TripScope scope, Guid tripId,
+        Func<TripState, CancellationToken, Task<T>> mutate, CancellationToken ct);
 }
 
 public sealed class TripMonitoringOptions
