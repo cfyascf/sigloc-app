@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
-import { Search, Clock, TrendingDown, ArrowRight, SlidersHorizontal, Pencil, Trash2, X, AlertCircle, Loader2 } from "lucide-react"
+import { Search, Box, Clock, TrendingDown, ArrowRight, SlidersHorizontal, Pencil, Trash2, X, AlertCircle, Loader2, Archive } from "lucide-react"
 import { Link } from "react-router-dom"
 import AppShell from "@/components/app-shell"
-import { FormAlert } from "@/components/auth/FormAlert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -202,17 +201,12 @@ export default function FreightsOfferedOverview() {
     <AppShell title="Painel de Leilões">
       <div className="flex h-[calc(100vh-8.5rem)] flex-col gap-4 overflow-hidden">
         
+        {/* BARRA DE TOPO */}
         <div className="flex shrink-0 flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3 pt-1">
-          <div className="space-y-2">
+          <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900">Painel de Leilões</h1>
-            <Tabs value={selectedTab} onValueChange={handleTabChange}>
-              <TabsList>
-                <TabsTrigger value="active">Em andamento</TabsTrigger>
-                <TabsTrigger value="history">Histórico</TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative w-72">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -229,28 +223,44 @@ export default function FreightsOfferedOverview() {
           </div>
         </div>
 
+        {/* ABAS: EM ANDAMENTO / HISTÓRICO */}
+        <div className="shrink-0">
+          <Tabs value={selectedTab} onValueChange={handleTabChange}>
+            <TabsList className="bg-slate-100">
+              <TabsTrigger value="active" className="text-xs font-semibold">
+                Em andamento
+              </TabsTrigger>
+              <TabsTrigger value="history" className="text-xs font-semibold">
+                <Archive size={13} className="mr-1.5" /> Histórico
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         <div className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto pr-2 pb-6">
 
             {listPending ? (
-              <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-500">
-                <Loader2 size={16} className="animate-spin" /> Carregando {selectedTab === "active" ? "leilões em andamento" : "histórico de leilões"}...
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
+                <Loader2 size={20} className="animate-spin text-slate-400" />
+                <p>{selectedTab === "active" ? "Carregando leilões em andamento..." : "Carregando histórico de leilões..."}</p>
               </div>
             ) : listAction.error ? (
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-6">
-                <FormAlert message={listAction.error.message} />
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-500">
+                <AlertCircle size={20} className="text-rose-500" />
+                <p>{listAction.error.message}</p>
                 <Button
                   variant="outline"
-                  size="sm"
+                  className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700"
                   onClick={loadList}
-                  className="h-8 text-xs font-semibold"
                 >
                   Tentar novamente
                 </Button>
               </div>
             ) : filteredLeiloes.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-                {selectedTab === "active" ? "Nenhum leilão em andamento encontrado." : "Nenhum leilão no histórico encontrado."}
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
+                {selectedTab === "history" ? <Archive size={20} className="text-slate-400" /> : <Box size={20} className="text-slate-400" />}
+                <p>{selectedTab === "active" ? "Nenhum leilão em andamento encontrado." : "Nenhum leilão no histórico encontrado."}</p>
               </div>
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -260,7 +270,7 @@ export default function FreightsOfferedOverview() {
                 const isDeleting = deletingId === l.id
 
                 return (
-                  <div key={l.id} className="group relative flex flex-col rounded-xl border border-slate-200 bg-white transition-all overflow-hidden">
+                  <div key={l.id} className={`group relative flex flex-col rounded-xl border border-slate-200 bg-white transition-all overflow-hidden ${isHistory ? "opacity-80" : ""}`}>
                     
                     {/* CABEÇALHO DO CARD - Azulado no Edit Mode */}
                     <div className={`flex items-center justify-between border-b px-4 py-3 min-h-[44px] ${isEditing ? "border-blue-100 bg-blue-50/50" : "border-slate-100 bg-slate-50/50"}`}>
@@ -344,9 +354,15 @@ export default function FreightsOfferedOverview() {
                             <div className="flex items-center text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded">
                               <Clock size={12} className="mr-1.5" /> {l.bidDeadline}
                             </div>
-                            <Button asChild size="sm" variant="ghost" className="h-8 text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2">
-                              <Link to={`/auction-bids/${l.id}`}>Analisar <ArrowRight size={14} className="ml-1" /></Link>
-                            </Button>
+                            {isHistory ? (
+                              <Button asChild size="sm" variant="ghost" className="h-8 text-xs font-bold text-slate-600 hover:text-slate-700 hover:bg-slate-50 px-2">
+                                <Link to={`/auction-bids/${l.id}`}>Ver Detalhes <ArrowRight size={14} className="ml-1" /></Link>
+                              </Button>
+                            ) : (
+                              <Button asChild size="sm" variant="ghost" className="h-8 text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2">
+                                <Link to={`/auction-bids/${l.id}`}>Analisar <ArrowRight size={14} className="ml-1" /></Link>
+                              </Button>
+                            )}
                           </div>
                         </div>
                       )}
