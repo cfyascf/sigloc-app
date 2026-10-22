@@ -51,6 +51,23 @@ export function tripStatusStyle(value) {
   return "bg-slate-100 text-slate-600"
 }
 
+const stopActionLabels = {
+  COLETA: "Confirmar Coleta",
+  ENTREGA: "Finalizar Entrega",
+  COLETA_E_ENTREGA: "Confirmar Coleta e Entrega",
+}
+
+/** Button label for the carrier's current stop action (`acaoAtual.tipo`). */
+export function stopActionLabel(type) {
+  return stopActionLabels[type] ?? "Confirmar Parada"
+}
+
+export function formatFileSize(bytes) {
+  if (typeof bytes !== "number" || !Number.isFinite(bytes)) return UNKNOWN
+  if (bytes < 1024 * 1024) return `${formatTripNumber(bytes / 1024)} KB`
+  return `${formatTripNumber(bytes / (1024 * 1024))} MB`
+}
+
 /** KPI tint for an SLA status: rose when late, amber when at risk, none when on time. */
 export function slaAlert(sla) {
   if (sla === "ATRASADO") return "rose"

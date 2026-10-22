@@ -19,6 +19,7 @@ import {
   Box,
   ChartBar,
   Link2,
+  Navigation,
   Package,
   Truck,
 } from "lucide-react"
@@ -36,6 +37,7 @@ import RouteSegmentManagement from "@/pages/RouteSegmentManagement"
 import CreateRouteSegment from "@/pages/CreateRouteSegment"
 import RouteSegmentDetails from "@/pages/RouteSegmentDetails"
 import ActiveRouteTracking from "@/pages/ActiveRouteTracking"
+import CarrierRouteTracking from "@/pages/CarrierRouteTracking"
 import OfferFreight from "@/pages/OfferFreight"
 import RegisterProduct from "@/pages/RegisterProduct"
 import AuctionBids from "@/pages/AuctionBids"
@@ -142,6 +144,15 @@ export const ROUTES = [
     nav: true,
   },
   { path: "/bid-analysis/:auctionId", element: <BidAnalysis />, access: [ROLES.CARRIER], nav: false },
+  {
+    path: "/carrier-route-tracking",
+    element: <CarrierRouteTracking />,
+    label: "Rota em Trânsito",
+    icon: Navigation,
+    access: [ROLES.CARRIER],
+    nav: true,
+  },
+  { path: "/carrier-route-tracking/:tripId", element: <CarrierRouteTracking />, access: [ROLES.CARRIER], nav: false },
   {
     path: "/fleet-management",
     element: <FleetManagement />,

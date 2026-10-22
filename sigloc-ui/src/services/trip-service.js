@@ -35,6 +35,7 @@ export function toActiveTrip(dto) {
     risk: dto.indicadorRisco ?? dto.risco,
     carrier,
     plate,
+    shipperName: typeof dto.embarcador === "string" ? dto.embarcador : null,
     origin: dto.origem,
     destination: dto.destino,
     progress: numberOrNull(dto.progressoPercentual ?? cache.progressoPercentual),
@@ -96,7 +97,12 @@ export function toTripDetails(dto) {
   }
 }
 
-export async function listActiveTrips({ search = "", status = "", risk = "", page = 1, pageSize = 20 } = {}, options) {
+export function listActiveTrips(filters, options) {
+  return listTripsAt(BASE, filters, options)
+}
+
+/** Paged active-trip list; shippers and carriers share the query and response shape under different bases. */
+export async function listTripsAt(base, { search = "", status = "", risk = "", page = 1, pageSize = 20 } = {}, options) {
   const query = new URLSearchParams({
     page: String(Math.max(1, Math.trunc(page) || 1)),
     pageSize: String(Math.max(1, Math.min(100, Math.trunc(pageSize) || 20))),
@@ -104,7 +110,7 @@ export async function listActiveTrips({ search = "", status = "", risk = "", pag
   if (search.trim()) query.set("search", search.trim())
   if (status) query.set("status", status)
   if (risk) query.set("risk", risk)
-  const payload = await apiClient.get(`${BASE}/ativas?${query}`, options)
+  const payload = await apiClient.get(`${base}/ativas?${query}`, options)
   if (!payload || !Array.isArray(payload.viagens)) {
     throw new ApiError("Resposta de viagens inválida.", { code: "INVALID_RESPONSE" })
   }
