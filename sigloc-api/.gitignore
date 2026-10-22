@@ -114,3 +114,6 @@ appsettings.*.Local.json
 .env
 .env.local
 *.env
+
+# Local proof-of-delivery uploads (LocalDiskFileStorage).
+App_Data/

@@ -11,6 +11,7 @@ using Sigloc.Infrastructure.Notifications;
 using Sigloc.Infrastructure.Repositories;
 using Sigloc.Infrastructure.Routing;
 using Sigloc.Infrastructure.Monitoring;
+using Sigloc.Infrastructure.Storage;
 
 namespace Sigloc.Infrastructure;
 
@@ -75,6 +76,8 @@ public static class DependencyInjection
         services.AddScoped<IBidRepository, BidRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<ITripMonitoringStore, TripMonitoringStore>();
+        services.Configure<FileStorageSettings>(configuration.GetSection(FileStorageSettings.SectionName));
+        services.AddSingleton<IFileStorage, LocalDiskFileStorage>();
         services.AddSingleton(TimeProvider.System);
         services.AddOptions<TripMonitoringOptions>().Bind(configuration.GetSection("Monitoring"))
             .Validate(o => o.MaxGpsAgeMinutes > 0 && double.IsFinite(o.GeofenceRadiusMeters)

@@ -114,6 +114,7 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
             db.TripTelemetries.AddRange(state.NewTelemetry);
             foreach (var item in state.Events.Where(e => db.Entry(e).State == EntityState.Detached)) db.TripMonitoringEvents.Add(item);
             foreach (var item in state.Occurrences.Where(o => db.Entry(o).State == EntityState.Detached)) db.TripOccurrences.Add(item);
+            foreach (var item in state.Proofs.Where(p => db.Entry(p).State == EntityState.Detached)) db.TripProofsOfDelivery.Add(item);
             if (db.ChangeTracker.HasChanges()) await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return result;
@@ -137,6 +138,7 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
         var snapshot = await db.TripMonitorings.SingleOrDefaultAsync(m => m.TripId == trip.Id, ct);
         var events = await db.TripMonitoringEvents.Where(e => e.TripId == trip.Id).OrderByDescending(e => e.OccurredAt).ThenBy(e => e.Id).Take(50).ToListAsync(ct);
         var occurrences = await db.TripOccurrences.Where(o => o.TripId == trip.Id).OrderByDescending(o => o.ReportedAt).ThenBy(o => o.Id).ToListAsync(ct);
-        return new TripState(trip, route, vehicle, carrier, segments, snapshot, events) { Occurrences = occurrences };
+        var proofs = await db.TripProofsOfDelivery.Where(p => p.TripId == trip.Id).OrderByDescending(p => p.UploadedAt).ThenBy(p => p.Id).ToListAsync(ct);
+        return new TripState(trip, route, vehicle, carrier, segments, snapshot, events) { Occurrences = occurrences, Proofs = proofs };
     }
 }

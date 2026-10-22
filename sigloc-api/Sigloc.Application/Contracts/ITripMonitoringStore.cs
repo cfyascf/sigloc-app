@@ -9,6 +9,8 @@ public record TripState(Trip Trip, ConsolidatedRoute Route, Vehicle Vehicle, Car
     public List<TripTelemetry> NewTelemetry { get; } = new();
     /// <summary>Every occurrence of the trip, newest first; new ones are persisted on update.</summary>
     public List<TripOccurrence> Occurrences { get; init; } = new();
+    /// <summary>Proofs of delivery of the trip, newest first; new ones are persisted on update.</summary>
+    public List<TripProofOfDelivery> Proofs { get; init; } = new();
 }
 
 public interface ITripMonitoringStore
