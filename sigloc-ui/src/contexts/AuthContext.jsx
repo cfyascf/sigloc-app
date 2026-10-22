@@ -3,7 +3,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -59,14 +59,16 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(readStoredUser)
 
   // Expose the token to the API client without re-registering the provider on
-  // every token change — the ref always points at the latest value.
+  // every token change — the ref always points at the latest value. Layout
+  // effects run before any child's passive effects, so requests fired on first
+  // mount (e.g. after a page refresh) already carry the stored token.
   const tokenRef = useRef(token)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     tokenRef.current = token
   }, [token])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setAuthTokenProvider(() => tokenRef.current)
   }, [])
 

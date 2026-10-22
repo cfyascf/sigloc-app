@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
@@ -38,7 +39,9 @@ public sealed class OpenRouteServiceTripRoutingProvider(
                     continue;
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
-                request.Headers.Add("Authorization", _routeSettings.ApiKey);
+                // Same scheme as the geocoding client. A raw Headers.Add rejects keys ending in '='
+                // with FormatException, which surfaced as "monitoring unavailable".
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _routeSettings.ApiKey);
                 request.Content = JsonContent.Create(new
                 {
                     locations = chunk.Select(c => new[] { c.Longitude, c.Latitude }).ToArray(),
