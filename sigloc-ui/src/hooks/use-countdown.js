@@ -12,7 +12,7 @@ export function useCountdown(deadline) {
 
   useEffect(() => {
     if (!Number.isFinite(target)) return undefined
-    const delay = Math.abs(target - Date.now()) < HOUR_MS ? 1000 : 30_000
+    const delay = Math.abs(target - Date.now()) < HOUR_MS ? 1000 : 30000
     const timer = setTimeout(() => setNow(Date.now()), delay)
     return () => clearTimeout(timer)
   }, [target, now])

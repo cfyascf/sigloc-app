@@ -51,10 +51,17 @@ export function tripStatusStyle(value) {
   return "bg-slate-100 text-slate-600"
 }
 
+/** KPI tint for an SLA status: rose when late, amber when at risk, none when on time. */
+export function slaAlert(sla) {
+  if (sla === "ATRASADO") return "rose"
+  if (sla === "ATENCAO") return "amber"
+  return undefined
+}
+
 /** "2h 05min", "04:59" within the last hour, "Atrasado há 12min" once overdue; `ms` comes from useCountdown. */
 export function formatCountdown(ms) {
   if (typeof ms !== "number" || !Number.isFinite(ms)) return UNKNOWN
-  const totalMinutes = Math.floor(Math.abs(ms) / 60_000)
+  const totalMinutes = Math.floor(Math.abs(ms) / 60000)
   const hours = Math.floor(totalMinutes / 60)
   const minutes = String(totalMinutes % 60).padStart(2, "0")
   if (ms < 0) return hours > 0 ? `Atrasado há ${hours}h ${minutes}min` : `Atrasado há ${totalMinutes}min`

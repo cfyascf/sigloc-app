@@ -153,3 +153,17 @@ test("countdown shows hours, then mm:ss in the last hour, then how late", () => 
   assert.equal(formatters.formatCountdown(-(90 * 60_000)), "Atrasado há 1h 30min")
   assert.equal(formatters.formatCountdown(null), "Não informado")
 })
+
+test("stop timeline is per stop, ordered, keeps IDs and normalizes completion", () => {
+  const stops = trips.toStopTimeline([
+    { id: "stop-2", ordem: 2, cidade: "Curitiba", estado: "PR", status: "PENDENTE", acoes: [{ id: "a2", tipo: "ENTREGA", produto: "Sorvete", prazo: "2026-10-01T20:00:00Z" }] },
+    { id: "stop-1", ordem: 1, cidade: "Curitiba", estado: "PR", status: "CONCLUIDA", concluidaEm: "2026-10-01T12:00:00Z", fonteConclusao: "DRIVER_CONFIRMED", acoes: [{ id: "a1", tipo: "COLETA", produto: "Sorvete", prazo: "2026-10-01T13:00:00Z", concluidaEm: "2026-10-01T12:00:00Z", fonteConclusao: "DRIVER_CONFIRMED" }] },
+  ])
+  assert.deepEqual(stops.map((stop) => stop.id), ["stop-1", "stop-2"])
+  assert.equal(stops[0].city, "Curitiba, PR")
+  assert.equal(stops[0].status, "CONCLUIDO")
+  assert.equal(stops[0].source, "DRIVER_CONFIRMED")
+  assert.equal(stops[0].actions[0].completed, true)
+  assert.equal(stops[1].actions[0].completed, false)
+  assert.deepEqual(trips.toStopTimeline(undefined), [])
+})
