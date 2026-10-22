@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Building2, LoaderCircle, Save, ShieldCheck, Star, TrendingUp } from "lucide-react"
+import { Building2, Headset, LoaderCircle, Save, ShieldCheck, Star, TrendingUp } from "lucide-react"
 
 import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
@@ -24,13 +24,24 @@ function MetricTile({ icon: Icon, label, value }) {
   )
 }
 
+const EMPTY_CONTACT = { logisticsContactName: "", logisticsContactPhone: "", logisticsContactEmail: "" }
+
+const toContactForm = (profile) => ({
+  logisticsContactName: profile.logisticsContactName ?? "",
+  logisticsContactPhone: profile.logisticsContactPhone ?? "",
+  logisticsContactEmail: profile.logisticsContactEmail ?? "",
+})
+
 export default function Profile() {
   const [profile, setProfile] = useState(null)
   const [form, setForm] = useState({ companyName: "", tradeName: "" })
   const [successMessage, setSuccessMessage] = useState("")
+  const [contactForm, setContactForm] = useState(EMPTY_CONTACT)
+  const [contactSuccess, setContactSuccess] = useState("")
 
   const loadAction = useAsyncAction(profileService.getProfile)
   const saveAction = useAsyncAction(profileService.updateProfile)
+  const contactAction = useAsyncAction(profileService.updateProfile)
 
   useEffect(() => {
     let active = true
@@ -42,6 +53,7 @@ export default function Profile() {
           companyName: result.data.companyName ?? "",
           tradeName: result.data.tradeName ?? "",
         })
+        setContactForm(toContactForm(result.data))
       }
     })
 
@@ -77,7 +89,33 @@ export default function Profile() {
     }
   }
 
+  const handleContactChange = (event) => {
+    const { id, value } = event.target
+    setContactForm((prev) => ({ ...prev, [id]: value }))
+    setContactSuccess("")
+  }
+
+  // Saves only the contact: company fields are resent as stored, never the unsaved edits above.
+  const handleContactSubmit = async (event) => {
+    event.preventDefault()
+    if (contactAction.pending) return
+
+    setContactSuccess("")
+    const result = await contactAction.run({
+      companyName: profile.companyName,
+      tradeName: profile.tradeName,
+      ...contactForm,
+    })
+
+    if (result.ok && result.data) {
+      setProfile(result.data)
+      setContactForm(toContactForm(result.data))
+      setContactSuccess("Contato logístico atualizado.")
+    }
+  }
+
   const isCarrier = profile?.role === ROLES.CARRIER
+  const isContractor = profile?.role === ROLES.CONTRACTOR
   const companyNameError = saveAction.fieldErrors.razaoSocial ?? saveAction.fieldErrors.companyName
   const tradeNameError = saveAction.fieldErrors.nomeFantasia ?? saveAction.fieldErrors.tradeName
 
@@ -172,6 +210,77 @@ export default function Profile() {
                 </form>
               </CardContent>
             </Card>
+
+            {isContractor ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Headset size={18} /> Contato Logístico
+                  </CardTitle>
+                  <CardDescription>
+                    Exibido às transportadoras nas viagens em andamento. Deixe em branco para não informar.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form noValidate onSubmit={handleContactSubmit} className="space-y-4">
+                    {contactAction.error ? <FormAlert message={contactAction.error.message} /> : null}
+                    {contactSuccess ? (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                        {contactSuccess}
+                      </div>
+                    ) : null}
+
+                    <FormField
+                      id="logisticsContactName"
+                      label="Nome do Contato"
+                      type="text"
+                      placeholder="Ex.: Mesa de Logística"
+                      maxLength={120}
+                      value={contactForm.logisticsContactName}
+                      onChange={handleContactChange}
+                      error={contactAction.fieldErrors.logisticsContactName}
+                    />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField
+                        id="logisticsContactPhone"
+                        label="Telefone"
+                        type="tel"
+                        placeholder="(41) 3333-0000"
+                        className="font-mono"
+                        value={contactForm.logisticsContactPhone}
+                        onChange={handleContactChange}
+                        error={contactAction.fieldErrors.logisticsContactPhone}
+                      />
+                      <FormField
+                        id="logisticsContactEmail"
+                        label="E-mail"
+                        type="email"
+                        placeholder="logistica@empresa.com.br"
+                        value={contactForm.logisticsContactEmail}
+                        onChange={handleContactChange}
+                        error={contactAction.fieldErrors.logisticsContactEmail}
+                      />
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={contactAction.pending}
+                      className="mt-2 w-full bg-slate-900 text-white hover:bg-slate-800"
+                    >
+                      {contactAction.pending ? (
+                        <>
+                          <LoaderCircle className="animate-spin" aria-hidden="true" /> Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} aria-hidden="true" /> Salvar Contato
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            ) : null}
 
             {isCarrier ? (
               <Card>

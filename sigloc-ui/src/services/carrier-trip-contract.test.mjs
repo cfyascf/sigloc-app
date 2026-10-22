@@ -139,3 +139,18 @@ test("proof download returns the file blob from the carrier proof path", async (
   assert.equal(requested.pathname, "/api/transportador/viagens/trip-1/comprovantes/pod-1")
   assert.equal(blob.type, "application/pdf")
 })
+
+test("profile update omits contact fields unless provided, trims them and sends blanks to clear", async () => {
+  const profile = await server.ssrLoadModule("/src/services/profile-service.js")
+  const bodies = []
+  globalThis.fetch = async (url, options) => {
+    bodies.push(JSON.parse(options.body))
+    return respond({ id: "c1", role: "contractor", companyName: "Embarcador SA", logisticsContactPhone: "(41) 3333-0000" })
+  }
+  await profile.updateProfile({ companyName: "Embarcador SA", tradeName: "" })
+  const saved = await profile.updateProfile({ companyName: "Embarcador SA", tradeName: "", logisticsContactName: "  Mesa  ", logisticsContactPhone: "", logisticsContactEmail: " a@b.com " })
+  assert.deepEqual(bodies[0], { companyName: "Embarcador SA", tradeName: "" })
+  assert.deepEqual(bodies[1], { companyName: "Embarcador SA", tradeName: "", logisticsContactName: "Mesa", logisticsContactPhone: "", logisticsContactEmail: "a@b.com" })
+  assert.equal(saved.logisticsContactPhone, "(41) 3333-0000")
+  assert.equal(saved.logisticsContactEmail, "")
+})
