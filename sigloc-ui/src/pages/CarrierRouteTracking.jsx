@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react"
-import { AlertTriangle, ArrowRightLeft, Building2, CheckCircle2, Clock, FileText, Loader2, Mail, Navigation, Package, Phone, RefreshCw, Scale, Snowflake, Target, Truck, User } from "lucide-react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useCallback, useState } from "react"
+import { AlertTriangle, ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock, FileText, Loader2, Mail, Navigation, Package, Phone, RefreshCw, Scale, Snowflake, Target, Truck, User } from "lucide-react"
+import { Link, useNavigate, useParams } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
 import { FormAlert } from "@/components/auth/FormAlert"
@@ -12,7 +12,6 @@ import { TripKpiCard } from "@/components/trips/trip-kpi-card"
 import { TripLocationCard } from "@/components/trips/trip-location-card"
 import { TripStopTimeline } from "@/components/trips/trip-stop-timeline"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/toast"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { useCountdown } from "@/hooks/use-countdown"
@@ -20,12 +19,10 @@ import { useTripRequest } from "@/hooks/use-trip-request"
 import {
   UNKNOWN, formatCountdown, formatFileSize, formatTripDate, formatTripNumber, slaAlert, stopActionLabel, tripStatusLabel, tripStatusStyle,
 } from "@/lib/trip-formatters"
-import { completeTripStop, downloadTripProof, getCarrierTripDetails, listCarrierTrips, reportTripOccurrence } from "@/services/carrier-trip-service"
+import { completeTripStop, downloadTripProof, getCarrierTripDetails, reportTripOccurrence } from "@/services/carrier-trip-service"
 
 const BASE_PATH = "/carrier-route-tracking"
 const HOUR_MS = 60 * 60 * 1000
-
-const loadCarrierTrips = (options) => listCarrierTrips({ pageSize: 100 }, options)
 
 // The proof endpoint needs the bearer token, so the file is fetched as a Blob and saved locally.
 function saveBlob(blob, fileName) {
@@ -91,18 +88,9 @@ export default function CarrierRouteTracking() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const tripList = useTripRequest(loadCarrierTrips, "carrier-trips")
-  const trips = tripList.data?.trips ?? []
-  const firstTripId = trips[0]?.id
-
-  const loadDetail = useCallback((options) => (tripId ? getCarrierTripDetails(tripId, options) : Promise.resolve(null)), [tripId])
-  const detail = useTripRequest(loadDetail, tripId ?? "none")
+  const loadDetail = useCallback((options) => getCarrierTripDetails(tripId, options), [tripId])
+  const detail = useTripRequest(loadDetail, tripId)
   const trip = detail.data
-
-  // Without a trip in the URL, open the first active one.
-  useEffect(() => {
-    if (!tripId && firstTripId) navigate(`${BASE_PATH}/${firstTripId}`, { replace: true })
-  }, [tripId, firstTripId, navigate])
 
   const pingAction = useAsyncAction((id) => getCarrierTripDetails(id, { refresh: true }))
   const completeAction = useAsyncAction((id, stopId, payload) => completeTripStop(id, stopId, payload))
@@ -186,21 +174,7 @@ export default function CarrierRouteTracking() {
     )
   }
 
-  const switchable = trips.some((item) => item.id !== tripId)
-
   const renderBody = () => {
-    if (!tripId) {
-      if (tripList.pending || firstTripId) return <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Carregando viagens...</p>
-      if (tripList.error) {
-        return (
-          <div className="space-y-3">
-            <FormAlert message={tripList.error.message || "Não foi possível carregar suas viagens."} />
-            <Button variant="outline" onClick={tripList.reload}>Tentar novamente</Button>
-          </div>
-        )
-      }
-      return <EmptyState title="Nenhuma viagem em trânsito" description="Quando um leilão for adjudicado à sua transportadora, a viagem aparece aqui para acompanhamento." />
-    }
     if (detail.pending) return <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Carregando viagem...</p>
     if (detail.error?.status === 404) {
       return (
@@ -289,6 +263,18 @@ export default function CarrierRouteTracking() {
             </TripCard>
 
             <TripEventLog events={trip.events} />
+
+            <TripCard icon={Building2} iconClassName="text-slate-600" title="Contato do Embarcador" bodyClassName="space-y-3 p-4">
+              <div>
+                <p className="text-sm font-bold text-slate-800">{shipper?.tradeName || shipper?.companyName || UNKNOWN}</p>
+                {shipper?.tradeName && shipper?.companyName && <p className="text-[11px] text-slate-500">{shipper.companyName}</p>}
+              </div>
+              <div className="space-y-2 border-t border-slate-100 pt-3">
+                <ContactRow icon={User} value={shipper?.contactName} />
+                <ContactRow icon={Phone} value={shipper?.phone} href={shipper?.phoneHref} mono />
+                <ContactRow icon={Mail} value={shipper?.email} href={shipper?.emailHref} />
+              </div>
+            </TripCard>
           </div>
 
           <div className="space-y-4 lg:col-span-4">
@@ -303,6 +289,17 @@ export default function CarrierRouteTracking() {
               )}
               {pingOutcome?.renewed && <p className="text-xs text-emerald-700">Posição atualizada em <span className="font-mono">{formatTripDate(trip.lastPing)}</span>.</p>}
             </TripLocationCard>
+
+            <TripCard icon={Truck} iconClassName="text-emerald-600" title="Veículo e Motorista" bodyClassName="space-y-3 p-4">
+              <div>
+                <p className="text-sm font-bold text-slate-800">{trip.driver?.name || UNKNOWN}</p>
+                <p className="text-[11px] text-slate-500">Motorista</p>
+              </div>
+              <div className="space-y-2 border-t border-slate-100 pt-3">
+                <ContactRow icon={Truck} value={trip.plate} mono />
+                <ContactRow icon={Phone} value={trip.driver?.phone} mono />
+              </div>
+            </TripCard>
 
             <TripCard icon={Package} iconClassName="text-blue-600" title="Especificação da Carga" bodyClassName="space-y-4 p-4">
               {(cargo.refrigerated || cargo.palletized || cargo.dangerous || cargo.fragile) && (
@@ -335,18 +332,6 @@ export default function CarrierRouteTracking() {
                 </div>
               )}
             </TripCard>
-
-            <TripCard icon={Building2} iconClassName="text-slate-600" title="Contato do Embarcador" bodyClassName="space-y-3 p-4">
-              <div>
-                <p className="text-sm font-bold text-slate-800">{shipper?.tradeName || shipper?.companyName || UNKNOWN}</p>
-                {shipper?.tradeName && shipper?.companyName && <p className="text-[11px] text-slate-500">{shipper.companyName}</p>}
-              </div>
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <ContactRow icon={User} value={shipper?.contactName} />
-                <ContactRow icon={Phone} value={shipper?.phone} href={shipper?.phoneHref} mono />
-                <ContactRow icon={Mail} value={shipper?.email} href={shipper?.emailHref} />
-              </div>
-            </TripCard>
           </div>
         </div>
       </>
@@ -363,29 +348,12 @@ export default function CarrierRouteTracking() {
               <h2 className="truncate font-mono text-lg font-black text-slate-900">{trip?.reference || "Rota em Trânsito"}</h2>
               {trip && <Flag className={tripStatusStyle(trip.status)}>{tripStatusLabel(trip.status)}</Flag>}
             </div>
-            {trip && (
-              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                <span className="flex items-center gap-1"><Truck size={12} /> <span className="font-mono text-slate-700">{trip.plate || UNKNOWN}</span></span>
-                <span className="flex items-center gap-1"><User size={12} /> {trip.driver?.name || "Motorista não informado"}</span>
-                <span className="flex items-center gap-1"><Building2 size={12} /> {trip.shipper?.tradeName || trip.shipper?.companyName || "Embarcador não informado"}</span>
-              </div>
-            )}
           </div>
-          {switchable && (
-            <Select value={trips.some((item) => item.id === tripId) ? tripId : ""} onValueChange={(id) => navigate(`${BASE_PATH}/${id}`)} disabled={busy}>
-              <SelectTrigger aria-label="Trocar viagem" className="h-9 w-[280px] border-slate-200 text-sm">
-                <SelectValue placeholder="Trocar viagem" />
-              </SelectTrigger>
-              <SelectContent>
-                {trips.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    <span className="font-mono">{item.reference}</span>
-                    {item.shipperName && <span className="text-slate-500"> · {item.shipperName}</span>}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <Link to={BASE_PATH}>
+            <Button variant="ghost" className="h-auto p-0 text-sm font-medium text-slate-500 hover:bg-transparent">
+              <ArrowLeft size={16} className="mr-2" /> Voltar para Rotas em Trânsito
+            </Button>
+          </Link>
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden">

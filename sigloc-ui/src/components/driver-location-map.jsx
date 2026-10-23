@@ -5,6 +5,12 @@ import "leaflet/dist/leaflet.css"
 
 const DEFAULT_ZOOM = 14
 
+// OpenStreetMap's volunteer tile server blocks apps that don't follow its tile usage policy and
+// CARTO's public raster tiles now require an API key, so the default is Esri's keyless street map.
+// Override both values to use another provider (e.g. a keyed MapTiler/Stadia URL template).
+const TILE_URL = import.meta.env.VITE_MAP_TILE_URL || "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+const TILE_ATTRIBUTION = import.meta.env.VITE_MAP_TILE_ATTRIBUTION || "Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, OpenStreetMap contributors"
+
 // A divIcon avoids Leaflet's default marker PNGs, which bundlers fail to resolve.
 const driverIcon = L.divIcon({
   className: "",
@@ -38,9 +44,10 @@ export default function DriverLocationMap({ latitude, longitude, label, classNam
     <div className={`isolate ${className}`}>
       <MapContainer center={position} zoom={DEFAULT_ZOOM} scrollWheelZoom={false} className="h-full w-full">
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={TILE_ATTRIBUTION}
+          url={TILE_URL}
           maxZoom={19}
+          referrerPolicy="strict-origin-when-cross-origin"
         />
         <Marker position={position} icon={driverIcon}>
           <Tooltip direction="top" offset={[0, -10]}>

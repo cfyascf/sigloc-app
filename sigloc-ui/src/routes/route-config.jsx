@@ -37,6 +37,7 @@ import RouteSegmentManagement from "@/pages/RouteSegmentManagement"
 import CreateRouteSegment from "@/pages/CreateRouteSegment"
 import RouteSegmentDetails from "@/pages/RouteSegmentDetails"
 import ActiveRouteTracking from "@/pages/ActiveRouteTracking"
+import CarrierActiveRoutes from "@/pages/CarrierActiveRoutes"
 import CarrierRouteTracking from "@/pages/CarrierRouteTracking"
 import OfferFreight from "@/pages/OfferFreight"
 import RegisterProduct from "@/pages/RegisterProduct"
@@ -146,7 +147,7 @@ export const ROUTES = [
   { path: "/bid-analysis/:auctionId", element: <BidAnalysis />, access: [ROLES.CARRIER], nav: false },
   {
     path: "/carrier-route-tracking",
-    element: <CarrierRouteTracking />,
+    element: <CarrierActiveRoutes />,
     label: "Rota em Trânsito",
     icon: Navigation,
     access: [ROLES.CARRIER],
