@@ -32,8 +32,8 @@ public class PostgresMonitoringTests
         db.TripMonitorings.Add(new TripMonitoring { Id = Guid.NewGuid(), TripId = h.State.Trip.Id,
             LastCalculatedEta = TripMonitoringServiceTests.Now.AddHours(2), LastPingAt = TripMonitoringServiceTests.Now });
         await db.SaveChangesAsync();
-        var migrations = db.Database.GetMigrations().ToList();
-        await db.GetService<IMigrator>().MigrateAsync(migrations[^2]);
+        // Pinned by name: later migrations must not shift the rollback target.
+        await db.GetService<IMigrator>().MigrateAsync("20261001185055_AddOnDemandTripMonitoring");
         await db.Database.MigrateAsync();
         db.ChangeTracker.Clear();
         var legacy = await db.TripMonitorings.SingleAsync();
@@ -49,13 +49,13 @@ public class PostgresMonitoringTests
         await using var fixture = await DatabaseFixture.CreateAsync();
         var h = await fixture.SeedAsync();
         var store = new TripMonitoringStore(fixture.Factory);
-        var result = await store.SearchAsync(h.CompanyId, new TripQueryDto(1, 1), default);
+        var result = await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(1, 1), default);
         Assert.Single(result.Trips); Assert.Equal(1, result.TotalItems);
         Assert.Null(result.Trips[0].ProgressPercentage);
-        Assert.Empty((await store.SearchAsync(Guid.NewGuid(), new TripQueryDto(), default)).Trips);
-        Assert.Empty((await store.SearchAsync(h.CompanyId, new TripQueryDto(2, 1), default)).Trips);
-        Assert.Single((await store.SearchAsync(h.CompanyId, new TripQueryDto(Search: "ABC1D23"), default)).Trips);
-        Assert.Null(await store.ReadAsync(Guid.NewGuid(), h.State.Trip.Id, default));
+        Assert.Empty((await store.SearchAsync(TripScope.ForShipper(Guid.NewGuid()), new TripQueryDto(), default)).Trips);
+        Assert.Empty((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(2, 1), default)).Trips);
+        Assert.Single((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(Search: "ABC1D23"), default)).Trips);
+        Assert.Null(await store.ReadAsync(TripScope.ForShipper(Guid.NewGuid()), h.State.Trip.Id, default));
         await using var db = fixture.Factory.CreateDbContext();
         Assert.Empty(await db.TripMonitorings.ToListAsync()); Assert.Empty(await db.TripTelemetries.ToListAsync());
     }
@@ -90,6 +90,48 @@ public class PostgresMonitoringTests
         }
         h.Routing.Fail = false;
         Assert.True((await service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true)).IsCacheRenewed);
+    }
+
+    [PostgresFact]
+    public async Task Carrier_scope_locks_persists_occurrences_and_filters_by_effective_risk()
+    {
+        await using var fixture = await DatabaseFixture.CreateAsync();
+        var h = await fixture.SeedAsync();
+        var carrierId = h.State.Trip.CarrierId;
+        var userId = Guid.NewGuid();
+        await using (var db = fixture.Factory.CreateDbContext())
+        {
+            db.Add(new User { Id = userId, Email = "motorista@carrier.com", ProfileType = ProfileType.Transportador, CompanyId = carrierId });
+            await db.SaveChangesAsync();
+        }
+        var store = new TripMonitoringStore(fixture.Factory);
+        var monitoring = new TripMonitoringService(store, h.Tracking, h.Routing, h.Clock, new());
+        var files = new CarrierTripServiceTests.FakeFileStorage();
+        var carrier = new CarrierTripService(monitoring, store, files, h.Clock);
+
+        var listed = Assert.Single((await store.SearchAsync(TripScope.ForCarrier(carrierId), new TripQueryDto(), default)).Trips);
+        Assert.Equal("Test contractor", listed.ShipperName);
+        Assert.Empty((await store.SearchAsync(TripScope.ForCarrier(Guid.NewGuid()), new TripQueryDto(), default)).Trips);
+
+        await carrier.ReportOccurrenceAsync(carrierId, userId, h.State.Trip.Id, new("AVARIA_MECANICA", "Motor"));
+        var late = Assert.Single((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(Status: "ATRASADO"), default)).Trips);
+        Assert.Equal("CRITIC", late.Risk);
+        Assert.Empty((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(Risk: "NAO_MONITORADO"), default)).Trips);
+
+        var stops = h.State.Trip.Stops.OrderBy(s => s.Sequence).ToList();
+        await carrier.CompleteStopAsync(carrierId, userId, h.State.Trip.Id, stops[0].Id, null, null);
+        Assert.Single((await store.SearchAsync(TripScope.ForShipper(h.CompanyId), new TripQueryDto(Risk: "NAO_MONITORADO"), default)).Trips);
+        await carrier.CompleteStopAsync(carrierId, userId, h.State.Trip.Id, stops[1].Id,
+            new(new MemoryStream([.. "%PDF-1.7"u8.ToArray()]), "canhoto.pdf", 8), "Recebido");
+
+        await using var check = fixture.Factory.CreateDbContext();
+        Assert.Equal(TripStatus.Delivered, (await check.Trips.SingleAsync()).Status);
+        Assert.All(await check.TripStops.ToListAsync(), s => Assert.True(s.IsCompleted));
+        Assert.NotNull((await check.TripOccurrences.SingleAsync()).ResolvedAt);
+        var proof = await check.TripProofsOfDelivery.SingleAsync();
+        Assert.Equal(stops[1].Id, proof.TripStopId);
+        Assert.True(files.Stored.ContainsKey(proof.StorageKey));
+        Assert.Contains(await check.TripMonitoringEvents.ToListAsync(), e => e.Kind == "PARADA_CONFIRMADA");
     }
 
     private sealed class DatabaseFixture(string connectionString, string schema) : IAsyncDisposable

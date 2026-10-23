@@ -46,7 +46,7 @@ export default function ActiveRoutes() {
 
         {filtersOpen && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs">
           <select aria-label="Filtrar por status" value={query.status} onChange={(event) => setQuery((current) => ({ ...current, status: event.target.value, page: 1 }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os status</option><option value="AGUARDANDO_COLETA">Aguardando coleta</option><option value="EM_TRANSITO">Em trânsito</option><option value="ATRASADO">Atrasado</option></select>
-          <select aria-label="Filtrar por risco" value={query.risk} onChange={(event) => setQuery((current) => ({ ...current, risk: event.target.value, page: 1 }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os riscos</option><option value="NORMAL">Normal</option><option value="CRITIC">Crítico</option><option value="NAO_MONITORADO">Sem monitoramento</option></select>
+          <select aria-label="Filtrar por risco" value={query.risk} onChange={(event) => setQuery((current) => ({ ...current, risk: event.target.value, page: 1 }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os riscos</option><option value="NORMAL">Normal</option><option value="WARNING">Atenção</option><option value="CRITIC">Crítico</option><option value="NAO_MONITORADO">Sem monitoramento</option></select>
           <Button variant="outline" className="h-9 text-xs" onClick={reload} disabled={pending}>Atualizar</Button>
         </div>}
 

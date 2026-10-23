@@ -82,7 +82,10 @@
 - The browser does not calculate ETA, SLA, route distances, completion or utilization. Utilization over 100% remains visible; unknown is not zero. `novoEta` concerns the next pending stop, not final arrival.
 - The server's supplied stop order is preserved, including revisits. Status drives accessible labels and colors: `CONCLUIDA` green, `EM_TRANSITO` yellow, `PENDENTE` gray. Each action retains its individual pickup/delivery deadline and actual completion timestamp.
 - `GEOFENCE_INFERRED` is explicitly labeled as GPS-inferred, not proof of physical handling. `LEGACY_STATE` can indicate completion with no known actual time; the UI does not invent one.
-- Only server event descriptions and timestamps are rendered (bounded recent window of 50); no simulated traffic events.
+- Only server event descriptions and timestamps are rendered (bounded recent window of 50); no simulated traffic events. Carrier-reported occurrences (`OCORRENCIA`, `OCORRENCIA_ENCERRADA`) and driver confirmations (`PARADA_CONFIRMADA`) appear here too.
+- Risk (`indicadorRisco`) is the **effective** risk: the highest of the ETA risk and any open carrier occurrence, ordered `NAO_MONITORADO < NORMAL < WARNING < CRITIC`. `CRITIC` → `statusGeral: ATRASADO`, `statusSla: ATRASADO`; `WARNING` → `statusSla: ATENCAO` ("Atenção"); otherwise `statusSla: NO_PRAZO`. The list accepts `risk=WARNING`.
+- `prazoProximaParada` is the earliest open deadline of the first pending stop, derived from the itinerary (available even before the first calculation).
+- Stops can also be completed by the carrier (`DRIVER_CONFIRMED` for pickups, `POD_CONFIRMED` for deliveries with proof of delivery) — see `api-mapping-carrier-route-tracking.md`.
 - Every request is cancellable and protected against out-of-order response updates. Loading, missing data, failed request/retry, stale, cached and terminal states are distinct.
 
 Standard errors: validation `400`, unauthenticated `401`, forbidden `403`, missing/cross-tenant trip `404`, tracking unavailable without cache `503`.

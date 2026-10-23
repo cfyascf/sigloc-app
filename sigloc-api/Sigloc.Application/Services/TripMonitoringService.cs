@@ -15,26 +15,34 @@ public sealed class TripMonitoringService(
     private readonly TripMonitoringOptions _settings = options;
     private readonly ILogger _logger = logger ?? NullLogger<TripMonitoringService>.Instance;
 
-    public Task<PagedTripsDto> SearchAsync(Guid contractorId, TripQueryDto query, CancellationToken ct = default)
+    public Task<PagedTripsDto> SearchAsync(Guid contractorId, TripQueryDto query, CancellationToken ct = default) =>
+        SearchAsync(TripScope.ForShipper(contractorId), query, ct);
+
+    public Task<TripDetailDto> GetDetailAsync(Guid contractorId, Guid tripId, bool refresh = false, CancellationToken ct = default) =>
+        GetDetailAsync(TripScope.ForShipper(contractorId), tripId, refresh, (_, detail) => detail, ct);
+
+    public Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct = default)
     {
         var status = Normalize(query.Status);
         var risk = Normalize(query.Risk);
         if (status != null && status is not ("AGUARDANDO_COLETA" or "EM_TRANSITO" or "ATRASADO")) Invalid("status");
-        if (risk != null && risk is not ("NORMAL" or "CRITIC" or "NAO_MONITORADO")) Invalid("risk");
+        if (risk != null && risk is not ("NORMAL" or "WARNING" or "CRITIC" or "NAO_MONITORADO")) Invalid("risk");
         var size = query.PageSize < 1 ? 20 : Math.Min(query.PageSize, 100);
         var page = Math.Max(query.Page, 1);
         if ((long)(page - 1) * size > int.MaxValue) Invalid("page");
-        return store.SearchAsync(contractorId, query with { Page = page, PageSize = size, Search = query.Search?.Trim(), Status = status, Risk = risk }, ct);
+        return store.SearchAsync(scope, query with { Page = page, PageSize = size, Search = query.Search?.Trim(), Status = status, Risk = risk }, ct);
     }
 
-    public async Task<TripDetailDto> GetDetailAsync(Guid contractorId, Guid tripId, bool refresh = false, CancellationToken ct = default)
+    public async Task<T> GetDetailAsync<T>(TripScope scope, Guid tripId, bool refresh,
+        Func<TripState, TripDetailDto, T> project, CancellationToken ct = default)
     {
-        var previous = await store.ReadAsync(contractorId, tripId, ct) ?? throw new TripNotFoundException(tripId);
+        T Project(TripState state, bool renewed, bool stale = false) => project(state, TripDetailMapper.Map(state, renewed, stale));
+        var previous = await store.ReadAsync(scope, tripId, ct) ?? throw new TripNotFoundException(tripId);
         // GPS/routing providers are only contacted on an explicit user-triggered refresh
         // ("Locate driver" button). A plain page load returns the last stored snapshot so
         // simply viewing a trip never consumes the tracking provider quota.
         if (!refresh || TripMonitoringCalculator.IsTerminal(previous.Trip) || TripMonitoringCalculator.IsFresh(previous.Snapshot, clock.GetUtcNow()))
-            return Map(previous, false);
+            return Project(previous, false);
 
         // Memoize provider work across EF retries; each attempt receives a new tracked graph.
         TrackingFix? fix = null;
@@ -42,18 +50,17 @@ public sealed class TripMonitoringService(
         var refreshId = Guid.NewGuid();
         try
         {
-            return await store.RefreshAsync(contractorId, tripId, async (state, token) =>
+            return await store.UpdateAsync(scope, tripId, async (state, token) =>
             {
                 var now = clock.GetUtcNow();
                 if (TripMonitoringCalculator.IsTerminal(state.Trip) || TripMonitoringCalculator.IsFresh(state.Snapshot, now))
-                    return Map(state, false);
-                if (state.Trip.Stops.Count == 0)
-                    state.Trip.Stops = TripItineraryBuilder.Build(state.Trip.Id, state.Segments);
+                    return Project(state, false);
+                TripStopCompletion.EnsureItinerary(state);
                 if (state.Trip.Stops.Count == 0 || state.Vehicle.TraccarDeviceId is not > 0)
                     throw new TrackingUnavailableException();
                 fix ??= await tracking.GetLatestAsync(state.Vehicle.TraccarDeviceId.Value, now, token);
                 ValidateFix(fix, state, now);
-                var pending = state.Trip.Stops.Where(s => !s.IsCompleted).OrderBy(s => s.Sequence).ToList();
+                var pending = TripStopCompletion.Pending(state.Trip);
                 var reached = pending.FirstOrDefault();
                 if (reached != null && TripMonitoringCalculator.DistanceMeters(fix.Latitude, fix.Longitude, reached.Latitude, reached.Longitude) > _settings.GeofenceRadiusMeters)
                     reached = null;
@@ -75,46 +82,32 @@ public sealed class TripMonitoringService(
                 if (!double.IsFinite(estimate.RemainingDistanceKm) || estimate.RemainingDistanceKm < 0
                     || !double.IsFinite(estimate.NextStopDurationSeconds) || estimate.NextStopDurationSeconds < 0)
                     throw new TrackingUnavailableException();
-                var deadline = next?.Actions.Where(a => !a.IsCompleted).Min(a => (DateTimeOffset?)a.Deadline);
+                var deadline = TripDetailMapper.NextDeadline(next);
                 DateTimeOffset? eta = next == null ? null : now.AddSeconds(estimate.NextStopDurationSeconds).AddMinutes(_settings.DockBufferMinutes);
-                var risk = eta > deadline ? "CRITIC" : "NORMAL";
+                var risk = TripRiskEvaluator.EtaRisk(eta, deadline);
                 var finished = next == null;
                 var (traveled, progress) = TripMonitoringCalculator.Progress(state.Route.TotalDistanceKm, estimate.RemainingDistanceKm, finished);
 
                 // All provider results and calculations succeeded; mutations are now committed atomically.
+                var riskBefore = TripRiskEvaluator.Effective(state.Snapshot?.Risk, state.Occurrences);
                 if (reached != null)
                 {
-                    reached.IsCompleted = true; reached.CompletedAt = fix.FixTime; reached.CompletionSource = "GEOFENCE_INFERRED";
-                    foreach (var action in reached.Actions.Where(a => !a.IsCompleted))
-                    {
-                        action.IsCompleted = true; action.CompletedAt = fix.FixTime; action.CompletionSource = "GEOFENCE_INFERRED";
-                        var segment = state.Segments.Single(s => s.Id == action.SegmentId);
-                        segment.Status = action.Kind == StopActionKind.Delivery ? SegmentStatus.Completed : SegmentStatus.InTransit;
-                    }
-                    if (state.Trip.Status == TripStatus.AwaitingPickup)
-                    {
-                        state.Trip.Status = TripStatus.InTransit; state.Trip.StartedAt ??= fix.FixTime;
-                        state.Route.Status = RouteStatus.InTransit;
-                    }
-                    AddEvent(state, refreshId, "PARADA_INFERIDA", $"Entrada na cerca da parada {reached.Sequence}; coleta/entrega inferida, não verificada.", now);
+                    TripStopCompletion.Complete(state, reached, fix.FixTime, _ => "GEOFENCE_INFERRED", refreshId, now);
+                    TripStopCompletion.AddEvent(state, refreshId, "PARADA_INFERIDA", $"Entrada na cerca da parada {reached.Sequence}; coleta/entrega inferida, não verificada.", now);
                 }
-                if (finished)
-                {
-                    state.Trip.Status = TripStatus.Delivered; state.Trip.FinishedAt = fix.FixTime;
-                    state.Route.Status = RouteStatus.Completed;
-                }
-                var snapshot = state.Snapshot ??= new TripMonitoring { Id = Guid.NewGuid(), TripId = tripId };
-                if (snapshot.Risk != risk) AddEvent(state, refreshId, "SLA", risk == "CRITIC" ? "ETA calculada excede o prazo da próxima parada." : "SLA recalculado sem atraso previsto.", now);
+                if (finished) TripStopCompletion.Finish(state, fix.FixTime);
+                var snapshot = state.Snapshot ??= new TripMonitoring { Id = Guid.NewGuid(), TripId = state.Trip.Id };
                 snapshot.LastSuccessfulCalculationAt = now;
                 snapshot.LastPingAt = fix.FixTime; snapshot.LastObservationId = fix.ObservationId; snapshot.LastDeviceId = fix.DeviceId;
                 snapshot.Latitude = fix.Latitude; snapshot.Longitude = fix.Longitude;
                 snapshot.LastProgressPercentage = progress; snapshot.TraveledDistanceKm = traveled;
                 snapshot.RemainingDistanceKm = estimate.RemainingDistanceKm; snapshot.LastCalculatedEta = eta;
                 snapshot.NextStopId = next?.Id; snapshot.NextStopDeadline = deadline; snapshot.Risk = risk;
-                state.NewTelemetry.Add(new TripTelemetry { Id = refreshId, TripId = tripId, ObservationId = fix.ObservationId,
+                AddSlaEventIfChanged(state, riskBefore, refreshId, now);
+                state.NewTelemetry.Add(new TripTelemetry { Id = refreshId, TripId = state.Trip.Id, ObservationId = fix.ObservationId,
                     DeviceId = fix.DeviceId, Latitude = fix.Latitude, Longitude = fix.Longitude, FixTime = fix.FixTime, CalculatedAt = now });
-                AddEvent(state, refreshId, "CALCULO", "Posição observada e percurso restante calculado sob demanda.", now);
-                return Map(state, true);
+                TripStopCompletion.AddEvent(state, refreshId, "CALCULO", "Posição observada e percurso restante calculado sob demanda.", now);
+                return Project(state, true);
             }, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
@@ -125,7 +118,7 @@ public sealed class TripMonitoringService(
             // The stale-data fallback hides the cause from the caller, so record it for diagnosis.
             _logger.LogWarning(exception, "Monitoring refresh failed for trip {TripId}; returning the previous snapshot.", tripId);
             if (previous.Snapshot == null) throw new TrackingUnavailableException();
-            return Map(previous, false, true);
+            return Project(previous, false, true);
         }
     }
 
@@ -140,27 +133,22 @@ public sealed class TripMonitoringService(
             throw new TrackingUnavailableException();
     }
 
-    private static void AddEvent(TripState state, Guid refreshId, string kind, string description, DateTimeOffset now) =>
-        state.Events.Add(new TripMonitoringEvent { Id = Guid.NewGuid(), TripId = state.Trip.Id, RefreshId = refreshId, Kind = kind, Description = description, OccurredAt = now });
-
-    private static TripDetailDto Map(TripState state, bool renewed, bool stale = false)
+    /// <summary>Records an SLA event when the effective (ETA + open occurrences) risk level changed.</summary>
+    internal static void AddSlaEventIfChanged(TripState state, string riskBefore, Guid operationId, DateTimeOffset now)
     {
-        var m = state.Snapshot;
-        var next = state.Trip.Stops.Where(s => !s.IsCompleted).OrderBy(s => s.Sequence).FirstOrDefault();
-        return new TripDetailDto(state.Trip.Id, state.Route.Id, "TRP-" + state.Trip.Id.ToString("N")[..6].ToUpperInvariant(),
-            TripMonitoringCalculator.Status(state.Trip, m), m?.Risk ?? "NAO_MONITORADO",
-            state.Carrier.TradeName ?? state.Carrier.CompanyName, state.Vehicle.Plate, state.Vehicle.Driver, state.Vehicle.DriverPhone,
-            m?.LastProgressPercentage, double.IsFinite(state.Route.TotalDistanceKm) && state.Route.TotalDistanceKm > 0 ? state.Route.TotalDistanceKm : 0,
-            m?.TraveledDistanceKm, m?.RemainingDistanceKm,
-            TripMonitoringCalculator.Utilization(state.Route.TotalVolumeM3, state.Vehicle.CapacityVolume), m?.LastCalculatedEta,
-            m?.NextStopDeadline, m?.Latitude, m?.Longitude, m?.LastPingAt, m?.LastSuccessfulCalculationAt, renewed, stale,
-            stale ? "Não foi possível atualizar o monitoramento. Exibindo a última posição disponível." : null,
-            state.Trip.Stops.OrderBy(s => s.Sequence).Select(s => new TripStopDto(s.Id, s.Sequence, s.City, s.State, s.Latitude, s.Longitude,
-                s.IsCompleted ? "CONCLUIDA" : s == next ? "EM_TRANSITO" : "PENDENTE", s.CompletedAt, s.CompletionSource,
-                s.Actions.OrderBy(a => a.Kind).ThenBy(a => a.Deadline).ThenBy(a => a.Id).Select(a => new TripActionDto(a.Id, a.SegmentId, a.ProductName,
-                    a.Kind == StopActionKind.Pickup ? "COLETA" : "ENTREGA", a.Deadline, a.CompletedAt, a.CompletionSource)).ToList())).ToList(),
-            state.Events.OrderByDescending(e => e.OccurredAt).ThenBy(e => e.Id).Take(50).Select(e => new TripEventDto(e.Id, e.Kind, e.Description, e.OccurredAt)).ToList());
+        var riskAfter = TripRiskEvaluator.Effective(state.Snapshot?.Risk, state.Occurrences);
+        if (riskAfter == riskBefore) return;
+        TripStopCompletion.AddEvent(state, operationId, "SLA", riskAfter switch
+        {
+            TripRiskEvaluator.Critical => state.Occurrences.Any(o => o.ResolvedAt == null && o.Severity == TripRiskEvaluator.Critical)
+                ? "Ocorrência crítica em aberto ameaça o prazo da próxima parada."
+                : "ETA calculada excede o prazo da próxima parada.",
+            TripRiskEvaluator.Warning => "Ocorrência em aberto requer atenção ao prazo.",
+            TripRiskEvaluator.Normal => "SLA recalculado sem atraso previsto.",
+            _ => "Risco indisponível até a próxima posição GPS."
+        }, now);
     }
+
     private static string? Normalize(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim().ToUpperInvariant();
     private static void Invalid(string field) => throw new ValidationException(new[] { new ValidationError(field, "Invalid monitoring filter or page.") });
 }

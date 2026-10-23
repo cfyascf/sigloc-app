@@ -205,7 +205,7 @@ public class TripMonitoringServiceTests
     [Fact]
     public async Task Freshness_is_rechecked_after_lock()
     {
-        var h = new Harness(); h.Store.BeforeRefresh = s => s.Snapshot = new TripMonitoring { LastSuccessfulCalculationAt = Now };
+        var h = new Harness(); h.Store.BeforeRefresh = s => s.Snapshot = new TripMonitoring { LastSuccessfulCalculationAt = Now, Risk = "NORMAL" };
         var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.False(result.IsCacheRenewed); Assert.Equal(0, h.Tracking.Calls);
     }
@@ -289,19 +289,23 @@ public class TripMonitoringServiceTests
         public bool Retry { get; set; }
         public Action<TripState>? BeforeRefresh { get; set; }
         public TripQueryDto? LastQuery { get; private set; }
-        public Task<PagedTripsDto> SearchAsync(Guid contractorId, TripQueryDto query, CancellationToken ct)
-        { LastQuery = query; return Task.FromResult(new PagedTripsDto([], query.Page, query.PageSize, 0, 0)); }
-        public Task<TripState?> ReadAsync(Guid contractorId, Guid tripId, CancellationToken ct)
-        { ct.ThrowIfCancellationRequested(); return Task.FromResult(State?.Route.ContractorId == contractorId && State.Trip.Id == tripId ? State : null); }
-        public async Task<TripDetailDto> RefreshAsync(Guid contractorId, Guid tripId, Func<TripState, CancellationToken, Task<TripDetailDto>> refresh, CancellationToken ct)
+        public TripScope? LastScope { get; private set; }
+        public Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct)
+        { LastScope = scope; LastQuery = query; return Task.FromResult(new PagedTripsDto([], query.Page, query.PageSize, 0, 0)); }
+        public Task<TripState?> ReadAsync(TripScope scope, Guid tripId, CancellationToken ct)
+        { ct.ThrowIfCancellationRequested(); return Task.FromResult(InScope(scope, tripId) ? State : null); }
+        public async Task<T> UpdateAsync<T>(TripScope scope, Guid tripId, Func<TripState, CancellationToken, Task<T>> mutate, CancellationToken ct)
         {
+            if (!InScope(scope, tripId)) throw new TripNotFoundException(tripId);
             RefreshCalls++;
             TripState Clone() => JsonSerializer.Deserialize<TripState>(JsonSerializer.Serialize(State))!;
             var attempt = Clone(); BeforeRefresh?.Invoke(attempt);
-            var result = await refresh(attempt, ct);
-            if (Retry) { attempt = Clone(); result = await refresh(attempt, ct); }
+            var result = await mutate(attempt, ct);
+            if (Retry) { attempt = Clone(); result = await mutate(attempt, ct); }
             State = attempt;
             return result;
         }
+        private bool InScope(TripScope scope, Guid tripId) => State != null && State.Trip.Id == tripId
+            && (scope.Party == TripParty.Carrier ? State.Trip.CarrierId == scope.CompanyId : State.Route.ContractorId == scope.CompanyId);
     }
 }

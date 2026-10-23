@@ -17,4 +17,13 @@ public class Contractor : BaseEntity
 
     /// <summary>Trade name (nome fantasia).</summary>
     public string? TradeName { get; set; }
+
+    /// <summary>Person or desk carriers should reach about trips in progress.</summary>
+    public string? LogisticsContactName { get; set; }
+
+    /// <summary>Logistics desk phone, stored as entered (validated to 10–13 digits).</summary>
+    public string? LogisticsContactPhone { get; set; }
+
+    /// <summary>Logistics desk e-mail.</summary>
+    public string? LogisticsContactEmail { get; set; }
 }

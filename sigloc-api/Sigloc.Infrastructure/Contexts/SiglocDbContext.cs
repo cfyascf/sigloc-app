@@ -26,6 +26,8 @@ public class SiglocDbContext : DbContext
     public DbSet<TripStopAction> TripStopActions => Set<TripStopAction>();
     public DbSet<TripTelemetry> TripTelemetries => Set<TripTelemetry>();
     public DbSet<TripMonitoringEvent> TripMonitoringEvents => Set<TripMonitoringEvent>();
+    public DbSet<TripOccurrence> TripOccurrences => Set<TripOccurrence>();
+    public DbSet<TripProofOfDelivery> TripProofsOfDelivery => Set<TripProofOfDelivery>();
     public DbSet<BlockedBidAttempt> BlockedBidAttempts => Set<BlockedBidAttempt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

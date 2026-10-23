@@ -150,19 +150,23 @@ function toApiError(status, body) {
  * @param {string} path Absolute URL or path relative to the API base URL.
  * @param {object} [options]
  * @param {string} [options.method="GET"]
- * @param {unknown} [options.body] JSON-serializable request body.
+ * @param {unknown} [options.body] JSON-serializable request body, or a
+ *   `FormData` sent as-is (the browser sets the multipart boundary).
  * @param {boolean} [options.auth=true] Attach the bearer token when available.
  * @param {object} [options.headers] Extra headers.
  * @param {AbortSignal} [options.signal]
+ * @param {"json"|"blob"} [options.responseType="json"] `blob` returns the raw
+ *   successful body (file downloads); errors are still parsed as JSON.
  * @throws {ApiError}
  */
 export async function apiRequest(
   path,
-  { method = "GET", body, auth = true, headers = {}, signal } = {}
+  { method = "GET", body, auth = true, headers = {}, signal, responseType = "json" } = {}
 ) {
   const requestHeaders = { Accept: "application/json", ...headers }
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData
 
-  if (body !== undefined) {
+  if (body !== undefined && !isFormData) {
     requestHeaders["Content-Type"] = "application/json"
   }
 
@@ -178,7 +182,7 @@ export async function apiRequest(
     response = await fetch(buildUrl(path), {
       method,
       headers: requestHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined || isFormData ? body : JSON.stringify(body),
       signal,
     })
   } catch (error) {
@@ -190,6 +194,10 @@ export async function apiRequest(
       "Não foi possível conectar ao servidor. Verifique sua conexão.",
       { code: "NETWORK_ERROR", status: 0 }
     )
+  }
+
+  if (response.ok && responseType === "blob") {
+    return response.blob()
   }
 
   const parsed = await parseBody(response)

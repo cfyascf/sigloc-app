@@ -7,14 +7,25 @@ public record TripState(Trip Trip, ConsolidatedRoute Route, Vehicle Vehicle, Car
 {
     public TripMonitoring? Snapshot { get; set; } = Monitoring;
     public List<TripTelemetry> NewTelemetry { get; } = new();
+    /// <summary>Every occurrence of the trip, newest first; new ones are persisted on update.</summary>
+    public List<TripOccurrence> Occurrences { get; init; } = new();
+    /// <summary>Proofs of delivery of the trip, newest first; new ones are persisted on update.</summary>
+    public List<TripProofOfDelivery> Proofs { get; init; } = new();
+    /// <summary>Shipper that owns the route (contact shown to the carrier).</summary>
+    public Contractor? Shipper { get; init; }
 }
 
 public interface ITripMonitoringStore
 {
-    Task<PagedTripsDto> SearchAsync(Guid contractorId, TripQueryDto query, CancellationToken ct);
-    Task<TripState?> ReadAsync(Guid contractorId, Guid tripId, CancellationToken ct);
-    Task<TripDetailDto> RefreshAsync(Guid contractorId, Guid tripId,
-        Func<TripState, CancellationToken, Task<TripDetailDto>> refresh, CancellationToken ct);
+    Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct);
+    Task<TripState?> ReadAsync(TripScope scope, Guid tripId, CancellationToken ct);
+
+    /// <summary>
+    /// Runs <paramref name="mutate"/> against a freshly loaded graph while holding the trip row lock and
+    /// commits every change it made atomically. The callback may be invoked again on a transient retry.
+    /// </summary>
+    Task<T> UpdateAsync<T>(TripScope scope, Guid tripId,
+        Func<TripState, CancellationToken, Task<T>> mutate, CancellationToken ct);
 }
 
 public sealed class TripMonitoringOptions

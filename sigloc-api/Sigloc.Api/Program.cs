@@ -2,6 +2,7 @@ using Sigloc.Api.Extensions;
 using Sigloc.Api.Middleware;
 using Sigloc.Application;
 using Sigloc.Infrastructure;
+using Sigloc.Infrastructure.Storage;
 using Scalar.AspNetCore;
 using Serilog;
 using Microsoft.OpenApi; // Required for logging
@@ -57,6 +58,9 @@ try
 
     builder.Services.AddSiglocAuthentication(builder.Configuration);
     builder.Services.AddInfrastructure(builder.Configuration);
+    // Infrastructure has no hosting dependency, so relative upload roots are anchored to the content root here.
+    builder.Services.PostConfigure<FileStorageSettings>(settings =>
+        settings.RootPath = Path.GetFullPath(settings.RootPath, builder.Environment.ContentRootPath));
     builder.Services.AddApplication();
     builder.Services.AddControllers();
 

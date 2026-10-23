@@ -23,8 +23,14 @@ function toProfile(dto) {
     averageRating: dto.averageRating ?? null,
     hasActiveInsurancePolicy: dto.hasActiveInsurancePolicy ?? null,
     onTimeDeliveryRate: dto.onTimeDeliveryRate ?? null,
+    // Shipper-only "Contato Logístico" shown to carriers on the trips they operate.
+    logisticsContactName: dto.logisticsContactName ?? "",
+    logisticsContactPhone: dto.logisticsContactPhone ?? "",
+    logisticsContactEmail: dto.logisticsContactEmail ?? "",
   }
 }
+
+const CONTACT_FIELDS = ["logisticsContactName", "logisticsContactPhone", "logisticsContactEmail"]
 
 /** Fetches the authenticated user's company profile. */
 export async function getProfile(options) {
@@ -32,13 +38,16 @@ export async function getProfile(options) {
   return toProfile(payload)
 }
 
-/** Updates the editable company data (company name and trade name). */
-export async function updateProfile({ companyName, tradeName }, options) {
-  const payload = await apiClient.put(
-    BASE,
-    { companyName, tradeName },
-    options
-  )
+/**
+ * Updates the editable company data. The company name is always required; logistics
+ * contact fields are only sent when provided (omitted keeps the stored value, "" clears it).
+ */
+export async function updateProfile({ companyName, tradeName, ...contact }, options) {
+  const body = { companyName, tradeName }
+  for (const field of CONTACT_FIELDS) {
+    if (contact[field] !== undefined) body[field] = contact[field].trim()
+  }
+  const payload = await apiClient.put(BASE, body, options)
   return toProfile(payload)
 }
 

@@ -27,5 +27,7 @@ export function useTripRequest(load, requestKey) {
     error: state?.key === key ? state.error : null,
     pending: state?.key !== key,
     reload: () => setAttempt((value) => value + 1),
+    // Swaps in a mutation response; ignored once the request it belongs to was superseded.
+    replace: (data) => setState((current) => (current?.key === key ? { key, data, error: null } : current)),
   }
 }

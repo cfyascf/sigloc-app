@@ -7,6 +7,7 @@ let server
 let trips
 let vehicles
 let client
+let formatters
 const originalFetch = globalThis.fetch
 
 before(async () => {
@@ -18,6 +19,7 @@ before(async () => {
   trips = await server.ssrLoadModule("/src/services/trip-service.js")
   vehicles = await server.ssrLoadModule("/src/services/vehicle-service.js")
   client = await server.ssrLoadModule("/src/lib/api-client.js")
+  formatters = await server.ssrLoadModule("/src/lib/trip-formatters.js")
   client.setAuthTokenProvider(() => "test-token")
 })
 
@@ -106,4 +108,62 @@ test("vehicle tracking/contact fields round-trip, trim and clear, rejecting inva
   assert.equal(create.plate, "ABC1234")
   assert.equal(create.traccarDeviceId, 42)
   assert.equal("status" in create, false)
+})
+
+test("api client keeps JSON bodies serialized but passes FormData through untouched", async () => {
+  const calls = []
+  globalThis.fetch = async (url, options) => {
+    calls.push(options)
+    return respond({ ok: true })
+  }
+  await client.apiClient.post("/api/json", { tipo: "AVARIA_MECANICA" })
+  const form = new FormData()
+  form.append("observacao", "Canhoto assinado")
+  await client.apiClient.post("/api/form", form)
+  assert.equal(calls[0].headers["Content-Type"], "application/json")
+  assert.equal(calls[0].body, JSON.stringify({ tipo: "AVARIA_MECANICA" }))
+  assert.equal("Content-Type" in calls[1].headers, false)
+  assert.equal(calls[1].body, form)
+  assert.equal(calls[1].headers.Authorization, "Bearer test-token")
+})
+
+test("blob responses return the raw file and still normalize JSON errors", async () => {
+  globalThis.fetch = async () => new Response("%PDF-1.7", { status: 200, headers: { "content-type": "application/pdf" } })
+  const file = await client.apiClient.get("/api/file", { responseType: "blob" })
+  assert.equal(file.type, "application/pdf")
+  assert.equal(await file.text(), "%PDF-1.7")
+  globalThis.fetch = async () => respond({ error: "PROOF_OF_DELIVERY_NOT_FOUND", message: "Comprovante não encontrado." }, 404)
+  await assert.rejects(client.apiClient.get("/api/file", { responseType: "blob" }), { status: 404, code: "PROOF_OF_DELIVERY_NOT_FOUND" })
+})
+
+test("risk and SLA labels cover warning, on-time and combined stop actions", () => {
+  assert.equal(formatters.tripStatusLabel("WARNING"), "Atenção")
+  assert.equal(formatters.tripStatusLabel("ATENCAO"), "Atenção")
+  assert.equal(formatters.tripStatusLabel("NO_PRAZO"), "No prazo")
+  assert.equal(formatters.tripStatusLabel("COLETA_E_ENTREGA"), "Coleta e entrega")
+  assert.match(formatters.tripStatusStyle("ATENCAO"), /amber/)
+  assert.match(formatters.tripStatusStyle("NO_PRAZO"), /emerald/)
+  assert.match(formatters.tripStatusStyle("ATRASADO"), /rose/)
+})
+
+test("countdown shows hours, then mm:ss in the last hour, then how late", () => {
+  assert.equal(formatters.formatCountdown((2 * 60 + 5) * 60_000 + 30_000), "2h 05min")
+  assert.equal(formatters.formatCountdown(4 * 60_000 + 59_000), "04:59")
+  assert.equal(formatters.formatCountdown(-12 * 60_000 - 10_000), "Atrasado há 12min")
+  assert.equal(formatters.formatCountdown(-(90 * 60_000)), "Atrasado há 1h 30min")
+  assert.equal(formatters.formatCountdown(null), "Não informado")
+})
+
+test("stop timeline is per stop, ordered, keeps IDs and normalizes completion", () => {
+  const stops = trips.toStopTimeline([
+    { id: "stop-2", ordem: 2, cidade: "Curitiba", estado: "PR", status: "PENDENTE", acoes: [{ id: "a2", tipo: "ENTREGA", produto: "Sorvete", prazo: "2026-10-01T20:00:00Z" }] },
+    { id: "stop-1", ordem: 1, cidade: "Curitiba", estado: "PR", status: "CONCLUIDA", concluidaEm: "2026-10-01T12:00:00Z", fonteConclusao: "DRIVER_CONFIRMED", acoes: [{ id: "a1", tipo: "COLETA", produto: "Sorvete", prazo: "2026-10-01T13:00:00Z", concluidaEm: "2026-10-01T12:00:00Z", fonteConclusao: "DRIVER_CONFIRMED" }] },
+  ])
+  assert.deepEqual(stops.map((stop) => stop.id), ["stop-1", "stop-2"])
+  assert.equal(stops[0].city, "Curitiba, PR")
+  assert.equal(stops[0].status, "CONCLUIDO")
+  assert.equal(stops[0].source, "DRIVER_CONFIRMED")
+  assert.equal(stops[0].actions[0].completed, true)
+  assert.equal(stops[1].actions[0].completed, false)
+  assert.deepEqual(trips.toStopTimeline(undefined), [])
 })

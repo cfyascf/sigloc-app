@@ -19,4 +19,16 @@ public static class ClaimsPrincipalExtensions
 
         throw new UnauthorizedAccessException("O token não contém uma empresa (empresaId) válida.");
     }
+
+    /// <summary>Reads the authenticated user's id (NameIdentifier claim).</summary>
+    /// <exception cref="UnauthorizedAccessException">Thrown when the claim is missing or not a valid Guid.</exception>
+    public static Guid GetUserId(this ClaimsPrincipal user)
+    {
+        if (Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            return userId;
+        }
+
+        throw new UnauthorizedAccessException("O token não contém um usuário válido.");
+    }
 }

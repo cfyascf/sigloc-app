@@ -3,6 +3,25 @@ import { apiClient, ApiError } from "@/lib/api-client"
 const BASE = "/api/viagens"
 const numberOrNull = (value) => typeof value === "number" && Number.isFinite(value) ? value : null
 
+const toStopAction = (action) => ({
+  id: action.id, type: action.tipo, product: action.produto, deadline: action.prazo,
+  completed: Boolean(action.concluidaEm), completedAt: action.concluidaEm, source: action.fonteConclusao,
+})
+
+/** One node per stop from `paradas`; unlike the city-grouped `linhaDoTempo`, it keeps the stop IDs actions need. */
+export function toStopTimeline(paradas) {
+  return [...(paradas ?? [])]
+    .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+    .map((stop) => ({
+      id: stop.id,
+      city: [stop.cidade, stop.estado].filter(Boolean).join(", "),
+      status: stop.status === "CONCLUIDA" ? "CONCLUIDO" : stop.status,
+      completedAt: stop.concluidaEm,
+      source: stop.fonteConclusao,
+      actions: (stop.acoes ?? []).map(toStopAction),
+    }))
+}
+
 export function toActiveTrip(dto) {
   const cache = dto.monitoramentoCache ?? {}
   const carrier = typeof dto.transportadora === "object" ? dto.transportadora?.nomeFantasia : dto.transportadora
@@ -16,6 +35,7 @@ export function toActiveTrip(dto) {
     risk: dto.indicadorRisco ?? dto.risco,
     carrier,
     plate,
+    shipperName: typeof dto.embarcador === "string" ? dto.embarcador : null,
     origin: dto.origem,
     destination: dto.destino,
     progress: numberOrNull(dto.progressoPercentual ?? cache.progressoPercentual),
@@ -67,10 +87,7 @@ export function toTripDetails(dto) {
       actions: (stop.acoes ?? []).map((action) => typeof action === "string" ? (() => {
         const [type, product] = action.split(" · ", 2)
         return { id: action, type, product: product ?? null, deadline: stop.deadlineSla, completed: stop.status === "CONCLUIDO", completedAt: stop.dataHoraRealizada }
-      })() : ({
-        id: action.id, type: action.tipo, product: action.produto, deadline: action.prazo,
-        completed: Boolean(action.concluidaEm), completedAt: action.concluidaEm, source: action.fonteConclusao,
-      })),
+      })() : toStopAction(action)),
     })),
     events: (dto.logEventos ?? dto.eventos ?? []).map((event) => ({
       id: event.id ?? `${event.ocorridoEm ?? event.hora}-${event.descricao}`,
@@ -80,7 +97,12 @@ export function toTripDetails(dto) {
   }
 }
 
-export async function listActiveTrips({ search = "", status = "", risk = "", page = 1, pageSize = 20 } = {}, options) {
+export function listActiveTrips(filters, options) {
+  return listTripsAt(BASE, filters, options)
+}
+
+/** Paged active-trip list; shippers and carriers share the query and response shape under different bases. */
+export async function listTripsAt(base, { search = "", status = "", risk = "", page = 1, pageSize = 20 } = {}, options) {
   const query = new URLSearchParams({
     page: String(Math.max(1, Math.trunc(page) || 1)),
     pageSize: String(Math.max(1, Math.min(100, Math.trunc(pageSize) || 20))),
@@ -88,7 +110,7 @@ export async function listActiveTrips({ search = "", status = "", risk = "", pag
   if (search.trim()) query.set("search", search.trim())
   if (status) query.set("status", status)
   if (risk) query.set("risk", risk)
-  const payload = await apiClient.get(`${BASE}/ativas?${query}`, options)
+  const payload = await apiClient.get(`${base}/ativas?${query}`, options)
   if (!payload || !Array.isArray(payload.viagens)) {
     throw new ApiError("Resposta de viagens inválida.", { code: "INVALID_RESPONSE" })
   }

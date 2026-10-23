@@ -78,7 +78,68 @@ public class ProfileServiceTests
         await act.Should().ThrowAsync<CompanyNotFoundException>();
     }
 
+    [Fact]
+    public async Task GetAsync_returns_contractor_logistics_contact()
+    {
+        var contractor = TestData.Contractor(id: _companyId);
+        contractor.LogisticsContactName = "Mesa Logística";
+        contractor.LogisticsContactPhone = "(41) 99999-0000";
+        contractor.LogisticsContactEmail = "logistica@empresa.com.br";
+        _contractors.GetByIdAsync(_companyId, Arg.Any<CancellationToken>()).Returns(contractor);
+
+        var result = await _service.GetAsync(_companyId, isCarrier: false);
+
+        result.LogisticsContactName.Should().Be("Mesa Logística");
+        result.LogisticsContactPhone.Should().Be("(41) 99999-0000");
+        result.LogisticsContactEmail.Should().Be("logistica@empresa.com.br");
+    }
+
     // ---------------- UpdateAsync ----------------
+
+    [Fact]
+    public async Task UpdateAsync_sets_trims_keeps_and_clears_logistics_contact()
+    {
+        var contractor = TestData.Contractor(id: _companyId);
+        contractor.LogisticsContactName = "Antigo";
+        contractor.LogisticsContactPhone = "41999990000";
+        contractor.LogisticsContactEmail = "antigo@empresa.com";
+        _contractors.GetTrackedByIdAsync(_companyId, Arg.Any<CancellationToken>()).Returns(contractor);
+
+        var result = await _service.UpdateAsync(_companyId, isCarrier: false,
+            new UpdateCompanyProfileDto("Razão", null, "  Mesa Logística  ", null, "  "));
+
+        contractor.LogisticsContactName.Should().Be("Mesa Logística");
+        contractor.LogisticsContactPhone.Should().Be("41999990000");
+        contractor.LogisticsContactEmail.Should().BeNull();
+        result.LogisticsContactName.Should().Be("Mesa Logística");
+    }
+
+    [Theory]
+    [InlineData("12345", null, "logisticsContactPhone")]
+    [InlineData("+55 41 9999-0000x", null, "logisticsContactPhone")]
+    [InlineData(null, "sem-arroba", "logisticsContactEmail")]
+    [InlineData(null, "a@localhost", "logisticsContactEmail")]
+    public async Task UpdateAsync_invalid_logistics_contact_throws_Validation(string? phone, string? email, string field)
+    {
+        _contractors.GetTrackedByIdAsync(_companyId, Arg.Any<CancellationToken>()).Returns(TestData.Contractor(id: _companyId));
+
+        var act = () => _service.UpdateAsync(_companyId, isCarrier: false,
+            new UpdateCompanyProfileDto("Razão", null, null, phone, email));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == field);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ignores_logistics_contact_for_carriers()
+    {
+        _carriers.GetTrackedByIdAsync(_companyId, Arg.Any<CancellationToken>()).Returns(TestData.Carrier(id: _companyId));
+
+        var result = await _service.UpdateAsync(_companyId, isCarrier: true,
+            new UpdateCompanyProfileDto("Razão", null, "Mesa", "123", "invalido"));
+
+        result.LogisticsContactName.Should().BeNull();
+        result.LogisticsContactPhone.Should().BeNull();
+    }
 
     [Fact]
     public async Task UpdateAsync_updates_contractor_editable_fields()

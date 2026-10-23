@@ -71,6 +71,11 @@ public class GlobalExceptionMiddlewareTests
         yield return new object[] { new ArgumentException("bad"), 400, "BAD_REQUEST" };
         yield return new object[] { new UnauthorizedAccessException("no"), 401, "UNAUTHORIZED" };
         yield return new object[] { new InvalidOperationException("unexpected"), 500, "INTERNAL_SERVER_ERROR" };
+        yield return new object[] { new TripStopNotFoundException(Guid.NewGuid()), 404, "TRIP_STOP_NOT_FOUND" };
+        yield return new object[] { new TripStopNotActionableException(Guid.NewGuid()), 409, "TRIP_STOP_NOT_ACTIONABLE" };
+        yield return new object[] { new TripNotActiveException(Guid.NewGuid()), 409, "TRIP_NOT_ACTIVE" };
+        yield return new object[] { new ProofOfDeliveryNotFoundException(Guid.NewGuid()), 404, "PROOF_OF_DELIVERY_NOT_FOUND" };
+        yield return new object[] { new BadHttpRequestException("too large", StatusCodes.Status413PayloadTooLarge), 413, "PAYLOAD_TOO_LARGE" };
     }
 
     [Theory]

@@ -45,6 +45,26 @@ public class GlobalExceptionHandlerMiddleware
                 (int)HttpStatusCode.NotFound,
                 (object)new { error = "TRIP_NOT_FOUND", message = missingTrip.Message }),
 
+            TripStopNotFoundException missingStop => (
+                (int)HttpStatusCode.NotFound,
+                (object)new { error = "TRIP_STOP_NOT_FOUND", message = missingStop.Message }),
+
+            TripStopNotActionableException notActionable => (
+                (int)HttpStatusCode.Conflict,
+                (object)new { error = "TRIP_STOP_NOT_ACTIONABLE", message = notActionable.Message }),
+
+            TripNotActiveException notActive => (
+                (int)HttpStatusCode.Conflict,
+                (object)new { error = "TRIP_NOT_ACTIVE", message = notActive.Message }),
+
+            ProofOfDeliveryNotFoundException missingProof => (
+                (int)HttpStatusCode.NotFound,
+                (object)new { error = "PROOF_OF_DELIVERY_NOT_FOUND", message = missingProof.Message }),
+
+            BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge } => (
+                StatusCodes.Status413PayloadTooLarge,
+                (object)new { error = "PAYLOAD_TOO_LARGE", message = "O arquivo enviado excede o tamanho máximo permitido." }),
+
             TrackingUnavailableException unavailable => (
                 (int)HttpStatusCode.ServiceUnavailable,
                 (object)new { error = "TRACKING_UNAVAILABLE", message = unavailable.Message }),

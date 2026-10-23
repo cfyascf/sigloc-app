@@ -12,6 +12,9 @@ public class ContractorConfiguration : IEntityTypeConfiguration<Contractor>
 
         builder.Property(c => c.Cnpj).IsRequired();
         builder.Property(c => c.CompanyName).IsRequired();
+        builder.Property(c => c.LogisticsContactName).HasMaxLength(120);
+        builder.Property(c => c.LogisticsContactPhone).HasMaxLength(20);
+        builder.Property(c => c.LogisticsContactEmail).HasMaxLength(254);
 
         builder.HasIndex(c => c.Cnpj).IsUnique();
     }
