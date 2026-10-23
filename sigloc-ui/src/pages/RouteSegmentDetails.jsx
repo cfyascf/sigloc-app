@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
-import { ArrowLeft, MapPinned, DollarSign, Truck, Scale, Box, Layers, Loader2 } from "lucide-react"
+import { ArrowLeft, DollarSign, Truck, Scale, Box, Layers, Loader2 } from "lucide-react"
 import { useNavigate, useParams } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
 import { FormAlert } from "@/components/auth/FormAlert"
+import TravelPlan from "@/components/travel-plan"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAsyncAction } from "@/hooks/use-async-action"
@@ -68,18 +69,6 @@ const toRouteModel = (detail) => {
       leader: bestBid?.carrierName ?? null,
     },
   }
-}
-
-function getStopBadgeClass(index, totalStops) {
-  if (index === 0) {
-    return "bg-slate-800"
-  }
-
-  if (index === totalStops - 1) {
-    return "bg-emerald-500"
-  }
-
-  return "bg-blue-500"
 }
 
 export default function SegmentDetails() {
@@ -246,35 +235,7 @@ export default function SegmentDetails() {
             </div>
 
             {/* BLOCO 3: ITINERÁRIO (O Mapa da Viagem) */}
-            <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
-                <div className="flex items-center gap-2">
-                  <MapPinned size={16} className="text-emerald-600" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Plano de Viagem (Milking Run)</h2>
-                </div>
-                <span className="text-xs font-mono font-bold text-slate-400 bg-white px-2 py-1 rounded border border-slate-200">{route.totalDistanceKm} km totais</span>
-              </div>
-              
-              <div className="p-5 flex flex-col md:flex-row gap-6 md:gap-2 justify-between">
-                {route.itinerary.map((stop, index) => (
-                  <div key={`${stop.city}-${stop.action}`} className="flex-1 relative">
-                    {/* Linha conectora (Some no mobile) */}
-                    {index !== route.itinerary.length - 1 && (
-                      <div className="hidden md:block absolute top-3 left-[50%] w-full border-t-2 border-dashed border-slate-200" />
-                    )}
-                    
-                    <div className="relative z-10 flex flex-col items-center text-center">
-                      <div className={`h-6 w-6 rounded-full border-4 border-white flex items-center justify-center text-[10px] font-black text-white ${getStopBadgeClass(index, route.itinerary.length)}`}>
-                        {index + 1}
-                      </div>
-                      <p className="text-xs font-bold text-slate-800 mt-2">{stop.city}</p>
-                      <p className="text-[10px] font-semibold text-slate-500">{stop.action}</p>
-                      <p className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded mt-1">{stop.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <TravelPlan stops={route.itinerary} totalDistanceKm={route.totalDistanceKm} />
 
             {/* BLOCO 4: OS TRECHOS QUE COMPÕEM A ROTA */}
             <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
