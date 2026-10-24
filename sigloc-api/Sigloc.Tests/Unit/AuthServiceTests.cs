@@ -634,6 +634,18 @@ public class AuthServiceTests
         await _emailSender.Received(1).SendPasswordResetAsync(user.Email, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("abc")]
+    public async Task RequestPasswordResetAsync_malformed_email_ThrowsValidation_without_lookup(string email)
+    {
+        var act = () => _service.RequestPasswordResetAsync(new PasswordResetRequestDto(email));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == "email");
+        await _users.DidNotReceive().GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task RequestPasswordResetAsync_WhenUserMissing_DoesNothing()
     {

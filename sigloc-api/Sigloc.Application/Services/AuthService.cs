@@ -298,9 +298,17 @@ public partial class AuthService : IAuthService
     public async Task RequestPasswordResetAsync(PasswordResetRequestDto dto, CancellationToken cancellationToken = default)
     {
         var email = NormalizeEmail(dto.Email);
-        var user = string.IsNullOrWhiteSpace(email)
-            ? null
-            : await _users.GetByEmailAsync(email, cancellationToken);
+
+        // Rejecting a malformed address reveals nothing about which accounts exist; well-formed
+        // addresses keep the uniform "if an account exists" outcome.
+        if (string.IsNullOrWhiteSpace(email) || !EmailRegex().IsMatch(email))
+        {
+            throw new ValidationException(
+                new[] { new ValidationError("email", "Informe um e-mail válido.") },
+                "Não foi possível solicitar a redefinição de senha.");
+        }
+
+        var user = await _users.GetByEmailAsync(email, cancellationToken);
 
         if (user is null || user.AuthProvider != AuthProvider.Local || string.IsNullOrWhiteSpace(user.PasswordHash))
         {
