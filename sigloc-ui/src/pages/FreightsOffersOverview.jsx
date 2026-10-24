@@ -171,7 +171,7 @@ export default function FreightsOffersOverview() {
                              )}
                           </div>
                       </div>
-                      <p className="text-sm font-bold text-slate-800 leading-tight">{o.routeLabel}</p>
+                      <p className="text-sm font-bold text-slate-800 leading-tight">{o.routeLabel || "Rota indisponível"}</p>
                     </div>
 
                     {/* CORPO */}

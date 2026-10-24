@@ -203,7 +203,7 @@ export default function CarrierDashboard() {
                                 {item.status}
                             </Badge>
                           </div>
-                          <p className="text-sm font-bold text-slate-800">{item.itinerary}</p>
+                          <p className="text-sm font-bold text-slate-800">{item.itinerary || "Rota indisponível"}</p>
                         </div>
 
                         <div className="text-right">
