@@ -37,6 +37,8 @@ export default function AppShell({ title, children, contentClassName, innerClass
   const isAdmin = user.role === ROLES.DEVELOPER
 
   const handleLogout = () => {
+    // The sidebar preference belongs to this user's session, not to the next person who logs in.
+    globalThis.localStorage?.removeItem(SIDEBAR_STORAGE_KEY)
     logout()
     navigate("/login", { replace: true })
   }
