@@ -100,7 +100,7 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
         var coordinates = response?.Features?.FirstOrDefault()?.Geometry?.Coordinates;
         if (coordinates is not { Length: >= 2 })
         {
-            throw new GeocodingException($"Endereço não encontrado: '{address}'. Confira a cidade e a UF (ex.: Curitiba, PR).");
+            throw new AddressNotFoundException(address);
         }
 
         // OpenRouteService always works in [longitude, latitude] order.

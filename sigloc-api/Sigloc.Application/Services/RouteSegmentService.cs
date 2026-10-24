@@ -22,12 +22,27 @@ public class RouteSegmentService : IRouteSegmentService
         _geocodingService = geocodingService;
     }
 
+    // An address the provider cannot find is a problem with the form, not with our upstream,
+    // so report it under the field that holds it.
+    private async Task<RouteGeometry> ResolveGeometryAsync(string origin, string destination, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _geocodingService.ResolveAsync(origin, destination, cancellationToken);
+        }
+        catch (AddressNotFoundException ex)
+        {
+            var field = string.Equals(ex.Address, origin, StringComparison.Ordinal) ? "origin" : "destination";
+            throw new ValidationException(new[] { new ValidationError(field, ex.Message) }, "Não foi possível salvar o trecho.");
+        }
+    }
+
     public async Task<RouteSegmentResponseDto> CreateAsync(Guid contractorId, RouteSegmentRequestDto dto, CancellationToken cancellationToken = default)
     {
         var validated = Validate(dto);
         var products = await LoadProductsAsync(contractorId, validated.Items, cancellationToken);
 
-        var geometry = await _geocodingService.ResolveAsync(validated.Origin, validated.Destination, cancellationToken);
+        var geometry = await ResolveGeometryAsync(validated.Origin, validated.Destination, cancellationToken);
 
         var segment = new RouteSegment
         {
@@ -113,7 +128,7 @@ public class RouteSegmentService : IRouteSegmentService
 
         if (itineraryChanged)
         {
-            var geometry = await _geocodingService.ResolveAsync(validated.Origin, validated.Destination, cancellationToken);
+            var geometry = await ResolveGeometryAsync(validated.Origin, validated.Destination, cancellationToken);
 
             segment.OriginAddress = validated.Origin;
             segment.DestinationAddress = validated.Destination;

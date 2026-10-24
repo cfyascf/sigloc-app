@@ -135,6 +135,25 @@ public class RouteSegmentServiceTests
         await _repository.DidNotReceive().AddAsync(Arg.Any<RouteSegment>(), Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData("Lugar Inexistente, ZZ", "São Paulo, SP", "origin")]
+    [InlineData("Curitiba, PR", "Lugar Inexistente, ZZ", "destination")]
+    public async Task CreateAsync_unknown_address_is_a_field_error(string origin, string destination, string field)
+    {
+        var product = TestData.Product(contractorId: _contractorId);
+        _repository
+            .GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { product });
+        _geocoding
+            .ResolveAsync(origin, destination, Arg.Any<CancellationToken>())
+            .Returns<RouteGeometry>(_ => throw new AddressNotFoundException("Lugar Inexistente, ZZ"));
+
+        var act = () => _service.CreateAsync(_contractorId, ValidDto(origin: origin, destination: destination, items: new[] { Item(product.Id) }));
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().ContainSingle(e => e.Field == field && e.Reason.Contains("Lugar Inexistente"));
+    }
+
     [Fact]
     public async Task CreateAsync_same_origin_and_destination_throws_validation()
     {

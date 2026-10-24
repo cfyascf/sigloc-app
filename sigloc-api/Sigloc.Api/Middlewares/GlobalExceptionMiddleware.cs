@@ -69,6 +69,10 @@ public class GlobalExceptionHandlerMiddleware
                 (int)HttpStatusCode.ServiceUnavailable,
                 (object)new { error = "TRACKING_UNAVAILABLE", message = unavailable.Message }),
 
+            AddressNotFoundException addressNotFound => (
+                StatusCodes.Status422UnprocessableEntity,
+                (object)new { error = "ENDERECO_NAO_ENCONTRADO", message = addressNotFound.Message }),
+
             VehicleWithoutTrackerException noTracker => (
                 StatusCodes.Status422UnprocessableEntity,
                 (object)new { error = "VEICULO_SEM_RASTREADOR", message = noTracker.Message }),
