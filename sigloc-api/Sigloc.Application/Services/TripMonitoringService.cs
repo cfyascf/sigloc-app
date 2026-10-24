@@ -19,7 +19,8 @@ public sealed class TripMonitoringService(
         SearchAsync(TripScope.ForShipper(contractorId), query, ct);
 
     public Task<TripDetailDto> GetDetailAsync(Guid contractorId, Guid tripId, bool refresh = false, CancellationToken ct = default) =>
-        GetDetailAsync(TripScope.ForShipper(contractorId), tripId, refresh, (_, detail) => detail, ct);
+        GetDetailAsync(TripScope.ForShipper(contractorId), tripId, refresh,
+            (state, detail) => detail with { Proofs = TripDetailMapper.Proofs(state) }, ct);
 
     public Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct = default)
     {

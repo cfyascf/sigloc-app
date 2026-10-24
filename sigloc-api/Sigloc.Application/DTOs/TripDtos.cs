@@ -60,7 +60,10 @@ public record TripDetailDto(
     [property: JsonPropertyName("cacheDesatualizado")] bool IsStale,
     [property: JsonPropertyName("aviso")] string? Warning,
     [property: JsonPropertyName("paradas")] IReadOnlyList<TripStopDto> Stops,
-    [property: JsonPropertyName("eventos")] IReadOnlyList<TripEventDto> Events)
+    [property: JsonPropertyName("eventos")] IReadOnlyList<TripEventDto> Events,
+    // Filled on the shipper (contractor) detail only; the carrier response lists proofs at its top level.
+    [property: JsonPropertyName("comprovantes"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyList<TripProofOfDeliveryDto>? Proofs = null)
 {
     [JsonPropertyName("viagemId")] public Guid TripId => Id;
     [JsonPropertyName("rotaId")] public Guid ConsolidatedRouteId => RouteId;

@@ -12,7 +12,9 @@ using Microsoft.Extensions.Options;
 using Sigloc.Api.Controllers;
 using Sigloc.Api.Middleware;
 using Sigloc.Application.Contracts;
+using Sigloc.Application.Services;
 using Sigloc.Domain.Constants;
+using Sigloc.Domain.Entities;
 
 namespace Sigloc.Tests;
 
@@ -112,11 +114,39 @@ public class TripHttpTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    private static TestServer Server(TripMonitoringServiceTests.Harness h) => new(new WebHostBuilder()
+    [Fact]
+    public async Task Contractor_sees_and_downloads_the_proof_of_delivery_of_its_trip()
+    {
+        var h = new TripMonitoringServiceTests.Harness();
+        var files = new CarrierTripServiceTests.FakeFileStorage();
+        var key = await files.SaveAsync("trips", new MemoryStream(new byte[] { 1, 2, 3 }), ".png");
+        var proof = new TripProofOfDelivery
+        {
+            Id = Guid.NewGuid(), TripId = h.State.Trip.Id, TripStopId = h.State.Trip.Stops.Count > 0 ? h.State.Trip.Stops[0].Id : Guid.NewGuid(),
+            StorageKey = key, FileName = "canhoto.png", ContentType = "image/png", SizeBytes = 3, UploadedAt = TripMonitoringServiceTests.Now,
+        };
+        h.State.Proofs.Add(proof);
+        using var server = Server(h, files);
+        using var client = Client(server, h.CompanyId, Roles.Shipper);
+
+        using var detail = JsonDocument.Parse(await client.GetStringAsync($"/api/viagens/{h.State.Trip.Id}/detalhes"));
+        Assert.Equal(proof.Id, detail.RootElement.GetProperty("comprovantes")[0].GetProperty("id").GetGuid());
+
+        var download = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/comprovantes/{proof.Id}");
+        Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+        Assert.Equal("image/png", download.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(new byte[] { 1, 2, 3 }, await download.Content.ReadAsByteArrayAsync());
+
+        using var other = Client(server, Guid.NewGuid(), Roles.Shipper);
+        Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/viagens/{h.State.Trip.Id}/comprovantes/{proof.Id}")).StatusCode);
+    }
+
+    private static TestServer Server(TripMonitoringServiceTests.Harness h, CarrierTripServiceTests.FakeFileStorage? files = null) => new(new WebHostBuilder()
         .ConfigureServices(services =>
         {
             services.AddLogging(); services.AddRouting();
             services.AddSingleton<ITripMonitoringService>(h.Service);
+            services.AddSingleton<ITripProofService>(new TripProofService(h.Store, files ?? new CarrierTripServiceTests.FakeFileStorage()));
             services.AddControllers().AddApplicationPart(typeof(TripsController).Assembly);
             services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuthentication>("Test", _ => { });
             services.AddAuthorization(options => options.AddPolicy(Policies.RequireShipperAccess, policy => policy.RequireAuthenticatedUser().RequireRole(Roles.Shipper, Roles.Admin)));

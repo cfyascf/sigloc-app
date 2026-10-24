@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<ITripMonitoringService, TripMonitoringService>();
         services.AddScoped<ICarrierTripService, CarrierTripService>();
+        services.AddScoped<ITripProofService, TripProofService>();
 
         return services;
     }

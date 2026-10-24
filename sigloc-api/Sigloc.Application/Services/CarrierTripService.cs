@@ -104,13 +104,8 @@ public sealed class CarrierTripService(
         }
     }
 
-    public async Task<ProofOfDeliveryFileDto> OpenProofAsync(Guid carrierId, Guid tripId, Guid proofId, CancellationToken ct = default)
-    {
-        var state = await store.ReadAsync(TripScope.ForCarrier(carrierId), tripId, ct) ?? throw new TripNotFoundException(tripId);
-        var proof = state.Proofs.FirstOrDefault(p => p.Id == proofId) ?? throw new ProofOfDeliveryNotFoundException(proofId);
-        var content = await files.OpenReadAsync(proof.StorageKey, ct) ?? throw new ProofOfDeliveryNotFoundException(proofId);
-        return new ProofOfDeliveryFileDto(content, proof.ContentType, proof.FileName);
-    }
+    public Task<ProofOfDeliveryFileDto> OpenProofAsync(Guid carrierId, Guid tripId, Guid proofId, CancellationToken ct = default) =>
+        TripProofService.OpenAsync(store, files, TripScope.ForCarrier(carrierId), tripId, proofId, ct);
 
     private static void EnsureActive(TripState state)
     {

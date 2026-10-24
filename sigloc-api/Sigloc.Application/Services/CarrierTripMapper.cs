@@ -25,9 +25,7 @@ public static class CarrierTripMapper
             state.Occurrences.OrderByDescending(o => o.ReportedAt).ThenBy(o => o.Id)
                 .Select(o => new TripOccurrenceDto(o.Id, o.Type.ToWire(), o.Type.ToLabel(), o.Severity, o.Note, o.ReportedAt, o.BlockingStopId, o.ResolvedAt))
                 .ToList(),
-            state.Proofs.OrderByDescending(p => p.UploadedAt).ThenBy(p => p.Id)
-                .Select(p => new TripProofOfDeliveryDto(p.Id, p.TripStopId, p.FileName, p.ContentType, p.SizeBytes, p.UploadedAt))
-                .ToList());
+            TripDetailMapper.Proofs(state));
     }
 
     private static TripCurrentActionDto? CurrentAction(TripState state)
