@@ -12,3 +12,6 @@ const RISK_LABELS = {
 
 /** Portuguese label for a risk code; unknown codes are shown as received. */
 export const riskLabel = (risk) => RISK_LABELS[risk] ?? risk
+
+/** Risk filter options, lowest to highest. */
+export const RISK_OPTIONS = Object.values(RISK).map((value) => ({ value, label: riskLabel(value) }))

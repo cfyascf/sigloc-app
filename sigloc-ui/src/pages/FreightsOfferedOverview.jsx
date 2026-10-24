@@ -8,10 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { listAuctions, updateAuction, deleteAuction } from "@/services/auction-service"
-import { RISK, riskLabel } from "@/constants/risk"
+import { RISK, RISK_OPTIONS, riskLabel } from "@/constants/risk"
+import { ListFilters, activeFilterCount, filtersLabel } from "@/components/list-filters"
 
 const SEARCH_DEBOUNCE_MS = 350
 const PAGE_SIZE = 50
+const FILTER_FIELDS = [
+  { key: "risk", label: "Filtrar por risco", allLabel: "Todos os riscos", options: RISK_OPTIONS },
+  { key: "bids", label: "Filtrar por lances", allLabel: "Com e sem lances", options: [{ value: "with", label: "Com lances" }, { value: "without", label: "Sem lances" }] },
+]
+const NO_FILTERS = { risk: "", bids: "" }
 
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value)
 
@@ -110,6 +116,8 @@ export default function FreightsOfferedOverview() {
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [selectedTab, setSelectedTab] = useState("active")
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filters, setFilters] = useState(NO_FILTERS)
 
   const listAction = useAsyncAction(async ({ search, statuses }) => {
     const responses = await Promise.all(
@@ -198,7 +206,9 @@ export default function FreightsOfferedOverview() {
     }
   }
 
-  const filteredLeiloes = leiloes
+  const filteredLeiloes = leiloes.filter((l) =>
+    (!filters.risk || l.risk === filters.risk)
+    && (!filters.bids || (filters.bids === "with" ? l.totalBids > 0 : l.totalBids === 0)))
 
   return (
     <AppShell title="Painel de Leilões">
@@ -220,11 +230,13 @@ export default function FreightsOfferedOverview() {
                 className="h-9 border-slate-200 bg-white pl-9 text-xs"
               />
             </div>
-            <Button variant="outline" className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50">
-              <SlidersHorizontal size={14} className="mr-1.5 text-slate-500" /> Filtros
+            <Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)} className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <SlidersHorizontal size={14} className="mr-1.5 text-slate-500" /> {filtersLabel(filters)}
             </Button>
           </div>
         </div>
+
+        {filtersOpen && <div className="shrink-0"><ListFilters filters={filters} fields={FILTER_FIELDS} onChange={setFilters} /></div>}
 
         {/* ABAS: EM ANDAMENTO / HISTÓRICO */}
         <div className="shrink-0">
@@ -263,7 +275,7 @@ export default function FreightsOfferedOverview() {
             ) : filteredLeiloes.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
                 {selectedTab === "history" ? <Archive size={20} className="text-slate-400" /> : <Box size={20} className="text-slate-400" />}
-                <p>{selectedTab === "active" ? "Nenhum leilão em andamento encontrado." : "Nenhum leilão no histórico encontrado."}</p>
+                <p>{activeFilterCount(filters) ? "Nenhum leilão encontrado para os filtros selecionados." : selectedTab === "active" ? "Nenhum leilão em andamento encontrado." : "Nenhum leilão no histórico encontrado."}</p>
               </div>
             ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

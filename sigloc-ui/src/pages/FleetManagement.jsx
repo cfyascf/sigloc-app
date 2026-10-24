@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { vehicleService } from "@/services/vehicle-service"
-import { BODY_TYPE_OPTIONS, STATUS_OPTIONS } from "@/constants/vehicles"
+import { BODY_TYPE_OPTIONS, REFRIGERATION_BY_VALUE, STATUS_OPTIONS } from "@/constants/vehicles"
+import { ListFilters, filtersLabel } from "@/components/list-filters"
 import VehicleForm from "@/pages/VehicleForm"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
@@ -31,6 +32,14 @@ const getStatusDotStyle = (status) => {
 }
 
 // Mirrors the API limits so an invalid edit never reaches the server.
+const toOptions = (labels) => labels.map((label) => ({ value: label, label }))
+const FILTER_FIELDS = [
+  { key: "status", label: "Filtrar por status", allLabel: "Todos os status", options: toOptions(["Livre", ON_TRIP_LABEL, "Em Trânsito", "Manutenção"]) },
+  { key: "bodyType", label: "Filtrar por carroceria", allLabel: "Todas as carrocerias", options: toOptions(BODY_TYPE_OPTIONS) },
+  { key: "refrigeration", label: "Filtrar por refrigeração", allLabel: "Qualquer refrigeração", options: Object.entries(REFRIGERATION_BY_VALUE).map(([value, label]) => ({ value, label })) },
+]
+const NO_FILTERS = { status: "", bodyType: "", refrigeration: "" }
+
 const validateEdit = (form) => {
   const errors = {}
   if (!form.model?.trim()) errors.model = "Informe a marca/modelo."
@@ -51,6 +60,8 @@ const getStatusTextStyle = (status) => {
 
 export default function FleetManagement() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filters, setFilters] = useState(NO_FILTERS)
 
   const [vehicles, setVehicles] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -85,6 +96,9 @@ export default function FleetManagement() {
   }, [])
 
   const visibleVehicles = vehicles.filter((vehicle) => {
+    if (filters.status && displayStatus(vehicle) !== filters.status) return false
+    if (filters.bodyType && vehicle.bodyType !== filters.bodyType) return false
+    if (filters.refrigeration && String(vehicle.refrigerationLevel ?? 0) !== filters.refrigeration) return false
     const term = searchTerm.trim().toLowerCase()
     if (!term) return true
     return [vehicle.plate, vehicle.model, vehicle.bodyType, vehicle.driver, vehicle.location, displayStatus(vehicle)].join(" ").toLowerCase().includes(term)
@@ -146,8 +160,8 @@ export default function FleetManagement() {
               <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por placa, modelo, status..." className="h-9 border-slate-200 bg-white pl-9 text-xs" />
             </div>
 
-            <Button variant="outline" className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-              <Settings2 size={14} className="mr-1.5" /> Filtros
+            <Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)} className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+              <Settings2 size={14} className="mr-1.5" /> {filtersLabel(filters)}
             </Button>
 
             <Button asChild className="h-9 bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700">
@@ -155,6 +169,8 @@ export default function FleetManagement() {
             </Button>
           </div>
         </div>
+
+        {filtersOpen && <ListFilters filters={filters} fields={FILTER_FIELDS} onChange={setFilters} />}
 
         {/* ESTADO: CARREGANDO */}
         {isLoading && (
@@ -175,7 +191,7 @@ export default function FleetManagement() {
           <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
             <Truck size={24} className="text-slate-300" />
             <p className="text-sm font-semibold text-slate-600">
-              {vehicles.length === 0 ? "Nenhum veículo cadastrado." : "Nenhum veículo encontrado para a busca."}
+              {vehicles.length === 0 ? "Nenhum veículo cadastrado." : "Nenhum veículo encontrado para a busca ou os filtros."}
             </p>
           </div>
         )}
