@@ -54,7 +54,11 @@ function formatRating(rating) {
 /** Humanizes the remaining lifetime of an invite for display. */
 function formatExpiry({ hoursRemaining, expiresAt } = {}) {
   if (hoursRemaining === null || hoursRemaining === undefined) {
-    return expiresAt ? "Expira em breve" : "Não expira"
+    if (!expiresAt) return "Não expira"
+    // The create response has expiresAt but no hoursRemaining; derive it instead of guessing.
+    const expiry = new Date(expiresAt).getTime()
+    if (Number.isNaN(expiry)) return "Expira em breve"
+    hoursRemaining = (expiry - Date.now()) / 3_600_000
   }
 
   if (hoursRemaining <= 0) {
