@@ -63,4 +63,35 @@ public class TripRepository : ITripRepository
             select new { CarrierId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CarrierId, x => x.Count, cancellationToken);
     }
+
+    public async Task<Dictionary<Guid, int>> CountActiveLanesByContractorForCarrierAsync(
+        Guid carrierId,
+        IReadOnlyCollection<Guid> contractorIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (contractorIds.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        var lanes = await (
+            from trip in _dbContext.Trips.AsNoTracking()
+            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
+            join segment in _dbContext.RouteSegments.AsNoTracking() on route.Id equals segment.RouteId
+            where trip.CarrierId == carrierId
+                && contractorIds.Contains(route.ContractorId)
+                && (trip.Status == TripStatus.AwaitingPickup || trip.Status == TripStatus.InTransit)
+            select new { route.ContractorId, segment.OriginAddress, segment.DestinationAddress })
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        // Addresses are compared case-insensitively so "Curitiba, PR" and "curitiba, pr" are one lane.
+        return lanes
+            .GroupBy(l => l.ContractorId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(l => (l.OriginAddress.Trim().ToLowerInvariant(), l.DestinationAddress.Trim().ToLowerInvariant()))
+                    .Distinct()
+                    .Count());
+    }
 }

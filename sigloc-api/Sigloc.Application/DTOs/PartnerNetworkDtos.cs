@@ -30,11 +30,15 @@ public record ContractorSummaryDto(
     [property: JsonPropertyName("nomeFantasia")] string TradeName,
     [property: JsonPropertyName("cnpj")] string Cnpj);
 
+/// <param name="OpenOffers">The contractor's auctions open to bids right now (0 unless the partnership is active).</param>
+/// <param name="ActiveLanes">Distinct origin → destination lanes the carrier runs for this contractor on trips awaiting pickup or in transit.</param>
 public record CarrierNetworkPartnerDto(
     [property: JsonPropertyName("conexaoId")] Guid ConnectionId,
     [property: JsonPropertyName("statusParceria")] string PartnershipStatus,
     [property: JsonPropertyName("contratante")] ContractorSummaryDto Contractor,
-    [property: JsonPropertyName("ultimaInteracao")] DateTimeOffset? LastInteraction);
+    [property: JsonPropertyName("ultimaInteracao")] DateTimeOffset? LastInteraction,
+    [property: JsonPropertyName("ofertasAbertas")] int OpenOffers = 0,
+    [property: JsonPropertyName("corredoresAtivos")] int ActiveLanes = 0);
 
 public record CarrierNetworkDto(
     [property: JsonPropertyName("totalAtivos")] int TotalActive,

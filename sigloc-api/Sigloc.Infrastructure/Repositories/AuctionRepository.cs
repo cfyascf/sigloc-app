@@ -265,4 +265,26 @@ public class AuctionRepository : IAuctionRepository
         _dbContext.Auctions.Remove(auction);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<Dictionary<Guid, int>> CountOpenByContractorsAsync(
+        IReadOnlyCollection<Guid> contractorIds,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        if (contractorIds.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        // Same "open" definition as the carrier freight board: Open status and not expired.
+        return await (
+            from auction in _dbContext.Auctions.AsNoTracking()
+            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on auction.RouteId equals route.Id
+            where contractorIds.Contains(route.ContractorId)
+                && auction.Status == AuctionStatus.Open
+                && auction.ExpiresAt > now
+            group auction by route.ContractorId into g
+            select new { ContractorId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ContractorId, x => x.Count, cancellationToken);
+    }
 }

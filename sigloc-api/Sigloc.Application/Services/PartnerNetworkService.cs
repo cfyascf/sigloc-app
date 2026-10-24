@@ -12,12 +12,18 @@ public class PartnerNetworkService : IPartnerNetworkService
     private readonly IPartnerConnectionRepository _connections;
     private readonly IVehicleRepository _vehicles;
     private readonly ITripRepository _trips;
+    private readonly IAuctionRepository _auctions;
 
-    public PartnerNetworkService(IPartnerConnectionRepository connections, IVehicleRepository vehicles, ITripRepository trips)
+    public PartnerNetworkService(
+        IPartnerConnectionRepository connections,
+        IVehicleRepository vehicles,
+        ITripRepository trips,
+        IAuctionRepository auctions)
     {
         _connections = connections;
         _vehicles = vehicles;
         _trips = trips;
+        _auctions = auctions;
     }
 
     public async Task<PartnerNetworkDto> GetNetworkAsync(Guid contractorId, CancellationToken cancellationToken = default)
@@ -45,8 +51,12 @@ public class PartnerNetworkService : IPartnerNetworkService
         var totalActive = connections.Count(c => c.Status == PartnershipStatus.Active);
         var totalPending = connections.Count(c => c.Status == PartnershipStatus.Pending);
 
+        var contractorIds = connections.Select(c => c.ContractorId).Distinct().ToList();
+        var openOffers = await _auctions.CountOpenByContractorsAsync(contractorIds, DateTimeOffset.UtcNow, cancellationToken);
+        var activeLanes = await _trips.CountActiveLanesByContractorForCarrierAsync(carrierId, contractorIds, cancellationToken);
+
         var partners = connections
-            .Select(MontarContratanteDto)
+            .Select(connection => MontarContratanteDto(connection, openOffers, activeLanes))
             .ToList();
 
         return new CarrierNetworkDto(totalActive, totalPending, partners);
@@ -74,7 +84,10 @@ public class PartnerNetworkService : IPartnerNetworkService
         await _connections.UpdateAsync(connection, cancellationToken);
     }
 
-    private static CarrierNetworkPartnerDto MontarContratanteDto(PartnerConnection connection)
+    private static CarrierNetworkPartnerDto MontarContratanteDto(
+        PartnerConnection connection,
+        Dictionary<Guid, int> openOffers,
+        Dictionary<Guid, int> activeLanes)
     {
         var contractor = connection.Contractor;
 
@@ -87,7 +100,10 @@ public class PartnerNetworkService : IPartnerNetworkService
             connection.Id,
             MapStatus(connection.Status),
             contractorDto,
-            connection.UpdatedAt);
+            connection.UpdatedAt,
+            // An ended or pending partnership cannot see the contractor's offers.
+            OpenOffers: connection.Status == PartnershipStatus.Active ? openOffers.GetValueOrDefault(connection.ContractorId, 0) : 0,
+            ActiveLanes: activeLanes.GetValueOrDefault(connection.ContractorId, 0));
     }
 
     private static PartnerDto MontarDto(

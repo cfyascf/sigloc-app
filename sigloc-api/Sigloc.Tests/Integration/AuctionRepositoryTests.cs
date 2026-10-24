@@ -155,6 +155,26 @@ public class AuctionRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task CountOpenByContractorsAsync_counts_only_open_non_expired_auctions()
+    {
+        var otherContractor = Guid.NewGuid();
+        var routes = new[] { Route(_contractorId), Route(_contractorId), Route(_contractorId), Route(otherContractor) };
+        var ctx = _db.CreateContext();
+        ctx.ConsolidatedRoutes.AddRange(routes);
+        ctx.Auctions.AddRange(
+            Auction(routes[0].Id, AuctionStatus.Open),
+            Auction(routes[1].Id, AuctionStatus.Open, DateTimeOffset.UtcNow.AddHours(-1)),
+            Auction(routes[2].Id, AuctionStatus.Closed),
+            Auction(routes[3].Id, AuctionStatus.Open));
+        await ctx.SaveChangesAsync();
+
+        var counts = await new AuctionRepository(_db.CreateContext())
+            .CountOpenByContractorsAsync(new[] { _contractorId }, DateTimeOffset.UtcNow);
+
+        counts.Should().BeEquivalentTo(new Dictionary<Guid, int> { [_contractorId] = 1 });
+    }
+
+    [Fact]
     public async Task SearchAsync_paginates()
     {
         await Task.CompletedTask;

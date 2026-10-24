@@ -78,6 +78,34 @@ public class TripRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task CountActiveLanesByContractorForCarrierAsync_counts_distinct_lanes_of_active_trips()
+    {
+        var ctx = _db.CreateContext();
+        var trip = await SeedTripAsync(ctx, TripStatus.InTransit);
+        ctx.Trips.Add(trip);
+        var contractorId = (await ctx.ConsolidatedRoutes.FindAsync(trip.RouteId))!.ContractorId;
+        RouteSegment Leg(string origin, string destination) => new()
+        {
+            Id = Guid.NewGuid(), ContractorId = contractorId, RouteId = trip.RouteId,
+            OriginAddress = origin, DestinationAddress = destination,
+            OriginCoordinate = "-49.27,-25.42", DestinationCoordinate = "-46.63,-23.55",
+            PickupDeadline = DateTimeOffset.UtcNow.AddDays(1), DeliveryDeadline = DateTimeOffset.UtcNow.AddDays(2),
+            Status = SegmentStatus.InTransit,
+        };
+        // Same lane twice (different case) plus a second lane.
+        ctx.RouteSegments.AddRange(
+            Leg("Curitiba, PR", "São Paulo, SP"),
+            Leg("curitiba, pr", "são paulo, sp"),
+            Leg("São Paulo, SP", "Campinas, SP"));
+        await ctx.SaveChangesAsync();
+
+        var lanes = await new TripRepository(_db.CreateContext())
+            .CountActiveLanesByContractorForCarrierAsync(trip.CarrierId, new[] { contractorId });
+
+        lanes.Should().BeEquivalentTo(new Dictionary<Guid, int> { [contractorId] = 2 });
+    }
+
+    [Fact]
     public async Task AddAsync_does_not_save_until_caller_commits()
     {
         var seedCtx = _db.CreateContext();

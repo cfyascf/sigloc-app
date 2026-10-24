@@ -28,4 +28,14 @@ public interface ITripRepository
         Guid contractorId,
         IReadOnlyCollection<Guid> carrierIds,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Number of distinct origin → destination lanes (segment addresses) the carrier is running
+    /// for each contractor on trips awaiting pickup or in transit. Contractors without any are
+    /// absent from the result.
+    /// </summary>
+    Task<Dictionary<Guid, int>> CountActiveLanesByContractorForCarrierAsync(
+        Guid carrierId,
+        IReadOnlyCollection<Guid> contractorIds,
+        CancellationToken cancellationToken = default);
 }
