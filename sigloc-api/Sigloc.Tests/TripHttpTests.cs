@@ -79,13 +79,27 @@ public class TripHttpTests
         using var server = Server(h);
         using (var other = Client(server, Guid.NewGuid(), Roles.Shipper))
             Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes")).StatusCode);
-        h.State.Vehicle.TraccarDeviceId = null;
+        h.Tracking.Fix = h.Tracking.Fix with { FixTime = TripMonitoringServiceTests.Now.AddMinutes(-16) };
         using var client = Client(server, h.CompanyId, Roles.Shipper);
         var response = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes?refresh=true");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("TRACKING_UNAVAILABLE", json.RootElement.GetProperty("error").GetString());
         Assert.False(json.RootElement.TryGetProperty("stackTrace", out _));
+    }
+
+    [Fact]
+    public async Task Refresh_for_a_vehicle_without_tracker_is_422_with_actionable_message()
+    {
+        var h = new TripMonitoringServiceTests.Harness();
+        h.State.Vehicle.TraccarDeviceId = null;
+        using var server = Server(h);
+        using var client = Client(server, h.CompanyId, Roles.Shipper);
+        var response = await client.GetAsync($"/api/viagens/{h.State.Trip.Id}/detalhes?refresh=true");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("VEICULO_SEM_RASTREADOR", json.RootElement.GetProperty("error").GetString());
+        Assert.Contains("Traccar", json.RootElement.GetProperty("message").GetString());
     }
 
     [Theory]

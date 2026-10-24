@@ -229,7 +229,7 @@ public sealed class OpenRouteServiceTripRoutingProviderTests
         using var handler = new FakeHttpHandler((_, _) => Task.FromResult(Json(Secret, status)));
         using var client = new HttpClient(handler);
         var exception = await Assert.ThrowsAsync<TrackingUnavailableException>(() => Routing(client).CalculateAsync(Coordinates(2)));
-        Assert.Equal("Trip monitoring is temporarily unavailable.", exception.Message);
+        Assert.Equal("O monitoramento da viagem está temporariamente indisponível. Tente novamente em instantes.", exception.Message);
         Assert.Null(exception.InnerException);
         Assert.DoesNotContain(Secret, exception.ToString());
     }

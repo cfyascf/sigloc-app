@@ -56,7 +56,9 @@ public sealed class TripMonitoringService(
                 if (TripMonitoringCalculator.IsTerminal(state.Trip) || TripMonitoringCalculator.IsFresh(state.Snapshot, now))
                     return Project(state, false);
                 TripStopCompletion.EnsureItinerary(state);
-                if (state.Trip.Stops.Count == 0 || state.Vehicle.TraccarDeviceId is not > 0)
+                if (state.Vehicle.TraccarDeviceId is not > 0)
+                    throw new VehicleWithoutTrackerException();
+                if (state.Trip.Stops.Count == 0)
                     throw new TrackingUnavailableException();
                 fix ??= await tracking.GetLatestAsync(state.Vehicle.TraccarDeviceId.Value, now, token);
                 ValidateFix(fix, state, now);
@@ -112,6 +114,8 @@ public sealed class TripMonitoringService(
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (TripNotFoundException) { throw; }
+        // Not transient: falling back to the stale snapshot would hide why the refresh never works.
+        catch (VehicleWithoutTrackerException) { throw; }
         catch (Exception exception)
         {
             ct.ThrowIfCancellationRequested();

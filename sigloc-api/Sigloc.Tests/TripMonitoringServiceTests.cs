@@ -139,7 +139,7 @@ public class TripMonitoringServiceTests
 
     [Theory]
     [InlineData("old")] [InlineData("future")] [InlineData("coordinate")] [InlineData("device")]
-    [InlineData("identity")] [InlineData("missing-device")]
+    [InlineData("identity")]
     public async Task Invalid_fixes_never_write_or_route(string failure)
     {
         var h = new Harness();
@@ -152,9 +152,19 @@ public class TripMonitoringServiceTests
             "identity" => h.Tracking.Fix with { ObservationId = "" },
             _ => h.Tracking.Fix
         };
-        if (failure == "missing-device") h.State.Vehicle.TraccarDeviceId = null;
         await Assert.ThrowsAsync<TrackingUnavailableException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true));
         Assert.Equal(0, h.Routing.Calls); Assert.Null(h.Store.State!.Snapshot);
+    }
+
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public async Task Missing_tracker_is_reported_as_such_even_with_a_cached_snapshot(bool cached)
+    {
+        var h = new Harness();
+        if (cached) h.Cached(16);
+        h.State.Vehicle.TraccarDeviceId = null;
+        await Assert.ThrowsAsync<VehicleWithoutTrackerException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true));
+        Assert.Equal(0, h.Tracking.Calls); Assert.Equal(0, h.Routing.Calls);
     }
 
     [Fact]
