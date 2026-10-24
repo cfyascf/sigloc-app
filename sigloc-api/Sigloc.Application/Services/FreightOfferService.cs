@@ -214,7 +214,7 @@ public class FreightOfferService : IFreightOfferService
             : segments.OrderBy(s => s.PickupDeadline).First().Id.ToString();
 
     private static string FormatDeadline(DateTimeOffset? deadline)
-        => deadline?.ToString("dd/MM/yyyy HH:mm", PtBr) ?? "—";
+        => deadline is { } value ? BrasiliaTime.Format(value) : "—";
 
     private static string FormatWeight(double weightKg)
         => weightKg >= 1000

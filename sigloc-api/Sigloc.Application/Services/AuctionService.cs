@@ -673,10 +673,6 @@ public class AuctionService : IAuctionService
 
     private static string FormatHours(double hours) => $"{Math.Round(hours, 1).ToString("0.#", PtBr)} h";
 
-    // Deadlines are stored in UTC; users read them in Brasília time (UTC−3, no DST since 2019).
-    private static string FormatBrasiliaTime(DateTimeOffset value)
-        => value.ToOffset(TimeSpan.FromHours(-3)).ToString("dd/MM/yyyy HH:mm", PtBr);
-
     // True when the vehicle already has an active trip whose window overlaps the window of these
     // segments (first pickup deadline to last delivery deadline).
     private async Task<bool> OverlapsActiveTripAsync(
@@ -927,7 +923,7 @@ public class AuctionService : IAuctionService
                 {
                     new ValidationError(
                         "expiresAt",
-                        $"O leilão deve encerrar antes do primeiro prazo de coleta ({FormatBrasiliaTime(firstPickup)}).")
+                        $"O leilão deve encerrar antes do primeiro prazo de coleta ({BrasiliaTime.Format(firstPickup)}).")
                 },
                 failureMessage);
         }

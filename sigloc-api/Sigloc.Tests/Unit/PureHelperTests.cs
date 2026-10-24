@@ -144,6 +144,13 @@ public class AuctionRiskCalculatorTests
     }
 }
 
+public class BrasiliaTimeTests
+{
+    [Fact]
+    public void Format_shows_utc_deadlines_in_brasilia_time()
+        => BrasiliaTime.Format(new DateTimeOffset(2026, 10, 25, 12, 0, 0, TimeSpan.Zero)).Should().Be("25/10/2026 09:00");
+}
+
 public class VehicleBodyTypeDescriptionTests
 {
     [Theory]
