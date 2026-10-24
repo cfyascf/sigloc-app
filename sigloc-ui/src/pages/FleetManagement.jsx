@@ -247,8 +247,8 @@ export default function FleetManagement() {
                       </span>
                     </div>
 
-                    {/* Col 4: Capacidade (Peso/Vol) */}
-                    <div className="flex items-center justify-end gap-3 text-xs font-bold whitespace-nowrap">
+                    {/* Col 4: Capacidade (Peso/Vol). Right padding keeps it clear of the hover actions. */}
+                    <div className="flex items-center justify-end gap-3 pr-20 text-xs font-bold whitespace-nowrap">
                       <div className="text-right mr-2">
                         <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Capacidade Total</span>
                       </div>
