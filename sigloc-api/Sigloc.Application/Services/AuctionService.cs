@@ -79,6 +79,7 @@ public class AuctionService : IAuctionService
         var aggregate = await RouteAggregator.AggregateAsync(segmentIds, segments, _geocodingService, cancellationToken);
 
         ValidateDeadlineWindow(segments, aggregate.EstimatedTimeHours);
+        ValidateExpiryBeforeFirstPickup(expiresAt, segments);
 
         var openedAt = DateTimeOffset.UtcNow;
 
@@ -247,7 +248,12 @@ public class AuctionService : IAuctionService
 
         if (dto.ExpiresAt is not null)
         {
-            auction.ExpiresAt = ValidateExpiry(dto.ExpiresAt);
+            var expiresAt = ValidateExpiry(dto.ExpiresAt);
+
+            var detail = await _auctionRepository.GetDetailAsync(id, contractorId, cancellationToken);
+            ValidateExpiryBeforeFirstPickup(expiresAt, detail?.Segments ?? Array.Empty<RouteSegment>());
+
+            auction.ExpiresAt = expiresAt;
         }
 
         await _auctionRepository.UpdateAsync(auction, cancellationToken);
@@ -665,6 +671,10 @@ public class AuctionService : IAuctionService
 
     private static string FormatBrl(decimal value) => value.ToString("C", PtBr);
 
+    // Deadlines are stored in UTC; users read them in Brasília time (UTC−3, no DST since 2019).
+    private static string FormatBrasiliaTime(DateTimeOffset value)
+        => value.ToOffset(TimeSpan.FromHours(-3)).ToString("dd/MM/yyyy HH:mm", PtBr);
+
     // True when the vehicle already has an active trip whose window overlaps the window of these
     // segments (first pickup deadline to last delivery deadline).
     private async Task<bool> OverlapsActiveTripAsync(
@@ -889,6 +899,32 @@ public class AuctionService : IAuctionService
         }
 
         return expiresAt.Value;
+    }
+
+    /// <summary>
+    /// The winner must be known before the truck has to be at the first pickup. Combined with
+    /// <see cref="ValidateExpiry"/> (expiry in the future) this also rules out auctioning a load
+    /// whose pickup deadline has already passed.
+    /// </summary>
+    private static void ValidateExpiryBeforeFirstPickup(DateTimeOffset expiresAt, IReadOnlyCollection<RouteSegment> segments)
+    {
+        if (segments.Count == 0)
+        {
+            return;
+        }
+
+        var firstPickup = segments.Min(s => s.PickupDeadline);
+        if (expiresAt >= firstPickup)
+        {
+            throw new ValidationException(
+                new[]
+                {
+                    new ValidationError(
+                        "expiresAt",
+                        $"O leilão deve encerrar antes do primeiro prazo de coleta ({FormatBrasiliaTime(firstPickup)}).")
+                },
+                "Prazo de encerramento do leilão inválido.");
+        }
     }
 
     /// <summary>

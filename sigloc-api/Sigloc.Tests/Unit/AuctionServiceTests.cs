@@ -176,7 +176,7 @@ public class AuctionServiceTests
             .Returns(new[] { seg });
 
         var act = () => _service.CreateAsync(_contractorId,
-            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddDays(1), AutomaticAward: false));
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddHours(12), AutomaticAward: false));
 
         (await act.Should().ThrowAsync<SegmentUnavailableException>()).Which.SegmentId.Should().Be(seg.Id);
     }
@@ -189,7 +189,8 @@ public class AuctionServiceTests
         _segmentRepository.GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), true, Arg.Any<CancellationToken>())
             .Returns(new[] { seg });
 
-        var expiresAt = DateTimeOffset.UtcNow.AddDays(1);
+        // Must close before the segment's first pickup (default: one day from now).
+        var expiresAt = DateTimeOffset.UtcNow.AddHours(12);
         var result = await _service.CreateAsync(_contractorId,
             new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: expiresAt, AutomaticAward: true));
 
@@ -222,7 +223,7 @@ public class AuctionServiceTests
             .Returns(new[] { seg });
 
         var act = () => _service.CreateAsync(_contractorId,
-            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddDays(1), AutomaticAward: false));
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddHours(12), AutomaticAward: false));
 
         var assertion = await act.Should().ThrowAsync<ValidationException>();
         assertion.Which.Errors.Should().ContainSingle(e => e.Field == "deliveryDeadline");
@@ -245,10 +246,25 @@ public class AuctionServiceTests
             .Returns(new[] { seg });
 
         var result = await _service.CreateAsync(_contractorId,
-            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddDays(1), AutomaticAward: false));
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddHours(12), AutomaticAward: false));
 
         result.Auction.Status.Should().Be(AuctionStatus.Open.ToWire());
         await _auctionRepository.Received(1).AddAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_expiry_not_before_first_pickup_throws_Validation()
+    {
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var seg = Segment(contractorId: _contractorId, status: SegmentStatus.Available, pickup: pickup, delivery: pickup.AddDays(1), products: TestData.Product());
+        _segmentRepository.GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), true, Arg.Any<CancellationToken>())
+            .Returns(new[] { seg });
+
+        var act = () => _service.CreateAsync(_contractorId,
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: pickup.AddHours(1), AutomaticAward: false));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().Contain(e => e.Field == "expiresAt");
+        await _auctionRepository.DidNotReceive().AddAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
     }
 
     // =====================================================================
@@ -403,6 +419,24 @@ public class AuctionServiceTests
         var act = () => _service.UpdateAsync(_contractorId, auction.Id, new UpdateAuctionRequestDto(DateTimeOffset.UtcNow.AddMinutes(-5)));
 
         await act.Should().ThrowAsync<ValidationException>();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_expiry_after_first_pickup_throws_Validation_and_keeps_expiry()
+    {
+        var route = Route();
+        var auction = Auction(routeId: route.Id);
+        var originalExpiry = auction.ExpiresAt;
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var detail = new AuctionWithRoute(auction, route, new[] { Segment(pickup: pickup, delivery: pickup.AddDays(1)) });
+        _auctionRepository.GetDetailAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(detail);
+
+        var act = () => _service.UpdateAsync(_contractorId, auction.Id, new UpdateAuctionRequestDto(pickup.AddDays(1)));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().Contain(e => e.Field == "expiresAt");
+        auction.ExpiresAt.Should().Be(originalExpiry);
+        await _auctionRepository.DidNotReceive().UpdateAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

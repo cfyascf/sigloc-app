@@ -213,6 +213,18 @@ public class RouteSegmentService : IRouteSegmentService
             errors.Add(new ValidationError("deliveryDeadline", "Must be later than pickupDeadline."));
         }
 
+        if (dto.PickupDeadline is DateTimeOffset pickupAt && pickupAt <= DateTimeOffset.UtcNow)
+        {
+            errors.Add(new ValidationError("pickupDeadline", "O prazo de coleta deve estar no futuro."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(origin)
+            && !string.IsNullOrWhiteSpace(destination)
+            && string.Equals(origin, destination, StringComparison.OrdinalIgnoreCase))
+        {
+            errors.Add(new ValidationError("destination", "O destino deve ser diferente da origem."));
+        }
+
         if (dto.EstimatedTollCost is not decimal toll || toll < 0)
         {
             errors.Add(new ValidationError("estimatedTollCost", "Must be zero or greater."));

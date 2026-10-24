@@ -46,6 +46,12 @@ public class AuctionMonitoringTests
     {
         var first = TripMonitoringServiceTests.Segment(); first.Status = SegmentStatus.Available; first.DistanceKm = 10;
         var second = TripMonitoringServiceTests.Segment(); second.Status = SegmentStatus.Available; second.DistanceKm = 20;
+        // The shared fixture clock is in the past; an auction must close before the first pickup.
+        foreach (var segment in new[] { first, second })
+        {
+            segment.PickupDeadline = DateTimeOffset.UtcNow.AddDays(1);
+            segment.DeliveryDeadline = DateTimeOffset.UtcNow.AddDays(2);
+        }
         var unit = new UnitOfWork(); ConsolidatedRoute? route = null;
         var segments = Stub<IRouteSegmentRepository>.New((_, _) => Task.FromResult<IReadOnlyList<RouteSegment>>(new[] { second, first }));
         var routes = Stub<IConsolidatedRouteRepository>.New((_, args) => { Assert.True(unit.InTransaction); route = (ConsolidatedRoute)args![0]!; return Task.CompletedTask; });

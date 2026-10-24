@@ -121,6 +121,32 @@ public class RouteSegmentServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_pickup_in_the_past_throws_validation()
+    {
+        var dto = ValidDto(
+            pickup: DateTimeOffset.UtcNow.AddDays(-2),
+            delivery: DateTimeOffset.UtcNow.AddDays(-1),
+            items: new[] { Item(Guid.NewGuid()) });
+
+        var act = () => _service.CreateAsync(_contractorId, dto);
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().Contain(e => e.Field == "pickupDeadline");
+        await _repository.DidNotReceive().AddAsync(Arg.Any<RouteSegment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_same_origin_and_destination_throws_validation()
+    {
+        var dto = ValidDto(origin: "Curitiba, PR", destination: " curitiba, pr ", items: new[] { Item(Guid.NewGuid()) });
+
+        var act = () => _service.CreateAsync(_contractorId, dto);
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().Contain(e => e.Field == "destination");
+    }
+
+    [Fact]
     public async Task CreateAsync_negative_toll_throws_validation()
     {
         var dto = ValidDto(toll: -1m, items: new[] { Item(Guid.NewGuid()) });
