@@ -22,7 +22,7 @@ public class VehicleService : IVehicleService
         // 2. Garantir unicidade
         if (await _repository.ExistsByPlateAsync(normalizedPlate, cancellationToken))
         {
-            throw new InvalidOperationException($"Já existe um veículo cadastrado com a placa {normalizedPlate}.");
+            throw new Sigloc.Application.Exceptions.DuplicatePlateException(normalizedPlate!);
         }
 
         // Regex que aceita tanto o padrão Mercosul (ex: ABC1D23) quanto o antigo (ex: ABC1234)

@@ -49,13 +49,13 @@ public class VehicleServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_duplicate_plate_throws_InvalidOperation()
+    public async Task CreateAsync_duplicate_plate_throws_DuplicatePlate()
     {
         _repository.ExistsByPlateAsync("ABC1D23", Arg.Any<CancellationToken>()).Returns(true);
 
         var act = () => _service.CreateAsync(_carrierId, NewVehicleDto());
 
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        (await act.Should().ThrowAsync<DuplicatePlateException>()).Which.Plate.Should().Be("ABC1D23");
         await _repository.DidNotReceive().AddAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
     }
 

@@ -87,6 +87,15 @@ public class GlobalExceptionHandlerMiddleware
                     details = Array.Empty<object>()
                 }),
 
+            DuplicatePlateException duplicatePlate => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "PLACA_DUPLICADA",
+                    message = duplicatePlate.Message,
+                    details = Array.Empty<object>()
+                }),
+
             ProductNotFoundException notFound => (
                 (int)HttpStatusCode.NotFound,
                 new
