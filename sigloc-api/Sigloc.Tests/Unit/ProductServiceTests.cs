@@ -81,6 +81,33 @@ public class ProductServiceTests
     }
 
     [Theory]
+    [InlineData(51, 120, 500, "sku")]
+    [InlineData(50, 121, 500, "nome")]
+    [InlineData(50, 120, 501, "restricaoManuseio")]
+    public async Task Text_fields_over_their_limit_are_rejected(int skuLength, int nameLength, int restrictionLength, string field)
+    {
+        var dto = ValidDto(sku: new string('S', skuLength), name: new string('N', nameLength))
+            with { HandlingRestriction = new string('R', restrictionLength) };
+
+        var act = () => _service.CreateAsync(_contractorId, dto);
+
+        var error = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        error.Errors.Should().ContainSingle().Which.Field.Should().Be(field);
+        await _repository.DidNotReceive().AddAsync(Arg.Any<Product>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Text_fields_at_their_limit_are_accepted()
+    {
+        _repository.SkuExistsAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(false);
+        var dto = ValidDto(sku: new string('S', 50), name: new string('N', 120)) with { HandlingRestriction = new string('R', 500) };
+
+        var result = await _service.CreateAsync(_contractorId, dto);
+
+        result.Sku.Should().HaveLength(50);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(-5)]
     public async Task CreateAsync_non_positive_weight_throws(double weight)

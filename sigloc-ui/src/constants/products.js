@@ -66,6 +66,9 @@ export function requiresTemperature(environment) {
  * Maps backend validation field names (Portuguese) to the form field keys used
  * by the product screens, so inline errors land on the right input.
  */
+/** Text limits enforced by the API (ProductService); the inputs stop typing at the same length. */
+export const PRODUCT_LIMITS = { sku: 50, name: 120, handlingRestriction: 500 }
+
 export const PRODUCT_FIELD_MAP = {
   sku: "sku",
   nome: "name",
@@ -76,6 +79,7 @@ export const PRODUCT_FIELD_MAP = {
   tipoEmbalagem: "packagingType",
   pesoPadrao: "defaultWeight",
   volumePadrao: "defaultVolume",
+  restricaoManuseio: "handlingRestriction",
 }
 
 /**

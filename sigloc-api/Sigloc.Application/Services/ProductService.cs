@@ -12,6 +12,9 @@ public class ProductService : IProductService
     private const int DefaultPage = 1;
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
+    public const int MaxSkuLength = 50;
+    public const int MaxNameLength = 120;
+    public const int MaxHandlingRestrictionLength = 500;
 
     private readonly IProductRepository _repository;
 
@@ -143,11 +146,24 @@ public class ProductService : IProductService
         {
             errors.Add(new ValidationError("sku", "Obrigatório."));
         }
+        else if (sku.Length > MaxSkuLength)
+        {
+            errors.Add(new ValidationError("sku", $"Use no máximo {MaxSkuLength} caracteres."));
+        }
 
         var name = dto.Name?.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
             errors.Add(new ValidationError("nome", "Obrigatório."));
+        }
+        else if (name.Length > MaxNameLength)
+        {
+            errors.Add(new ValidationError("nome", $"Use no máximo {MaxNameLength} caracteres."));
+        }
+
+        if (dto.HandlingRestriction?.Trim().Length > MaxHandlingRestrictionLength)
+        {
+            errors.Add(new ValidationError("restricaoManuseio", $"Use no máximo {MaxHandlingRestrictionLength} caracteres."));
         }
 
         var categoryParsed = ProductEnumMappings.TryParseCategory(dto.Category, out var category);

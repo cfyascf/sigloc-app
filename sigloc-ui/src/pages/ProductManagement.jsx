@@ -52,10 +52,10 @@ function ListItem({ product, selected, onSelect }) {
       />
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex items-center gap-2">
-          <span className="font-mono text-xs font-bold text-slate-500">
+          <span title={product.sku} className="min-w-0 truncate font-mono text-xs font-bold text-slate-500">
             {product.sku}
           </span>
-          <div className="flex gap-1">
+          <div className="flex shrink-0 gap-1">
             {product.dangerous && (
               <Badge
                 variant="secondary"
@@ -84,6 +84,7 @@ function ListItem({ product, selected, onSelect }) {
           </div>
         </div>
         <h3
+          title={product.name}
           className={`truncate text-sm ${
             selected ? "font-bold text-blue-900" : "font-semibold text-slate-800"
           }`}

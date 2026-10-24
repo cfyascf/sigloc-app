@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 import {
   PRODUCT_CATEGORY_OPTIONS,
   PACKAGING_TYPE_OPTIONS,
+  PRODUCT_LIMITS,
   TRANSPORT_ENVIRONMENT_OPTIONS,
 } from "@/constants/products"
 
@@ -117,6 +118,7 @@ export function ProductFormFields({
               disabled={disabled}
               placeholder="Ex: Peito de Frango Congelado"
               value={form.name}
+              maxLength={PRODUCT_LIMITS.name}
               onChange={(e) => setField("name", e.target.value)}
               className="h-10 border-slate-200 text-sm"
             />
@@ -129,6 +131,7 @@ export function ProductFormFields({
                 disabled={disabled}
                 placeholder="Ex: FRG-001"
                 value={form.sku}
+                maxLength={PRODUCT_LIMITS.sku}
                 onChange={(e) => setField("sku", e.target.value)}
                 className="h-10 border-slate-200 font-mono text-sm"
               />
@@ -331,9 +334,11 @@ export function ProductFormFields({
               disabled={disabled}
               placeholder="Descreva instruções adicionais de manuseio..."
               value={form.handlingRestriction}
+              maxLength={PRODUCT_LIMITS.handlingRestriction}
               onChange={(e) => setField("handlingRestriction", e.target.value)}
               className="min-h-[80px] border-slate-200 text-sm"
             />
+            <FieldError message={fieldErrors.handlingRestriction} />
           </div>
         </div>
       </div>
