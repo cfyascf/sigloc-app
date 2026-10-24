@@ -22,6 +22,17 @@ export function toStopTimeline(paradas) {
     }))
 }
 
+export function toProof(dto) {
+  return {
+    id: dto.id,
+    stopId: dto.paradaId,
+    fileName: dto.nomeArquivo ?? "comprovante",
+    contentType: dto.tipoConteudo,
+    sizeBytes: numberOrNull(dto.tamanhoBytes),
+    uploadedAt: dto.enviadoEm,
+  }
+}
+
 export function toActiveTrip(dto) {
   const cache = dto.monitoramentoCache ?? {}
   const carrier = typeof dto.transportadora === "object" ? dto.transportadora?.nomeFantasia : dto.transportadora
@@ -89,6 +100,7 @@ export function toTripDetails(dto) {
         return { id: action, type, product: product ?? null, deadline: stop.deadlineSla, completed: stop.status === "CONCLUIDO", completedAt: stop.dataHoraRealizada }
       })() : toStopAction(action)),
     })),
+    proofs: (dto.comprovantes ?? []).map(toProof),
     events: (dto.logEventos ?? dto.eventos ?? []).map((event) => ({
       id: event.id ?? `${event.ocorridoEm ?? event.hora}-${event.descricao}`,
       timestamp: event.ocorridoEm,
@@ -128,4 +140,9 @@ export async function getTripDetails(tripId, { refresh = false, ...options } = {
   // A normal page load omits it and receives the last stored snapshot.
   const query = refresh ? "?refresh=true" : ""
   return toTripDetails(await apiClient.get(`${BASE}/${encodeURIComponent(tripId)}/detalhes${query}`, options))
+}
+
+/** Proof-of-delivery file the carrier uploaded; the endpoint needs the bearer token, so it comes back as a Blob. */
+export function downloadTripProof(tripId, proofId) {
+  return apiClient.get(`${BASE}/${encodeURIComponent(tripId)}/comprovantes/${encodeURIComponent(proofId)}`, { responseType: "blob" })
 }

@@ -136,6 +136,17 @@ test("blob responses return the raw file and still normalize JSON errors", async
   await assert.rejects(client.apiClient.get("/api/file", { responseType: "blob" }), { status: 404, code: "PROOF_OF_DELIVERY_NOT_FOUND" })
 })
 
+test("contractor detail maps proofs and downloads them from the shipper trip path", async () => {
+  const detail = trips.toTripDetails({ viagemId: "trip", comprovantes: [{ id: "p1", paradaId: "s1", nomeArquivo: "canhoto.png", tamanhoBytes: 3, enviadoEm: "2026-10-24T12:00:00Z" }] })
+  assert.deepEqual(detail.proofs.map((proof) => [proof.id, proof.stopId, proof.fileName, proof.sizeBytes]), [["p1", "s1", "canhoto.png", 3]])
+  assert.deepEqual(trips.toTripDetails({ viagemId: "trip" }).proofs, [])
+  let requested
+  globalThis.fetch = async (url) => { requested = new URL(url).pathname; return new Response("png", { status: 200, headers: { "content-type": "image/png" } }) }
+  const file = await trips.downloadTripProof("trip", "p1")
+  assert.equal(requested, "/api/viagens/trip/comprovantes/p1")
+  assert.equal(await file.text(), "png")
+})
+
 test("risk and SLA labels cover warning, on-time and combined stop actions", () => {
   assert.equal(formatters.tripStatusLabel("WARNING"), "Atenção")
   assert.equal(formatters.tripStatusLabel("ATENCAO"), "Atenção")
