@@ -11,6 +11,7 @@ import { useAsyncAction } from "@/hooks/use-async-action"
 import { vehicleService } from "@/services/vehicle-service"
 import { BODY_TYPE_OPTIONS, REFRIGERATION_BY_VALUE, STATUS_OPTIONS } from "@/constants/vehicles"
 import { ListFilters, filtersLabel } from "@/components/list-filters"
+import { validateVehicle } from "@/lib/vehicle-validation"
 import VehicleForm from "@/pages/VehicleForm"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
@@ -39,14 +40,6 @@ const FILTER_FIELDS = [
   { key: "refrigeration", label: "Filtrar por refrigeração", allLabel: "Qualquer refrigeração", options: Object.entries(REFRIGERATION_BY_VALUE).map(([value, label]) => ({ value, label })) },
 ]
 const NO_FILTERS = { status: "", bodyType: "", refrigeration: "" }
-
-const validateEdit = (form) => {
-  const errors = {}
-  if (!form.model?.trim()) errors.model = "Informe a marca/modelo."
-  if (!(Number(form.weightKg) > 0)) errors.weightKg = "A capacidade de peso deve ser maior que zero."
-  if (!(Number(form.volumeM3) > 0)) errors.volumeM3 = "A capacidade de volume deve ser maior que zero."
-  return errors
-}
 
 const FieldError = ({ message }) =>
   message ? <p className="text-[10px] font-semibold text-rose-600">{message}</p> : null
@@ -120,7 +113,7 @@ export default function FleetManagement() {
   }
 
   const saveEdit = async () => {
-    const errors = validateEdit(editForm)
+    const errors = validateVehicle(editForm)
     setEditErrors(errors)
     if (Object.keys(errors).length > 0) return
 
@@ -317,7 +310,7 @@ export default function FleetManagement() {
                           <Scale size={12} className="text-slate-400" /> Capacidade (Peso)
                         </label>
                         <div className="relative">
-                          <Input type="number" min="0.001" step="any" value={editForm.weightKg} onChange={(e) => setEditForm({...editForm, weightKg: Number(e.target.value)})} aria-invalid={Boolean(editErrors.weightKg || saveAction.fieldErrors.capacityWeight)} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                          <Input type="number" step="any" value={editForm.weightKg} onChange={(e) => setEditForm({...editForm, weightKg: Number(e.target.value)})} aria-invalid={Boolean(editErrors.weightKg || saveAction.fieldErrors.capacityWeight)} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
                           <span className="absolute right-2.5 top-2.5 text-[10px] font-semibold text-slate-400">kg</span>
                         </div>
                         <FieldError message={editErrors.weightKg ?? saveAction.fieldErrors.capacityWeight} />
@@ -327,7 +320,7 @@ export default function FleetManagement() {
                           <Box size={12} className="text-slate-400" /> Cubagem (Volume)
                         </label>
                         <div className="relative">
-                          <Input type="number" min="0.001" step="any" value={editForm.volumeM3} onChange={(e) => setEditForm({...editForm, volumeM3: Number(e.target.value)})} aria-invalid={Boolean(editErrors.volumeM3 || saveAction.fieldErrors.capacityVolume)} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                          <Input type="number" step="any" value={editForm.volumeM3} onChange={(e) => setEditForm({...editForm, volumeM3: Number(e.target.value)})} aria-invalid={Boolean(editErrors.volumeM3 || saveAction.fieldErrors.capacityVolume)} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
                           <span className="absolute right-2.5 top-2.5 text-[10px] font-semibold text-slate-400">m³</span>
                         </div>
                         <FieldError message={editErrors.volumeM3 ?? saveAction.fieldErrors.capacityVolume} />

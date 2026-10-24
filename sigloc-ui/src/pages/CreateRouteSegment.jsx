@@ -45,6 +45,7 @@ export default function CreateRouteSegment() {
   // totals and the consolidated vehicle requirement.
   const [selectedProducts, setSelectedProducts] = useState([])
   const [productSearch, setProductSearch] = useState("")
+  const [itemsError, setItemsError] = useState(null)
 
   const { run, pending, error, fieldErrors } = useAsyncAction((form) =>
     createRouteSegment(form)
@@ -92,6 +93,11 @@ export default function CreateRouteSegment() {
   const handleSubmit = async (event) => {
     event.preventDefault()
 
+    // The API only binds whole quantities; anything else would come back as a generic error.
+    const badItem = selectedProducts.findIndex((p) => !(Number.isInteger(Number(p.quantity)) && Number(p.quantity) > 0))
+    setItemsError(badItem >= 0 ? `A quantidade do item ${badItem + 1} deve ser um número inteiro maior que zero.` : null)
+    if (badItem >= 0) return
+
     const form = {
       origin,
       destination,
@@ -114,6 +120,7 @@ export default function CreateRouteSegment() {
   return (
     <AppShell title="Cadastro de Trecho">
       <form
+        noValidate
         onSubmit={handleSubmit}
         className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden"
       >
@@ -283,9 +290,9 @@ export default function CreateRouteSegment() {
                       </div>
                     )}
 
-                    {mappedFieldErrors.items ? (
+                    {itemsError ?? mappedFieldErrors.items ? (
                       <p className="text-[11px] font-medium text-rose-600">
-                        {mappedFieldErrors.items}
+                        {itemsError ?? mappedFieldErrors.items}
                       </p>
                     ) : null}
                   </div>

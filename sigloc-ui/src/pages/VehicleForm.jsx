@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input"
 
 /** Optional fields shared by registration and the inline fleet editor. */
-export default function VehicleForm({ value, onChange, disabled = false, idPrefix = "vehicle", preserveTrackerOnBlank = false }) {
+export default function VehicleForm({ value, onChange, disabled = false, idPrefix = "vehicle", preserveTrackerOnBlank = false, errors = {} }) {
   return (
     <>
       <div className="space-y-1.5">
@@ -10,8 +10,9 @@ export default function VehicleForm({ value, onChange, disabled = false, idPrefi
       </div>
       <div className="space-y-1.5">
         <label htmlFor={`${idPrefix}-tracker`} className="text-xs font-bold text-slate-600">ID do dispositivo Traccar (opcional)</label>
-        <Input id={`${idPrefix}-tracker`} type="number" min="1" step="1" max={Number.MAX_SAFE_INTEGER} value={value.traccarDeviceId ?? ""} onChange={(event) => onChange({ ...value, traccarDeviceId: event.target.value })} disabled={disabled} aria-describedby={preserveTrackerOnBlank ? `${idPrefix}-tracker-help` : undefined} className="h-9 border-slate-200 bg-white font-mono text-sm" />
+        <Input id={`${idPrefix}-tracker`} type="number" value={value.traccarDeviceId ?? ""} aria-invalid={Boolean(errors.traccarDeviceId)} onChange={(event) => onChange({ ...value, traccarDeviceId: event.target.value })} disabled={disabled} aria-describedby={preserveTrackerOnBlank ? `${idPrefix}-tracker-help` : undefined} className="h-9 border-slate-200 bg-white font-mono text-sm" />
         {preserveTrackerOnBlank && <p id={`${idPrefix}-tracker-help`} className="text-xs text-slate-500">Em branco mantém o dispositivo atual. Para substituir, informe outro ID.</p>}
+        {errors.traccarDeviceId && <p className="text-[11px] font-semibold text-rose-600">{errors.traccarDeviceId}</p>}
       </div>
     </>
   )
