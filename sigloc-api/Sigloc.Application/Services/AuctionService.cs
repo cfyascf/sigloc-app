@@ -379,6 +379,14 @@ public class AuctionService : IAuctionService
         var route = await _routeRepository.GetTrackedByIdAsync(auction.RouteId, cancellationToken)
             ?? throw new AuctionNotFoundException(auctionId);
 
+        // A winner or a route already past the auction stage means this auction was awarded
+        // before (even if its status says Open), so awarding again would create a second trip.
+        if (bids.Any(b => b.Status == BidStatus.Winner)
+            || route.Status is RouteStatus.AwaitingPickup or RouteStatus.InTransit or RouteStatus.Completed)
+        {
+            throw new AuctionNotOpenException(auctionId);
+        }
+
         var trip = await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             // 0. Anti-overbooking: the bid-time check only saw trips that existed when the bid was

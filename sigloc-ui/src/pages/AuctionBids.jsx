@@ -48,7 +48,9 @@ export default function AuctionBids() {
   const rankedBids = ranking?.bids ?? []
   const targetFare = routeSummary?.financialScenario?.consolidatedCeiling ?? 0
   const anttFloorFare = routeSummary?.financialScenario?.estimatedAnttFloor ?? 0
-  const isClosed = ranking?.status === "CLOSED"
+  // A winning bid means the auction was already awarded, even if its status still reads OPEN;
+  // offering "Adjudicar" again would create a second trip.
+  const isClosed = (ranking != null && ranking.status !== "OPEN") || rankedBids.some((bid) => bid.status === "WINNER")
 
   const anttPercent = useMemo(() => {
     if (!targetFare || targetFare <= 0) return 72

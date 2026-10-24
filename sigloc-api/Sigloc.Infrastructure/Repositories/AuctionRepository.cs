@@ -29,13 +29,27 @@ public class AuctionRepository : IAuctionRepository
         int pageSize,
         CancellationToken cancellationToken = default)
     {
+        var now = DateTimeOffset.UtcNow;
+
         // Auctions joined to their consolidated route, scoped to the contractor.
         var baseQuery =
             from auction in _dbContext.Auctions.AsNoTracking()
             join route in _dbContext.ConsolidatedRoutes.AsNoTracking()
                 on auction.RouteId equals route.Id
-            where route.ContractorId == contractorId && auction.Status == status
+            where route.ContractorId == contractorId
             select new { auction, route };
+
+        // Same lifecycle as the carrier board: an Open auction past its deadline is history
+        // (listed with Closed), not part of the live list.
+        baseQuery = status switch
+        {
+            AuctionStatus.Open => baseQuery.Where(x =>
+                x.auction.Status == AuctionStatus.Open && x.auction.ExpiresAt > now),
+            AuctionStatus.Closed => baseQuery.Where(x =>
+                x.auction.Status == AuctionStatus.Closed
+                || (x.auction.Status == AuctionStatus.Open && x.auction.ExpiresAt <= now)),
+            _ => baseQuery.Where(x => x.auction.Status == status),
+        };
 
         if (!string.IsNullOrWhiteSpace(search))
         {

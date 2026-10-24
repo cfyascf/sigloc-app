@@ -674,6 +674,43 @@ public class AuctionServiceTests
     }
 
     [Fact]
+    public async Task AwardAsync_auction_with_an_existing_winner_is_rejected()
+    {
+        var route = Route();
+        var auction = Auction(routeId: route.Id);
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
+        var previousWinner = new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = _carrierId, VehicleId = Guid.NewGuid(), TotalValue = 500m, Status = BidStatus.Winner };
+        var other = new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), TotalValue = 600m, Status = BidStatus.Pending };
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[] { previousWinner, other });
+
+        var act = () => _service.AwardAsync(_contractorId, auction.Id, new AwardAuctionRequestDto(other.Id));
+
+        await act.Should().ThrowAsync<AuctionNotOpenException>();
+        await _tripRepository.DidNotReceive().AddAsync(Arg.Any<Trip>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(RouteStatus.AwaitingPickup)]
+    [InlineData(RouteStatus.InTransit)]
+    [InlineData(RouteStatus.Completed)]
+    public async Task AwardAsync_route_already_past_the_auction_is_rejected(RouteStatus routeStatus)
+    {
+        var route = Route();
+        route.Status = routeStatus;
+        var auction = Auction(routeId: route.Id);
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
+        var bid = new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = _carrierId, VehicleId = Guid.NewGuid(), TotalValue = 500m, Status = BidStatus.Pending };
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[] { bid });
+
+        var act = () => _service.AwardAsync(_contractorId, auction.Id, new AwardAuctionRequestDto(bid.Id));
+
+        await act.Should().ThrowAsync<AuctionNotOpenException>();
+        route.Status.Should().Be(routeStatus);
+    }
+
+    [Fact]
     public async Task AwardAsync_vehicle_already_booked_in_overlapping_window_is_rejected_without_changes()
     {
         var pickup = DateTimeOffset.UtcNow.AddDays(1);

@@ -133,6 +133,28 @@ public class AuctionRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task SearchAsync_lists_expired_open_auctions_in_history_with_closed_ones()
+    {
+        var liveRoute = Route(_contractorId);
+        var expiredRoute = Route(_contractorId);
+        var closedRoute = Route(_contractorId);
+        var live = Auction(liveRoute.Id, AuctionStatus.Open, DateTimeOffset.UtcNow.AddHours(5));
+        var expired = Auction(expiredRoute.Id, AuctionStatus.Open, DateTimeOffset.UtcNow.AddHours(-5));
+        var closed = Auction(closedRoute.Id, AuctionStatus.Closed);
+        var ctx = _db.CreateContext();
+        ctx.ConsolidatedRoutes.AddRange(liveRoute, expiredRoute, closedRoute);
+        ctx.Auctions.AddRange(live, expired, closed);
+        await ctx.SaveChangesAsync();
+
+        var repo = new AuctionRepository(_db.CreateContext());
+        var (open, _) = await repo.SearchAsync(_contractorId, null, AuctionStatus.Open, 1, 10);
+        var (history, _) = await repo.SearchAsync(_contractorId, null, AuctionStatus.Closed, 1, 10);
+
+        open.Select(i => i.Auction.Id).Should().BeEquivalentTo(new[] { live.Id });
+        history.Select(i => i.Auction.Id).Should().BeEquivalentTo(new[] { expired.Id, closed.Id });
+    }
+
+    [Fact]
     public async Task SearchAsync_paginates()
     {
         await Task.CompletedTask;
