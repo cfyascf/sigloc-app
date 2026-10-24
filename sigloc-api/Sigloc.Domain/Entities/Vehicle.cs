@@ -25,6 +25,16 @@ namespace Sigloc.Domain.Entities;
         /// <summary>Optional driver contact, never substituted with the carrier phone.</summary>
         public string? DriverPhone { get; set; }
 
+        // Used by EF Core when loading rows: materialising must not run the creation checks, or a
+        // single invalid row already in the database breaks every query that reads it.
+        private Vehicle()
+        {
+            Plate = null!;
+            Model = null!;
+            Driver = null!;
+            CurrentLocation = null!;
+        }
+
         // construtor
         public Vehicle(
             Guid transportadoraId,
@@ -77,6 +87,12 @@ namespace Sigloc.Domain.Entities;
             string? currentLocation, 
             OperationalStatus? status)
         {
+            // Same invariants as the constructor; without them an update could store a row the
+            // constructor would never accept.
+            if (axleCount is <= 0) throw new ArgumentException("A quantidade de eixos deve ser maior que zero (Cálculo ANTT/Pedágio).");
+            if (capacityWeight is <= 0) throw new ArgumentException("A capacidade de peso deve ser maior que zero.");
+            if (capacityVolume is <= 0) throw new ArgumentException("A capacidade de volume deve ser maior que zero.");
+
             if (!string.IsNullOrWhiteSpace(model)) Model = model;
             if (axleCount.HasValue) AxleCount = axleCount.Value;
             if (capacityWeight.HasValue) CapacityWeight = capacityWeight.Value;

@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FormAlert } from "@/components/auth/FormAlert"
 import { useToast } from "@/components/ui/toast"
 import { useAsyncAction } from "@/hooks/use-async-action"
@@ -27,6 +28,8 @@ export default function AuctionBids() {
   const toast = useToast()
   const [expandedBids, setExpandedBids] = useState([])
   const [ranking, setRanking] = useState(null)
+  // Bid the contractor is about to award; awarding creates a trip and cannot be undone.
+  const [bidToAward, setBidToAward] = useState(null)
 
   const loadAction = useAsyncAction((id) => getBidRanking(id))
   const awardAction = useAsyncAction(({ id, bidId }) => awardAuction(id, bidId))
@@ -48,7 +51,9 @@ export default function AuctionBids() {
   const rankedBids = ranking?.bids ?? []
   const targetFare = routeSummary?.financialScenario?.consolidatedCeiling ?? 0
   const anttFloorFare = routeSummary?.financialScenario?.estimatedAnttFloor ?? 0
-  const isClosed = ranking?.status === "CLOSED"
+  // A winning bid means the auction was already awarded, even if its status still reads OPEN;
+  // offering "Adjudicar" again would create a second trip.
+  const isClosed = (ranking != null && ranking.status !== "OPEN") || rankedBids.some((bid) => bid.status === "WINNER")
 
   const anttPercent = useMemo(() => {
     if (!targetFare || targetFare <= 0) return 72
@@ -261,7 +266,7 @@ export default function AuctionBids() {
                                 </p>
                               ) : (
                                 <p className="text-[10px] font-bold text-rose-500 mt-0.5">
-                                  Sobrecusto de {formatCurrency(Math.abs(savings))} ({savingsPercent}%)
+                                  Sobrecusto de {formatCurrency(Math.abs(savings))} ({Math.abs(savingsPercent)}%)
                                 </p>
                               )}
                             </div>
@@ -269,7 +274,7 @@ export default function AuctionBids() {
                             {!isClosed && (
                               <Button 
                                 disabled={awarding}
-                                onClick={() => handleAward(bid.bidId)}
+                                onClick={() => setBidToAward(bid)}
                                 className={`h-9 px-5 text-xs font-bold tracking-wide transition-colors ${
                                   isTopRank 
                                     ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
@@ -341,6 +346,46 @@ export default function AuctionBids() {
         </div>
 
       </div>
+
+      <Dialog open={bidToAward != null} onOpenChange={(open) => !awardAction.pending && !open && setBidToAward(null)}>
+        <DialogContent className="sm:max-w-[460px]">
+          {bidToAward && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Adjudicar este lance?</DialogTitle>
+                <DialogDescription>
+                  Uma viagem será criada para esta transportadora e o leilão será encerrado. Esta ação não pode ser desfeita.
+                </DialogDescription>
+              </DialogHeader>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+                <dt className="font-semibold text-slate-500">Transportadora</dt>
+                <dd className="font-bold text-slate-800">{bidToAward.carrier.tradeName}</dd>
+                <dt className="font-semibold text-slate-500">Veículo</dt>
+                <dd className="font-bold text-slate-800">{bidToAward.vehicle.bodyType}{bidToAward.vehicle.plate ? ` · ${bidToAward.vehicle.plate}` : ""}</dd>
+                <dt className="font-semibold text-slate-500">Valor total</dt>
+                <dd className="font-mono font-black text-slate-800">{formatCurrency(bidToAward.financials.totalValue)}</dd>
+              </dl>
+              <DialogFooter>
+                <Button type="button" variant="outline" disabled={awardAction.pending} onClick={() => setBidToAward(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={awardAction.pending}
+                  onClick={async () => {
+                    await handleAward(bidToAward.bidId)
+                    setBidToAward(null)
+                  }}
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  {awardAction.pending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+                  Confirmar adjudicação
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }

@@ -22,12 +22,27 @@ public class RouteSegmentService : IRouteSegmentService
         _geocodingService = geocodingService;
     }
 
+    // An address the provider cannot find is a problem with the form, not with our upstream,
+    // so report it under the field that holds it.
+    private async Task<RouteGeometry> ResolveGeometryAsync(string origin, string destination, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _geocodingService.ResolveAsync(origin, destination, cancellationToken);
+        }
+        catch (AddressNotFoundException ex)
+        {
+            var field = string.Equals(ex.Address, origin, StringComparison.Ordinal) ? "origin" : "destination";
+            throw new ValidationException(new[] { new ValidationError(field, ex.Message) }, "Não foi possível salvar o trecho.");
+        }
+    }
+
     public async Task<RouteSegmentResponseDto> CreateAsync(Guid contractorId, RouteSegmentRequestDto dto, CancellationToken cancellationToken = default)
     {
         var validated = Validate(dto);
         var products = await LoadProductsAsync(contractorId, validated.Items, cancellationToken);
 
-        var geometry = await _geocodingService.ResolveAsync(validated.Origin, validated.Destination, cancellationToken);
+        var geometry = await ResolveGeometryAsync(validated.Origin, validated.Destination, cancellationToken);
 
         var segment = new RouteSegment
         {
@@ -35,6 +50,8 @@ public class RouteSegmentService : IRouteSegmentService
             RouteId = null,
             OriginAddress = validated.Origin,
             DestinationAddress = validated.Destination,
+            OriginCity = geometry.OriginPlace,
+            DestinationCity = geometry.DestinationPlace,
             OriginCoordinate = geometry.OriginCoordinate,
             DestinationCoordinate = geometry.DestinationCoordinate,
             DistanceKm = geometry.DistanceKm,
@@ -77,8 +94,8 @@ public class RouteSegmentService : IRouteSegmentService
             if (!SegmentEnumMappings.TryParseStatus(query.Status, out var parsed))
             {
                 throw new ValidationException(
-                    new[] { new ValidationError("status", "Invalid value. Use 'AVAILABLE', 'ROUTED', 'IN_TRANSIT' or 'COMPLETED'.") },
-                    "Could not list the route segments.");
+                    new[] { new ValidationError("status", "Valor inválido. Use 'AVAILABLE', 'ROUTED', 'IN_TRANSIT' ou 'COMPLETED'.") },
+                    "Não foi possível listar os trechos.");
             }
 
             status = parsed;
@@ -113,10 +130,12 @@ public class RouteSegmentService : IRouteSegmentService
 
         if (itineraryChanged)
         {
-            var geometry = await _geocodingService.ResolveAsync(validated.Origin, validated.Destination, cancellationToken);
+            var geometry = await ResolveGeometryAsync(validated.Origin, validated.Destination, cancellationToken);
 
             segment.OriginAddress = validated.Origin;
             segment.DestinationAddress = validated.Destination;
+            segment.OriginCity = geometry.OriginPlace;
+            segment.DestinationCity = geometry.DestinationPlace;
             segment.OriginCoordinate = geometry.OriginCoordinate;
             segment.DestinationCoordinate = geometry.DestinationCoordinate;
             segment.DistanceKm = geometry.DistanceKm;
@@ -172,9 +191,9 @@ public class RouteSegmentService : IRouteSegmentService
         if (missing.Count > 0)
         {
             var errors = missing
-                .Select(pid => new ValidationError("items", $"Product {pid} does not exist or does not belong to this contractor."))
+                .Select(pid => new ValidationError("items", $"O produto {pid} não existe ou não pertence a este contratante."))
                 .ToList();
-            throw new ValidationException(errors, "Could not save the route segment.");
+            throw new ValidationException(errors, "Não foi possível salvar o trecho.");
         }
 
         return byId;
@@ -187,46 +206,58 @@ public class RouteSegmentService : IRouteSegmentService
         var origin = dto.Origin?.Trim();
         if (string.IsNullOrWhiteSpace(origin))
         {
-            errors.Add(new ValidationError("origin", "Required."));
+            errors.Add(new ValidationError("origin", "Campo obrigatório."));
         }
 
         var destination = dto.Destination?.Trim();
         if (string.IsNullOrWhiteSpace(destination))
         {
-            errors.Add(new ValidationError("destination", "Required."));
+            errors.Add(new ValidationError("destination", "Campo obrigatório."));
         }
 
         if (dto.PickupDeadline is null)
         {
-            errors.Add(new ValidationError("pickupDeadline", "Required."));
+            errors.Add(new ValidationError("pickupDeadline", "Campo obrigatório."));
         }
 
         if (dto.DeliveryDeadline is null)
         {
-            errors.Add(new ValidationError("deliveryDeadline", "Required."));
+            errors.Add(new ValidationError("deliveryDeadline", "Campo obrigatório."));
         }
 
         if (dto.PickupDeadline is DateTimeOffset pickup &&
             dto.DeliveryDeadline is DateTimeOffset delivery &&
             delivery <= pickup)
         {
-            errors.Add(new ValidationError("deliveryDeadline", "Must be later than pickupDeadline."));
+            errors.Add(new ValidationError("deliveryDeadline", "A entrega deve ser posterior à coleta."));
+        }
+
+        if (dto.PickupDeadline is DateTimeOffset pickupAt && pickupAt <= DateTimeOffset.UtcNow)
+        {
+            errors.Add(new ValidationError("pickupDeadline", "O prazo de coleta deve estar no futuro."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(origin)
+            && !string.IsNullOrWhiteSpace(destination)
+            && string.Equals(origin, destination, StringComparison.OrdinalIgnoreCase))
+        {
+            errors.Add(new ValidationError("destination", "O destino deve ser diferente da origem."));
         }
 
         if (dto.EstimatedTollCost is not decimal toll || toll < 0)
         {
-            errors.Add(new ValidationError("estimatedTollCost", "Must be zero or greater."));
+            errors.Add(new ValidationError("estimatedTollCost", "Deve ser zero ou maior."));
         }
 
         if (dto.BudgetCeiling is decimal budget && budget < 0)
         {
-            errors.Add(new ValidationError("budgetCeiling", "Must be zero or greater."));
+            errors.Add(new ValidationError("budgetCeiling", "Deve ser zero ou maior."));
         }
 
         var validatedItems = new List<ValidatedItem>();
         if (dto.Items is null || dto.Items.Count == 0)
         {
-            errors.Add(new ValidationError("items", "The route segment must contain at least one linked product."));
+            errors.Add(new ValidationError("items", "O trecho deve conter ao menos um produto."));
         }
         else
         {
@@ -236,13 +267,13 @@ public class RouteSegmentService : IRouteSegmentService
 
                 if (item.ProductId is not Guid productId || productId == Guid.Empty)
                 {
-                    errors.Add(new ValidationError($"items[{index}].productId", "Required."));
+                    errors.Add(new ValidationError($"items[{index}].productId", $"Selecione o produto do item {index + 1}."));
                     continue;
                 }
 
                 if (item.Quantity is not int quantity || quantity <= 0)
                 {
-                    errors.Add(new ValidationError($"items[{index}].quantity", "Must be greater than zero."));
+                    errors.Add(new ValidationError($"items[{index}].quantity", $"A quantidade do item {index + 1} deve ser um número inteiro maior que zero."));
                     continue;
                 }
 
@@ -252,7 +283,7 @@ public class RouteSegmentService : IRouteSegmentService
 
         if (errors.Count > 0)
         {
-            throw new ValidationException(errors, "Could not save the route segment.");
+            throw new ValidationException(errors, "Não foi possível salvar o trecho.");
         }
 
         return new ValidatedSegment(
@@ -326,7 +357,9 @@ public class RouteSegmentService : IRouteSegmentService
                 requirement.MinRefrigerationLevel,
                 requirement.RequiresMopp,
                 requirement.RequiresCargoFixing),
-            segment.CreatedAt);
+            segment.CreatedAt,
+            segment.OriginCity,
+            segment.DestinationCity);
     }
 
     private sealed record ValidatedSegment(

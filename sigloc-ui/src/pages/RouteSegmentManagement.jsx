@@ -31,6 +31,7 @@ import {
 import { previewRoute } from "@/services/route-service"
 import {
   isSegmentEditable,
+  segmentShortId,
   segmentStatusLabel,
   SEGMENT_STATUS,
   mapRouteSegmentFieldErrors,
@@ -350,8 +351,10 @@ export default function RouteSegmentManagement() {
                         <input
                           type="checkbox"
                           checked={isChecked}
+                          disabled={!editable}
+                          title={editable ? undefined : "Somente trechos disponíveis podem entrar em uma nova rota."}
                           onChange={() => handleToggleSegment(segment.id)}
-                          className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-blue-600"
+                          className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
                         />
                       </div>
                     )}
@@ -359,7 +362,7 @@ export default function RouteSegmentManagement() {
                     <div className="grid min-w-0 flex-1 grid-cols-[130px_1.3fr_250px] items-center gap-6">
                       <div>
                         <div className="mb-1 font-mono text-xs font-bold text-slate-500">
-                          {String(segment.id).slice(0, 8)}
+                          {segmentShortId(segment.id)}
                         </div>
                         <Badge
                           variant="secondary"
@@ -372,10 +375,10 @@ export default function RouteSegmentManagement() {
                       </div>
 
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                          {cityLabel(segment.origin)}{" "}
+                        <p title={`${segment.origin} ➔ ${segment.destination}`} className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                          {cityLabel(segment.originCity ?? segment.origin)}{" "}
                           <span className="text-slate-300 text-xs">➔</span>{" "}
-                          {cityLabel(segment.destination)}
+                          {cityLabel(segment.destinationCity ?? segment.destination)}
                           <span className="text-xs font-mono font-medium text-slate-400 bg-slate-50 px-1 rounded border border-slate-100">
                             {formatDistance(segment.distanceKm)}
                           </span>

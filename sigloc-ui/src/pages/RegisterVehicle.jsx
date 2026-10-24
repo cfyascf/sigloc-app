@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { ArrowLeft, Truck, User, Activity, Scale, Box, Save, X, Info } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 
@@ -10,6 +10,10 @@ import VehicleForm from "@/pages/VehicleForm"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { vehicleService } from "@/services/vehicle-service"
 import { BODY_TYPE_OPTIONS, REFRIGERATION_BY_VALUE } from "@/constants/vehicles"
+import { mapVehicleFieldErrors, validateVehicle } from "@/lib/vehicle-validation"
+
+const FieldError = ({ message }) =>
+  message ? <p className="text-[11px] font-semibold text-rose-600">{message}</p> : null
 
 export default function RegisterVehicle() {
   const navigate = useNavigate()
@@ -32,9 +36,15 @@ export default function RegisterVehicle() {
     status: "Livre"
   })
   const saveAction = useAsyncAction(vehicleService.createVehicle)
+  const [clientErrors, setClientErrors] = useState({})
+  const serverErrors = useMemo(() => mapVehicleFieldErrors(saveAction.fieldErrors), [saveAction.fieldErrors])
+  const errors = { ...serverErrors, ...clientErrors }
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (saveAction.pending) return
+    const problems = validateVehicle(formData, { creating: true })
+    setClientErrors(problems)
+    if (Object.keys(problems).length) return
     const result = await saveAction.run(formData)
     if (result.ok) navigate("/fleet-management")
   }
@@ -63,7 +73,7 @@ export default function RegisterVehicle() {
         </div>
 
         {saveAction.error && <p role="alert" className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{saveAction.error.message}</p>}
-        <form id="register-vehicle" onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-hidden">
+        <form id="register-vehicle" noValidate onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto pr-2 pb-6">
           
             {/* O segredo do alinhamento: grid-rows-[auto_1fr] obriga as caixas a andarem em pares */}
@@ -84,21 +94,25 @@ export default function RegisterVehicle() {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-600">Placa do Veículo</label>
                     <Input 
-                      required placeholder="Ex: ABC-1234"
+                      placeholder="Ex: ABC-1234"
                       value={formData.plate}
+                      aria-invalid={Boolean(errors.plate)}
                       onChange={(e) => setFormData({...formData, plate: e.target.value})}
-                      className="h-10 border-slate-200 text-sm font-mono font-bold uppercase placeholder:font-sans placeholder:font-normal focus:border-blue-500 focus:ring-blue-500" 
+                      className="h-10 border-slate-200 text-sm font-mono font-bold uppercase placeholder:font-sans placeholder:font-normal focus:border-blue-500 focus:ring-blue-500"
                     />
+                    <FieldError message={errors.plate} />
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-600">Marca / Modelo</label>
                     <Input 
-                      required placeholder="Ex: Volvo FH 540"
+                      placeholder="Ex: Volvo FH 540"
                       value={formData.model}
+                      aria-invalid={Boolean(errors.model)}
                       onChange={(e) => setFormData({...formData, model: e.target.value})}
-                      className="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500" 
+                      className="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500"
                     />
+                    <FieldError message={errors.model} />
                   </div>
 
                   <div className="flex items-center justify-between rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-3 mt-2">
@@ -120,7 +134,7 @@ export default function RegisterVehicle() {
                 <div className="flex flex-col p-5">
                   {/* Reaproveitamento visual da linha conectora do Itinerário original */}
                   <div className="relative space-y-6">
-                    <VehicleForm value={formData} onChange={setFormData} disabled={saveAction.pending} idPrefix="register" />
+                    <VehicleForm value={formData} onChange={setFormData} disabled={saveAction.pending} idPrefix="register" errors={errors} />
                     <div className="absolute bottom-5 left-3.5 top-8 w-px border-l-2 border-dashed border-slate-200" />
                     
                     <div className="relative space-y-2 pl-8">
@@ -162,7 +176,8 @@ export default function RegisterVehicle() {
                 <div className="flex flex-1 flex-col p-5">
                   <div className="mb-5 space-y-2">
                     <label htmlFor="axle-count" className="text-xs font-bold text-slate-600">Quantidade de eixos</label>
-                    <Input id="axle-count" type="number" min="1" step="1" required value={formData.axleCount} onChange={(event) => setFormData({ ...formData, axleCount: event.target.value })} />
+                    <Input id="axle-count" type="number" step="1" aria-invalid={Boolean(errors.axleCount)} value={formData.axleCount} onChange={(event) => setFormData({ ...formData, axleCount: event.target.value })} />
+                    <FieldError message={errors.axleCount} />
                     <label htmlFor="refrigeration" className="block text-xs font-bold text-slate-600">Refrigeração</label>
                     <select id="refrigeration" value={formData.refrigerationLevel} onChange={(event) => setFormData({ ...formData, refrigerationLevel: Number(event.target.value) })} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm">
                       {Object.entries(REFRIGERATION_BY_VALUE).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -179,12 +194,14 @@ export default function RegisterVehicle() {
                         <Input 
                             type="number" 
                             placeholder="0" 
-                            required min="0.001" step="any" value={formData.weightKg}
+                            step="any" value={formData.weightKg}
+                            aria-invalid={Boolean(errors.weightKg)}
                             onChange={(e) => setFormData({...formData, weightKg: e.target.value})}
-                            className="h-10 border-slate-200 pr-10 text-sm focus:border-blue-500 focus:ring-blue-500" 
+                            className="h-10 border-slate-200 pr-10 text-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                         <span className="absolute right-3 top-2.5 text-xs font-semibold text-slate-400">kg</span>
                       </div>
+                      <FieldError message={errors.weightKg} />
                     </div>
                     
                     <div className="space-y-2">
@@ -195,12 +212,14 @@ export default function RegisterVehicle() {
                         <Input 
                             type="number" 
                             placeholder="0" 
-                            required min="0.001" step="any" value={formData.volumeM3}
+                            step="any" value={formData.volumeM3}
+                            aria-invalid={Boolean(errors.volumeM3)}
                             onChange={(e) => setFormData({...formData, volumeM3: e.target.value})}
-                            className="h-10 border-slate-200 pr-10 text-sm focus:border-blue-500 focus:ring-blue-500" 
+                            className="h-10 border-slate-200 pr-10 text-sm focus:border-blue-500 focus:ring-blue-500"
                         />
                         <span className="absolute right-3 top-2.5 text-xs font-semibold text-slate-400">m³</span>
                       </div>
+                      <FieldError message={errors.volumeM3} />
                     </div>
                   </div>
 
@@ -208,14 +227,15 @@ export default function RegisterVehicle() {
                   <div className="mt-auto border-t border-slate-100 pt-5">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-600">Tipo de Carroceria</label>
-                      <Select required value={formData.bodyType} onValueChange={(v) => setFormData({...formData, bodyType: v})}>
-                        <SelectTrigger className="h-10 border-slate-200 text-sm focus:ring-blue-500">
+                      <Select value={formData.bodyType} onValueChange={(v) => setFormData({...formData, bodyType: v})}>
+                        <SelectTrigger aria-invalid={Boolean(errors.bodyType)} className="h-10 border-slate-200 text-sm focus:ring-blue-500">
                           <SelectValue placeholder="Selecione o implemento..." />
                         </SelectTrigger>
                         <SelectContent>
                           {BODY_TYPE_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      <FieldError message={errors.bodyType} />
                     </div>
                   </div>
                 </div>

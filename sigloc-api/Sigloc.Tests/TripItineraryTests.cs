@@ -44,6 +44,17 @@ public class TripItineraryTests
     }
 
     [Fact]
+    public void Stops_use_the_geocoded_city_and_keep_the_typed_address()
+    {
+        var segment = TripMonitoringServiceTests.Segment();
+        segment.OriginAddress = "Rua Terra Roxa, 100"; segment.OriginCity = "Curitiba, PR";
+        var stops = TripItineraryBuilder.Build(Guid.NewGuid(), new[] { segment });
+        Assert.Equal(("Curitiba", "PR", "Rua Terra Roxa, 100"), (stops[0].City, stops[0].State, stops[0].Address));
+        // Legacy segment without a geocoded city: the address is still split as before.
+        Assert.Equal(segment.DestinationAddress.Split(',')[0].Trim(), stops[1].City);
+    }
+
+    [Fact]
     public void Same_city_different_states_or_coordinates_do_not_merge()
     {
         var first = TripMonitoringServiceTests.Segment();

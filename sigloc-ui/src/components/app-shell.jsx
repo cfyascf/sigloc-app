@@ -1,7 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useState } from "react"
 import {
-  Bell,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -16,6 +15,7 @@ import { NavLink, useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { useBrand } from "@/contexts/BrandContext"
 import { Button } from "@/components/ui/button"
+import { NotificationBell } from "@/components/notification-bell"
 import { ROLE_OPTIONS, ROLES } from "@/constants/roles"
 import { getNavItems } from "@/routes/route-config"
 import { cn } from "@/lib/utils"
@@ -37,6 +37,8 @@ export default function AppShell({ title, children, contentClassName, innerClass
   const isAdmin = user.role === ROLES.DEVELOPER
 
   const handleLogout = () => {
+    // The sidebar preference belongs to this user's session, not to the next person who logs in.
+    globalThis.localStorage?.removeItem(SIDEBAR_STORAGE_KEY)
     logout()
     navigate("/login", { replace: true })
   }
@@ -252,13 +254,7 @@ export default function AppShell({ title, children, contentClassName, innerClass
               {isSidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
             </Button>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("hover:bg-black/5", brand.textMuted)}
-            >
-              <Bell size={20} />
-            </Button>
+            {!isAdmin && <NotificationBell className={brand.textMuted} />}
 
             {/* Menu de Configurações (Engrenagem) */}
             <DropdownMenu>

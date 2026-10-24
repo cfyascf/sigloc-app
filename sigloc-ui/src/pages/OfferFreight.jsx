@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { FormAlert } from "@/components/auth/FormAlert"
 import { useAsyncAction } from "@/hooks/use-async-action"
+import { segmentShortId } from "@/constants/route-segments"
 import { getRouteSegment } from "@/services/route-segment-service"
 import { previewRoute } from "@/services/route-service"
 import { createAuction } from "@/services/auction-service"
@@ -50,9 +51,9 @@ const buildUnifiedTimeline = (segments) => {
 
   segments.forEach((s) => {
     const label = s.items?.[0]?.name ?? "Carga"
-    const ref = String(s.id).slice(0, 8)
-    addAction(s.origin, `Coleta · ${label} · ${ref}`)
-    addAction(s.destination, `Descarga · ${label} · ${ref}`)
+    const ref = segmentShortId(s.id)
+    addAction(s.originCity ?? s.origin, `Coleta · ${label} · ${ref}`)
+    addAction(s.destinationCity ?? s.destination, `Descarga · ${label} · ${ref}`)
   })
 
   return nodes.map((node) => ({ ...node, city: cityLabel(node.city) }))

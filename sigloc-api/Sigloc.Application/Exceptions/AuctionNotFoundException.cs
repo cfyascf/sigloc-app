@@ -7,7 +7,7 @@ namespace Sigloc.Application.Exceptions;
 public sealed class AuctionNotFoundException : Exception
 {
     public AuctionNotFoundException(Guid id)
-        : base($"Auction {id} does not exist or does not belong to this contractor.")
+        : base("Leilão não encontrado ou não pertence a este contratante.")
     {
     }
 }

@@ -27,6 +27,20 @@ public class RouteSegment : BaseEntity
     /// <summary>Delivery location text (e.g. "São Paulo, SP").</summary>
     public required string DestinationAddress { get; set; }
 
+    /// <summary>Geocoded "City, UF" of the origin; null for legacy rows or when the geocoder found no city.</summary>
+    public string? OriginCity { get; set; }
+
+    /// <summary>Geocoded "City, UF" of the destination; null for legacy rows or when the geocoder found no city.</summary>
+    public string? DestinationCity { get; set; }
+
+    /// <summary>Where the origin is shown: the geocoded city when known, else the typed address.</summary>
+    [NotMapped]
+    public string OriginPlace => OriginCity ?? OriginAddress;
+
+    /// <summary>Where the destination is shown: the geocoded city when known, else the typed address.</summary>
+    [NotMapped]
+    public string DestinationPlace => DestinationCity ?? DestinationAddress;
+
     /// <summary>Total distance (km). Populated from the OpenRouteService matrix. Greater than zero.</summary>
     public double DistanceKm { get; set; }
 

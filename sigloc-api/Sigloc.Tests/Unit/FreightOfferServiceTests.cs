@@ -337,7 +337,7 @@ public class FreightOfferServiceTests
         var act = () => _service.GetByIdAsync(_carrierId, id);
 
         (await act.Should().ThrowAsync<OfferNotFoundException>())
-            .Which.Message.Should().Contain(id.ToString());
+            .Which.OfferId.Should().Be(id);
         await _bidRepository.DidNotReceive().GetMetricsForAuctionsAsync(
             Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>());
     }

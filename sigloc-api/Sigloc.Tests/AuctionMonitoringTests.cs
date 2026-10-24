@@ -28,8 +28,14 @@ public class AuctionMonitoringTests
         });
         var bids = Stub<IBidRepository>.New((name, _) => name == "GetTrackedByAuctionAsync" ? Task.FromResult<IReadOnlyList<Bid>>(new[] { bid }) : throw new NotSupportedException(name));
         var routes = Stub<IConsolidatedRouteRepository>.New((_, _) => Task.FromResult<ConsolidatedRoute?>(route));
-        var trips = Stub<ITripRepository>.New((_, args) => { Assert.True(unit.InTransaction); staged = (Trip)args![0]!; Assert.NotEmpty(staged.Stops); return Task.CompletedTask; });
-        var service = new AuctionService(null!, routes, auctions, bids, trips, null!, null!, null!, null!, unit);
+        var trips = Stub<ITripRepository>.New((name, args) =>
+        {
+            if (name == "GetActiveWindowsForVehicleAsync") return Task.FromResult<IReadOnlyList<TripScheduleWindow>>(Array.Empty<TripScheduleWindow>());
+            Assert.True(unit.InTransaction); staged = (Trip)args![0]!; Assert.NotEmpty(staged.Stops); return Task.CompletedTask;
+        });
+        var vehicles = Stub<IVehicleRepository>.New((name, _) => { Assert.Equal("LockForScheduleAsync", name); Assert.True(unit.InTransaction); return Task.CompletedTask; });
+        var notifier = Stub<IAuctionNotifier>.New((_, _) => Task.CompletedTask);
+        var service = new AuctionService(null!, routes, auctions, bids, trips, vehicles, null!, null!, notifier, unit);
         await service.AwardAsync(companyId, auction.Id, new AwardAuctionRequestDto(bid.Id));
         Assert.NotNull(staged); Assert.Equal(second.Id, staged.Stops[0].Actions[0].SegmentId);
         Assert.Equal(TripStatus.AwaitingPickup, staged.Status); Assert.Equal(RouteStatus.AwaitingPickup, route.Status);
@@ -41,6 +47,12 @@ public class AuctionMonitoringTests
     {
         var first = TripMonitoringServiceTests.Segment(); first.Status = SegmentStatus.Available; first.DistanceKm = 10;
         var second = TripMonitoringServiceTests.Segment(); second.Status = SegmentStatus.Available; second.DistanceKm = 20;
+        // The shared fixture clock is in the past; an auction must close before the first pickup.
+        foreach (var segment in new[] { first, second })
+        {
+            segment.PickupDeadline = DateTimeOffset.UtcNow.AddDays(1);
+            segment.DeliveryDeadline = DateTimeOffset.UtcNow.AddDays(2);
+        }
         var unit = new UnitOfWork(); ConsolidatedRoute? route = null;
         var segments = Stub<IRouteSegmentRepository>.New((_, _) => Task.FromResult<IReadOnlyList<RouteSegment>>(new[] { second, first }));
         var routes = Stub<IConsolidatedRouteRepository>.New((_, args) => { Assert.True(unit.InTransaction); route = (ConsolidatedRoute)args![0]!; return Task.CompletedTask; });

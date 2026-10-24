@@ -10,7 +10,7 @@ public sealed class ValidationException : Exception
     public IReadOnlyList<ValidationError> Errors { get; }
 
     public ValidationException(IReadOnlyList<ValidationError> errors, string? message = null)
-        : base(message ?? "Não foi possível cadastrar o produto.")
+        : base(message ?? "Não foi possível salvar os dados.")
     {
         Errors = errors;
     }

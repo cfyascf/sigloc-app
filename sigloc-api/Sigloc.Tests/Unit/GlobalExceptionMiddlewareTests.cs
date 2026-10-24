@@ -46,6 +46,7 @@ public class GlobalExceptionMiddlewareTests
         yield return new object[] { new TrackingUnavailableException(), 503, "TRACKING_UNAVAILABLE" };
         yield return new object[] { new ValidationException(new[] { new ValidationError("f", "r") }), 400, "VALIDATION_ERROR" };
         yield return new object[] { new DuplicateSkuException("SKU"), 409, "SKU_DUPLICADO" };
+        yield return new object[] { new DuplicatePlateException("ABC1D23"), 409, "PLACA_DUPLICADA" };
         yield return new object[] { new ProductNotFoundException(Guid.NewGuid()), 404, "PRODUTO_NAO_ENCONTRADO" };
         yield return new object[] { new ProductInUseException(new[] { "seg" }), 409, "PRODUTO_EM_USO" };
         yield return new object[] { new RouteSegmentNotFoundException(Guid.NewGuid()), 404, "ROUTE_SEGMENT_NOT_FOUND" };
@@ -54,6 +55,8 @@ public class GlobalExceptionMiddlewareTests
         yield return new object[] { new RouteSegmentsNotFoundException(new[] { Guid.NewGuid() }), 404, "ROUTE_SEGMENTS_NOT_FOUND" };
         yield return new object[] { new SegmentUnavailableException(Guid.NewGuid()), 409, "SEGMENT_UNAVAILABLE" };
         yield return new object[] { new GeocodingException("boom"), 502, "GEOCODING_ERROR" };
+        yield return new object[] { new AddressNotFoundException("Nowhere"), 422, "ENDERECO_NAO_ENCONTRADO" };
+        yield return new object[] { new VehicleWithoutTrackerException(), 422, "VEICULO_SEM_RASTREADOR" };
         yield return new object[] { new EmailAlreadyExistsException("a@b.com"), 409, "EMAIL_JA_EXISTE" };
         yield return new object[] { new CnpjAlreadyExistsException("123"), 409, "CNPJ_JA_EXISTE" };
         yield return new object[] { new CarrierAlreadyRegisteredException("123"), 409, "TRANSPORTADORA_JA_CADASTRADA" };

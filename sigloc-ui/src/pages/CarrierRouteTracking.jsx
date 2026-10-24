@@ -16,25 +16,14 @@ import { useToast } from "@/components/ui/toast"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { useCountdown } from "@/hooks/use-countdown"
 import { useTripRequest } from "@/hooks/use-trip-request"
+import { saveBlob } from "@/lib/save-blob"
 import {
-  UNKNOWN, formatCountdown, formatFileSize, formatTripDate, formatTripNumber, slaAlert, stopActionLabel, tripStatusLabel, tripStatusStyle,
+  UNKNOWN, formatCountdown, formatFileSize, formatRouteProgress, formatTripDate, formatTripNumber, slaAlert, stopActionLabel, tripStatusLabel, tripStatusStyle,
 } from "@/lib/trip-formatters"
 import { completeTripStop, downloadTripProof, getCarrierTripDetails, reportTripOccurrence } from "@/services/carrier-trip-service"
 
 const BASE_PATH = "/carrier-route-tracking"
 const HOUR_MS = 60 * 60 * 1000
-
-// The proof endpoint needs the bearer token, so the file is fetched as a Blob and saved locally.
-function saveBlob(blob, fileName) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 0)
-}
 
 function countdownAlert(remainingMs, sla) {
   if (typeof remainingMs === "number" && remainingMs < 0) return "rose"
@@ -208,7 +197,7 @@ export default function CarrierRouteTracking() {
           <TripKpiCard
             icon={ArrowRightLeft}
             label="Progresso da Rota"
-            value={`${formatTripNumber(trip.traveled, " km")} / ${formatTripNumber(trip.totalDistance, " km")}`}
+            value={formatRouteProgress(trip)}
             hint={trip.progress != null ? `${formatTripNumber(trip.progress, "%")} percorrido` : undefined}
           />
           <TripKpiCard

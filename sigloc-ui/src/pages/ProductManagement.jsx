@@ -52,10 +52,10 @@ function ListItem({ product, selected, onSelect }) {
       />
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex items-center gap-2">
-          <span className="font-mono text-xs font-bold text-slate-500">
+          <span title={product.sku} className="min-w-0 truncate font-mono text-xs font-bold text-slate-500">
             {product.sku}
           </span>
-          <div className="flex gap-1">
+          <div className="flex shrink-0 gap-1">
             {product.dangerous && (
               <Badge
                 variant="secondary"
@@ -84,6 +84,7 @@ function ListItem({ product, selected, onSelect }) {
           </div>
         </div>
         <h3
+          title={product.name}
           className={`truncate text-sm ${
             selected ? "font-bold text-blue-900" : "font-semibold text-slate-800"
           }`}
@@ -141,6 +142,8 @@ export default function ProductManagement() {
   const [items, setItems] = useState([])
   const [totalItems, setTotalItems] = useState(0)
   const [selectedId, setSelectedId] = useState(null)
+  // Id of the product awaiting delete confirmation; selecting another product drops the prompt.
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
   const [detail, setDetail] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
 
@@ -249,6 +252,7 @@ export default function ProductManagement() {
       return
     }
     const result = await deleteAction.run(selectedId)
+    setConfirmingDeleteId(null)
     if (result.ok) {
       setItems((current) => current.filter((item) => item.id !== selectedId))
       setTotalItems((count) => Math.max(0, count - 1))
@@ -379,20 +383,43 @@ export default function ProductManagement() {
                       <Pencil size={14} className="mr-1.5" /> Editar
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={deleteAction.pending}
-                    onClick={handleDelete}
-                    className="h-8 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                  >
-                    {deleteAction.pending ? (
-                      <Loader2 size={14} className="mr-1.5 animate-spin" />
-                    ) : (
+                  {confirmingDeleteId === selectedId ? (
+                    <>
+                      <span className="text-[11px] font-semibold text-rose-600">Excluir este produto?</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={deleteAction.pending}
+                        onClick={() => setConfirmingDeleteId(null)}
+                        className="h-8 bg-white text-xs font-semibold text-slate-600"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={deleteAction.pending}
+                        onClick={handleDelete}
+                        className="h-8 bg-rose-600 text-xs font-bold text-white hover:bg-rose-700"
+                      >
+                        {deleteAction.pending ? (
+                          <Loader2 size={14} className="mr-1.5 animate-spin" />
+                        ) : (
+                          <Trash2 size={14} className="mr-1.5" />
+                        )}
+                        Sim, Excluir
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setConfirmingDeleteId(selectedId); deleteAction.reset() }}
+                      className="h-8 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                    >
                       <Trash2 size={14} className="mr-1.5" />
-                    )}
-                    Excluir
-                  </Button>
+                      Excluir
+                    </Button>
+                  )}
                 </div>
               </div>
 

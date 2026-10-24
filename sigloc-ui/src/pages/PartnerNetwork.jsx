@@ -54,7 +54,11 @@ function formatRating(rating) {
 /** Humanizes the remaining lifetime of an invite for display. */
 function formatExpiry({ hoursRemaining, expiresAt } = {}) {
   if (hoursRemaining === null || hoursRemaining === undefined) {
-    return expiresAt ? "Expira em breve" : "Não expira"
+    if (!expiresAt) return "Não expira"
+    // The create response has expiresAt but no hoursRemaining; derive it instead of guessing.
+    const expiry = new Date(expiresAt).getTime()
+    if (Number.isNaN(expiry)) return "Expira em breve"
+    hoursRemaining = (expiry - Date.now()) / 3_600_000
   }
 
   if (hoursRemaining <= 0) {
@@ -112,7 +116,7 @@ function PartnerCard({ partner, isCarrierView, onRemove, removing }) {
               <p className="mt-1 text-lg font-black text-slate-900">{partner.freeVehicles}</p>
             </div>
             <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Viagens conosco</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Viagens ativas</p>
               <p className="mt-1 text-lg font-black text-slate-900">{partner.activeTripsWithUs}</p>
             </div>
           </div>
@@ -224,7 +228,9 @@ function ActiveInviteBlock({ invite, pending, error, onCopy, onGenerate, copied 
   if (!invite) {
     return (
       <div className="mt-4 space-y-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
-        <p className="text-xs text-slate-500">Nenhum convite ativo no momento.</p>
+        <p className="text-xs text-slate-500">
+          Nenhum convite ativo no momento. Cada convite vale para uma única transportadora.
+        </p>
         {error && (
           <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-rose-600">
             <AlertCircle size={13} /> {error.message}
@@ -250,6 +256,9 @@ function ActiveInviteBlock({ invite, pending, error, onCopy, onGenerate, copied 
         </span>
         <span>{formatExpiry(invite)}</span>
       </div>
+      <p className="text-[11px] text-slate-500">
+        Uso único: o link vale para uma transportadora. Depois de usado, gere um novo convite.
+      </p>
       <Button
         variant="outline"
         onClick={onCopy}

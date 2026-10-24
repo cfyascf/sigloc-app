@@ -61,6 +61,8 @@ public class AuctionRiskCalculatorTests
             now: Now);
 
         result.Should().Be(AuctionRiskCalculator.Critical);
+        // Same code as trip risk and the UI badge map; "CRITICAL" rendered unstyled.
+        result.Should().Be("CRITIC");
     }
 
     [Fact]
@@ -139,5 +141,28 @@ public class AuctionRiskCalculatorTests
             now: Now);
 
         result.Should().Be(AuctionRiskCalculator.Normal);
+    }
+}
+
+public class BrasiliaTimeTests
+{
+    [Fact]
+    public void Format_shows_utc_deadlines_in_brasilia_time()
+        => BrasiliaTime.Format(new DateTimeOffset(2026, 10, 25, 12, 0, 0, TimeSpan.Zero)).Should().Be("25/10/2026 09:00");
+}
+
+public class VehicleBodyTypeDescriptionTests
+{
+    [Theory]
+    [InlineData(VehicleBodyType.GradeBaixa, "Grade Baixa")]
+    [InlineData(VehicleBodyType.Frigorifico, "Baú Refrigerado")]
+    public void Description_matches_the_body_type(VehicleBodyType bodyType, string expected)
+    {
+        var description = typeof(VehicleBodyType).GetField(bodyType.ToString())!
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .Cast<System.ComponentModel.DescriptionAttribute>()
+            .Single();
+
+        description.Description.Should().Be(expected);
     }
 }

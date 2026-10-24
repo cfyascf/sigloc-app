@@ -11,15 +11,26 @@ public class PartnerNetworkServiceTests
 {
     private readonly IPartnerConnectionRepository _connections = Substitute.For<IPartnerConnectionRepository>();
     private readonly IVehicleRepository _vehicles = Substitute.For<IVehicleRepository>();
+    private readonly ITripRepository _trips = Substitute.For<ITripRepository>();
+    private readonly IAuctionRepository _auctions = Substitute.For<IAuctionRepository>();
     private readonly PartnerNetworkService _service;
     private readonly Guid _contractorId = Guid.NewGuid();
     private readonly Guid _carrierId = Guid.NewGuid();
 
     public PartnerNetworkServiceTests()
     {
-        _service = new PartnerNetworkService(_connections, _vehicles);
+        _service = new PartnerNetworkService(_connections, _vehicles, _trips, _auctions);
         _vehicles
             .CountFreeByCarrierIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int>());
+        _trips
+            .CountActiveByCarrierForContractorAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int>());
+        _trips
+            .CountActiveLanesByContractorForCarrierAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int>());
+        _auctions
+            .CountOpenByContractorsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, int>());
     }
 
@@ -69,6 +80,9 @@ public class PartnerNetworkServiceTests
         _vehicles
             .CountFreeByCarrierIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, int> { [_carrierId] = 7 });
+        _trips
+            .CountActiveByCarrierForContractorAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int> { [_carrierId] = 2 });
 
         var result = await _service.GetNetworkAsync(_contractorId);
 
@@ -83,7 +97,7 @@ public class PartnerNetworkServiceTests
         mapped.Carrier.AverageRating.Should().Be(4.2);
         mapped.Carrier.HasActiveInsurancePolicy.Should().BeTrue();
         mapped.OperationalMetrics.FreeVehicles.Should().Be(7);
-        mapped.OperationalMetrics.ActiveTripsWithUs.Should().Be(0);
+        mapped.OperationalMetrics.ActiveTripsWithUs.Should().Be(2);
         mapped.OperationalMetrics.LastInteraction.Should().Be(active.UpdatedAt);
     }
 
@@ -177,6 +191,12 @@ public class PartnerNetworkServiceTests
         _connections
             .GetByCarrierAsync(_carrierId, Arg.Any<CancellationToken>())
             .Returns(new List<PartnerConnection> { active, pending });
+        _auctions
+            .CountOpenByContractorsAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int> { [contractor.Id] = 3, [pending.ContractorId] = 5 });
+        _trips
+            .CountActiveLanesByContractorForCarrierAsync(_carrierId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int> { [contractor.Id] = 2 });
 
         var result = await _service.GetCarrierNetworkAsync(_carrierId);
 
@@ -189,6 +209,11 @@ public class PartnerNetworkServiceTests
         mapped.Contractor.TradeName.Should().Be("Contratante Fantasia");
         mapped.Contractor.Cnpj.Should().Be("98.765.432/0001-55");
         mapped.LastInteraction.Should().Be(active.UpdatedAt);
+        mapped.OpenOffers.Should().Be(3);
+        mapped.ActiveLanes.Should().Be(2);
+
+        // A pending partnership cannot see the contractor's offers.
+        result.Partners.Single(p => p.ConnectionId == pending.Id).OpenOffers.Should().Be(0);
     }
 
     [Fact]

@@ -185,8 +185,9 @@ public class DashboardRepository : IDashboardRepository
             {
                 RouteId = s.RouteId!.Value,
                 s.Status,
-                s.OriginAddress,
-                s.DestinationAddress,
+                // Geocoded city when known, else the typed address (legacy rows).
+                OriginAddress = s.OriginCity ?? s.OriginAddress,
+                DestinationAddress = s.DestinationCity ?? s.DestinationAddress,
                 s.PickupDeadline,
                 s.DeliveryDeadline
             })
@@ -234,17 +235,28 @@ public class DashboardRepository : IDashboardRepository
     {
         await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
+        // Free = marked LIVRE and not committed to an active trip (awarding a trip does not
+        // change the stored vehicle status).
         var availableVehicles = await db.Vehicles
             .AsNoTracking()
-            .CountAsync(v => v.TransportadoraId == carrierId && v.Status == OperationalStatus.LIVRE, cancellationToken);
+            .CountAsync(v => v.TransportadoraId == carrierId
+                && v.Status == OperationalStatus.LIVRE
+                && !db.Trips.Any(t => t.VehicleId == v.Id
+                    && (t.Status == TripStatus.AwaitingPickup || t.Status == TripStatus.InTransit)),
+                cancellationToken);
 
+        // Auctions the carrier is still competing in: same definition as the bid radar
+        // (one entry per auction, open and not expired), so the KPI matches the list below it.
+        var now = DateTimeOffset.UtcNow;
         var activeBids = await (
             from bid in db.Bids.AsNoTracking()
             join auction in db.Auctions.AsNoTracking() on bid.AuctionId equals auction.Id
             where bid.CarrierId == carrierId
                 && bid.Status != BidStatus.Withdrawn
                 && auction.Status == AuctionStatus.Open
-            select bid.Id)
+                && auction.ExpiresAt > now
+            select bid.AuctionId)
+            .Distinct()
             .CountAsync(cancellationToken);
 
         var inTransitTrips = await db.Trips
@@ -265,10 +277,15 @@ public class DashboardRepository : IDashboardRepository
             .AsNoTracking()
             .CountAsync(v => v.TransportadoraId == carrierId, cancellationToken);
 
-        // "Fleet in operation": every truck currently not free (in transit or maintenance).
+        // "Fleet in operation": every truck currently not free (on an active trip, or marked in
+        // transit / maintenance).
         var busyVehicles = await db.Vehicles
             .AsNoTracking()
-            .CountAsync(v => v.TransportadoraId == carrierId && v.Status != OperationalStatus.LIVRE, cancellationToken);
+            .CountAsync(v => v.TransportadoraId == carrierId
+                && (v.Status != OperationalStatus.LIVRE
+                    || db.Trips.Any(t => t.VehicleId == v.Id
+                        && (t.Status == TripStatus.AwaitingPickup || t.Status == TripStatus.InTransit))),
+                cancellationToken);
 
         var submittedBids = await db.Bids
             .AsNoTracking()
@@ -331,13 +348,16 @@ public class DashboardRepository : IDashboardRepository
     {
         await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
-        // The carrier's active bids in open auctions (best/lowest bid per auction if several exist).
+        // The carrier's active bids in open, non-expired auctions (best/lowest bid per auction if
+        // several exist).
+        var now = DateTimeOffset.UtcNow;
         var myBids = await (
             from bid in db.Bids.AsNoTracking()
             join auction in db.Auctions.AsNoTracking() on bid.AuctionId equals auction.Id
             where bid.CarrierId == carrierId
                 && bid.Status != BidStatus.Withdrawn
                 && auction.Status == AuctionStatus.Open
+                && auction.ExpiresAt > now
             select new { bid.AuctionId, auction.RouteId, bid.TotalValue })
             .ToListAsync(cancellationToken);
 
@@ -469,7 +489,7 @@ public class DashboardRepository : IDashboardRepository
         var segments = await db.RouteSegments
             .AsNoTracking()
             .Where(s => s.RouteId != null && routeIds.Contains(s.RouteId.Value))
-            .Select(s => new { RouteId = s.RouteId!.Value, s.OriginAddress, s.DestinationAddress, s.PickupDeadline })
+            .Select(s => new { RouteId = s.RouteId!.Value, OriginAddress = s.OriginCity ?? s.OriginAddress, DestinationAddress = s.DestinationCity ?? s.DestinationAddress, s.PickupDeadline })
             .ToListAsync(cancellationToken);
 
         var byRoute = segments

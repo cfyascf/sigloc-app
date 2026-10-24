@@ -16,6 +16,8 @@ export function LoginForm() {
   const redirect = usePostAuthRedirect()
 
   const [form, setForm] = useState({ email: "", password: "" })
+  // Client-side required checks; the form is noValidate so the browser does not do them.
+  const [missing, setMissing] = useState({})
   const [googleError, setGoogleError] = useState(null)
 
   const credentialAction = useAsyncAction(login)
@@ -28,10 +30,18 @@ export function LoginForm() {
   const handleChange = (event) => {
     const { id, value } = event.target
     setForm((prev) => ({ ...prev, [id]: value }))
+    setMissing((prev) => ({ ...prev, [id]: undefined }))
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    const required = {
+      email: form.email.trim() ? undefined : "Informe o e-mail.",
+      password: form.password ? undefined : "Informe a senha.",
+    }
+    setMissing(required)
+    if (required.email || required.password) return
+
     const result = await credentialAction.run({
       email: form.email.trim(),
       password: form.password,
@@ -72,7 +82,7 @@ export function LoginForm() {
           required
           value={form.email}
           onChange={handleChange}
-          error={credentialAction.fieldErrors.email}
+          error={missing.email ?? credentialAction.fieldErrors.email}
         />
 
         <div className="space-y-2">
@@ -98,7 +108,7 @@ export function LoginForm() {
             required
             value={form.password}
             onChange={handleChange}
-            error={credentialAction.fieldErrors.password}
+            error={missing.password ?? credentialAction.fieldErrors.password}
           />
         </div>
 

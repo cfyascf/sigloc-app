@@ -22,7 +22,7 @@ public class VehicleService : IVehicleService
         // 2. Garantir unicidade
         if (await _repository.ExistsByPlateAsync(normalizedPlate, cancellationToken))
         {
-            throw new InvalidOperationException($"Já existe um veículo cadastrado com a placa {normalizedPlate}.");
+            throw new Sigloc.Application.Exceptions.DuplicatePlateException(normalizedPlate!);
         }
 
         // Regex que aceita tanto o padrão Mercosul (ex: ABC1D23) quanto o antigo (ex: ABC1234)
@@ -63,13 +63,15 @@ public class VehicleService : IVehicleService
             throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
         }
 
-        return MapToDto(vehicle);
+        var onActiveTrip = await _repository.GetIdsOnActiveTripsAsync(transportadoraId, cancellationToken);
+        return MapToDto(vehicle, onActiveTrip.Contains(vehicle.Id));
     }
 
     public async Task<IEnumerable<VehicleResponseDto>> GetAllAsync(Guid transportadoraId, CancellationToken cancellationToken = default)
     {
         var vehicles = await _repository.GetAllAsync(transportadoraId, cancellationToken);
-        return vehicles.Select(MapToDto);
+        var onActiveTrip = await _repository.GetIdsOnActiveTripsAsync(transportadoraId, cancellationToken);
+        return vehicles.Select(v => MapToDto(v, onActiveTrip.Contains(v.Id)));
     }
 
     public async Task UpdateAsync(Guid transportadoraId, Guid id, UpdateVehicleDto dto, CancellationToken cancellationToken = default)
@@ -80,6 +82,7 @@ public class VehicleService : IVehicleService
             throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
         }
 
+        ValidateCapacity(dto);
         ValidateMonitoringFields(dto.TraccarDeviceId, dto.DriverPhone);
         if (dto.TraccarDeviceId.HasValue) vehicle.TraccarDeviceId = dto.TraccarDeviceId;
         if (dto.DriverPhone != null) vehicle.DriverPhone = NormalizePhone(dto.DriverPhone);
@@ -118,16 +121,27 @@ public class VehicleService : IVehicleService
     // Centraliza o mapeamento para evitar repetição de código
     private static string? NormalizePhone(string? phone) => string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
 
+    // Same limits the Vehicle constructor enforces on create, reported per field instead of as a
+    // single exception so the edit form can show them.
+    private static void ValidateCapacity(UpdateVehicleDto dto)
+    {
+        var errors = new List<Sigloc.Application.Exceptions.ValidationError>();
+        if (dto.AxleCount is <= 0) errors.Add(new("axleCount", "A quantidade de eixos deve ser maior que zero."));
+        if (dto.CapacityWeight is <= 0) errors.Add(new("capacityWeight", "A capacidade de peso deve ser maior que zero."));
+        if (dto.CapacityVolume is <= 0) errors.Add(new("capacityVolume", "A capacidade de volume deve ser maior que zero."));
+        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Não foi possível atualizar o veículo.");
+    }
+
     private static void ValidateMonitoringFields(long? deviceId, string? phone)
     {
         var errors = new List<Sigloc.Application.Exceptions.ValidationError>();
-        if (deviceId is <= 0) errors.Add(new("traccarDeviceId", "Device ID must be positive."));
+        if (deviceId is <= 0) errors.Add(new("traccarDeviceId", "O ID do dispositivo Traccar deve ser um número positivo."));
         if (phone != null && (phone.Length > 40 || phone.Any(c => !char.IsDigit(c) && !" +-().".Contains(c))))
-            errors.Add(new("driverPhone", "Phone must contain at most 40 phone-number characters."));
-        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Invalid vehicle monitoring fields.");
+            errors.Add(new("driverPhone", "Telefone inválido: use apenas números, espaços e + - ( ) ., com até 40 caracteres."));
+        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Dados de rastreamento do veículo inválidos.");
     }
 
-    private static VehicleResponseDto MapToDto(Vehicle vehicle)
+    private static VehicleResponseDto MapToDto(Vehicle vehicle, bool onActiveTrip = false)
     {
         return new VehicleResponseDto(
             vehicle.Id,
@@ -145,7 +159,8 @@ public class VehicleService : IVehicleService
             vehicle.CurrentLocation,
             vehicle.Status,
             vehicle.TraccarDeviceId,
-            vehicle.DriverPhone
+            vehicle.DriverPhone,
+            onActiveTrip
         );
     }
 }

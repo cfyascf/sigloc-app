@@ -10,6 +10,10 @@ const dotColor = (status) =>
       ? "bg-amber-500 ring-4 ring-amber-50"
       : "bg-slate-300"
 
+// For a stop, EM_TRANSITO marks the stop the truck is heading to, not a truck in motion
+// (it is also set while the trip still awaits pickup).
+const stopStatusLabel = (status) => (status === "EM_TRANSITO" ? "Próxima parada" : tripStatusLabel(status))
+
 const actionLabel = (action) =>
   [action.type ? tripStatusLabel(action.type) : null, action.product].filter(Boolean).join(" · ")
 
@@ -41,7 +45,7 @@ export function TripStopTimeline({ stops, renderStopActions }) {
                   <div className="min-w-0 space-y-0.5">
                     <p className="text-sm font-bold text-slate-800">{stop.city}</p>
                     <p className={`text-xs font-bold ${stop.status === "EM_TRANSITO" ? "text-amber-600" : "text-slate-500"}`}>
-                      {tripStatusLabel(stop.status)} • {stop.actions.map(actionLabel).filter(Boolean).join(", ") || "Sem ações"}
+                      {stopStatusLabel(stop.status)} • {stop.actions.map(actionLabel).filter(Boolean).join(", ") || "Sem ações"}
                     </p>
                     <p className="text-xs text-slate-500">
                       {done ? `Realizado: ${formatTripDate(completedAt)}` : `Prazo: ${formatTripDate(deadline)}`}

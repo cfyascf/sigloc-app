@@ -1,6 +1,7 @@
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
 using Sigloc.Application.Exceptions;
+using Sigloc.Domain.Enums;
 using Sigloc.Domain.Repositories;
 
 namespace Sigloc.Application.Services;
@@ -23,6 +24,13 @@ public class RoutePreviewService : IRoutePreviewService
         var segmentIds = ValidateSegmentIds(dto.SegmentIds);
 
         var segments = await _segmentRepository.GetByIdsAsync(contractorId, segmentIds, tracked: false, cancellationToken);
+
+        // Same rule as auction creation, so the workspace never previews a route it cannot start.
+        var unavailable = segments.FirstOrDefault(s => s.Status != SegmentStatus.Available || s.RouteId is not null);
+        if (unavailable is not null)
+        {
+            throw new SegmentUnavailableException(unavailable.Id);
+        }
 
         var aggregate = await RouteAggregator.AggregateAsync(segmentIds, segments, _geocodingService, cancellationToken);
 
@@ -47,8 +55,8 @@ public class RoutePreviewService : IRoutePreviewService
         if (ids.Count == 0)
         {
             throw new ValidationException(
-                new[] { new ValidationError("segmentIds", "At least one route segment is required.") },
-                "Could not process the route.");
+                new[] { new ValidationError("segmentIds", "Selecione ao menos um trecho.") },
+                "Não foi possível processar a rota.");
         }
 
         return ids;

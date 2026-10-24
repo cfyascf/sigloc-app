@@ -69,6 +69,14 @@ public class GlobalExceptionHandlerMiddleware
                 (int)HttpStatusCode.ServiceUnavailable,
                 (object)new { error = "TRACKING_UNAVAILABLE", message = unavailable.Message }),
 
+            AddressNotFoundException addressNotFound => (
+                StatusCodes.Status422UnprocessableEntity,
+                (object)new { error = "ENDERECO_NAO_ENCONTRADO", message = addressNotFound.Message }),
+
+            VehicleWithoutTrackerException noTracker => (
+                StatusCodes.Status422UnprocessableEntity,
+                (object)new { error = "VEICULO_SEM_RASTREADOR", message = noTracker.Message }),
+
             ValidationException validation => (
                 (int)HttpStatusCode.BadRequest,
                 (object)new
@@ -84,6 +92,15 @@ public class GlobalExceptionHandlerMiddleware
                 {
                     error = "SKU_DUPLICADO",
                     message = duplicate.Message,
+                    details = Array.Empty<object>()
+                }),
+
+            DuplicatePlateException duplicatePlate => (
+                (int)HttpStatusCode.Conflict,
+                new
+                {
+                    error = "PLACA_DUPLICADA",
+                    message = duplicatePlate.Message,
                     details = Array.Empty<object>()
                 }),
 
@@ -209,6 +226,14 @@ public class GlobalExceptionHandlerMiddleware
                 {
                     error = "PARCERIA_JA_EXISTE",
                     message = partnershipExists.Message
+                }),
+
+            NotificationNotFoundException notificationNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "NOTIFICACAO_NAO_ENCONTRADA",
+                    message = notificationNotFound.Message
                 }),
 
             PartnershipNotFoundException partnershipNotFound => (

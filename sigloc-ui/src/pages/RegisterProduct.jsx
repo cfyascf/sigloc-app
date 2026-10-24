@@ -35,6 +35,7 @@ export default function RegisterProduct() {
   return (
     <AppShell title="Novo Cadastro de SKU">
       <form
+        noValidate
         onSubmit={handleSubmit}
         className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden"
       >

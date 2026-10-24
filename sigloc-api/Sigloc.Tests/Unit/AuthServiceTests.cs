@@ -24,6 +24,7 @@ public class AuthServiceTests
     private readonly IPasswordResetTokenRepository _passwordResetTokens = Substitute.For<IPasswordResetTokenRepository>();
     private readonly IPasswordResetLinkBuilder _passwordResetLinkBuilder = Substitute.For<IPasswordResetLinkBuilder>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
+    private readonly INotificationPublisher _notifications = Substitute.For<INotificationPublisher>();
 
     private readonly AuthService _service;
 
@@ -45,7 +46,8 @@ public class AuthServiceTests
             _inviteLinkBuilder,
             _passwordResetTokens,
             _passwordResetLinkBuilder,
-            _emailSender);
+            _emailSender,
+            _notifications);
 
         _passwordHasher.Hash(Arg.Any<string>()).Returns("hashed-password");
         _jwtProvider.Generate(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>())
@@ -115,6 +117,17 @@ public class AuthServiceTests
 
         await act.Should().ThrowAsync<CnpjAlreadyExistsException>();
         await _contractors.DidNotReceive().AddAsync(Arg.Any<Contractor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RegisterContractorAsync_cnpj_with_wrong_check_digits_ThrowsValidation()
+    {
+        var dto = new RegisterContractorDto("12.345.678/0001-00", "Empresa Ltda", null, "novo@empresa.com", "SenhaForte123");
+
+        var act = () => _service.RegisterContractorAsync(dto);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(e => e.Field == "cnpj");
     }
 
     [Fact]
@@ -393,6 +406,10 @@ public class AuthServiceTests
                 && c.InitiatedBy == PartnershipInitiator.Contractor),
             Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        // The inviting contractor learns the carrier joined, by trade name.
+        await _notifications.Received(1).PublishAsync(Arg.Is<IReadOnlyCollection<NotificationMessage>>(m =>
+            m.Single().RecipientCompanyId == contractor.Id && m.Single().Type == NotificationCatalog.PartnerJoinedType
+            && m.Single().Message.StartsWith("Transp aceitou")));
     }
 
     [Fact]
@@ -621,6 +638,18 @@ public class AuthServiceTests
         await _passwordResetTokens.Received(1).AddAsync(Arg.Is<PasswordResetToken>(t => t.UserId == user.Id), Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
         await _emailSender.Received(1).SendPasswordResetAsync(user.Email, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("abc")]
+    public async Task RequestPasswordResetAsync_malformed_email_ThrowsValidation_without_lookup(string email)
+    {
+        var act = () => _service.RequestPasswordResetAsync(new PasswordResetRequestDto(email));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == "email");
+        await _users.DidNotReceive().GetByEmailAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -29,8 +29,8 @@ internal static class TravelPlanBuilder
         var events = new List<StopEvent>(segments.Count * 2);
         foreach (var segment in segments)
         {
-            events.Add(new StopEvent(StopKind.Pickup, segment.OriginAddress, segment.PickupDeadline));
-            events.Add(new StopEvent(StopKind.Delivery, segment.DestinationAddress, segment.DeliveryDeadline));
+            events.Add(new StopEvent(StopKind.Pickup, segment.OriginPlace, segment.PickupDeadline));
+            events.Add(new StopEvent(StopKind.Delivery, segment.DestinationPlace, segment.DeliveryDeadline));
         }
 
         if (events.Count == 0)

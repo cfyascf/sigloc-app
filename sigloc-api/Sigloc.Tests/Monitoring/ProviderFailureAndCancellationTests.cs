@@ -79,7 +79,7 @@ public sealed class ProviderFailureAndCancellationTests
         });
         using var client = new HttpClient(handler);
         var exception = await Assert.ThrowsAsync<TrackingUnavailableException>(() => InvokeAsync(tracking, client));
-        Assert.Equal("Trip monitoring is temporarily unavailable.", exception.Message);
+        Assert.Equal("O monitoramento da viagem está temporariamente indisponível. Tente novamente em instantes.", exception.Message);
         Assert.Null(exception.InnerException);
         Assert.DoesNotContain(Secret, exception.ToString());
     }

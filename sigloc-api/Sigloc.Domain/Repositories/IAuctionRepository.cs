@@ -94,4 +94,13 @@ public interface IAuctionRepository
         Guid carrierId,
         DateTimeOffset now,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Number of open, non-expired auctions per contractor. Contractors without any are absent
+    /// from the result.
+    /// </summary>
+    Task<Dictionary<Guid, int>> CountOpenByContractorsAsync(
+        IReadOnlyCollection<Guid> contractorIds,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default);
 }

@@ -12,11 +12,17 @@ export default function ForgotPassword() {
   const { requestPasswordReset } = useAuth()
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
+  const [emailError, setEmailError] = useState(null)
   const action = useAsyncAction(requestPasswordReset)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    const result = await action.run({ email: email.trim() })
+    const value = email.trim()
+    if (!value) return setEmailError("Informe o e-mail.")
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return setEmailError("Informe um e-mail válido.")
+    setEmailError(null)
+
+    const result = await action.run({ email: value })
     if (result.ok) setSubmitted(true)
   }
 
@@ -30,7 +36,7 @@ export default function ForgotPassword() {
         {submitted ? <p role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">Se houver uma conta local para este e-mail, enviaremos instruções de redefinição.</p> : <>
           <FormAlert message={action.error?.message} />
           <form noValidate onSubmit={handleSubmit} className="space-y-4">
-            <FormField id="email" label="E-mail" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} error={action.fieldErrors.email} />
+            <FormField id="email" label="E-mail" type="email" autoComplete="email" required value={email} onChange={(event) => { setEmail(event.target.value); setEmailError(null) }} error={emailError ?? action.fieldErrors.email} />
             <Button type="submit" disabled={action.pending} className="w-full bg-blue-600 text-white hover:bg-blue-700">
               {action.pending ? <><LoaderCircle className="animate-spin" aria-hidden="true" /> Enviando...</> : "Enviar link"}
             </Button>

@@ -29,13 +29,27 @@ public class AuctionRepository : IAuctionRepository
         int pageSize,
         CancellationToken cancellationToken = default)
     {
+        var now = DateTimeOffset.UtcNow;
+
         // Auctions joined to their consolidated route, scoped to the contractor.
         var baseQuery =
             from auction in _dbContext.Auctions.AsNoTracking()
             join route in _dbContext.ConsolidatedRoutes.AsNoTracking()
                 on auction.RouteId equals route.Id
-            where route.ContractorId == contractorId && auction.Status == status
+            where route.ContractorId == contractorId
             select new { auction, route };
+
+        // Same lifecycle as the carrier board: an Open auction past its deadline is history
+        // (listed with Closed), not part of the live list.
+        baseQuery = status switch
+        {
+            AuctionStatus.Open => baseQuery.Where(x =>
+                x.auction.Status == AuctionStatus.Open && x.auction.ExpiresAt > now),
+            AuctionStatus.Closed => baseQuery.Where(x =>
+                x.auction.Status == AuctionStatus.Closed
+                || (x.auction.Status == AuctionStatus.Open && x.auction.ExpiresAt <= now)),
+            _ => baseQuery.Where(x => x.auction.Status == status),
+        };
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -114,13 +128,13 @@ public class AuctionRepository : IAuctionRepository
         Guid contractorId,
         CancellationToken cancellationToken = default)
     {
-        // Tracked query scoped to the contractor via the consolidated route.
-        return await (
-            from auction in _dbContext.Auctions
-            join route in _dbContext.ConsolidatedRoutes.AsNoTracking()
-                on auction.RouteId equals route.Id
-            where auction.Id == id && route.ContractorId == contractorId
-            select auction)
+        // Tracked query scoped to the contractor via the consolidated route. Ownership is checked
+        // with a subquery on purpose: an AsNoTracking() anywhere in the query turns tracking off
+        // for the whole query, and callers rely on SaveChanges persisting their status changes.
+        return await _dbContext.Auctions
+            .Where(auction => auction.Id == id
+                && _dbContext.ConsolidatedRoutes.Any(route =>
+                    route.Id == auction.RouteId && route.ContractorId == contractorId))
             .FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -250,5 +264,27 @@ public class AuctionRepository : IAuctionRepository
     {
         _dbContext.Auctions.Remove(auction);
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Dictionary<Guid, int>> CountOpenByContractorsAsync(
+        IReadOnlyCollection<Guid> contractorIds,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        if (contractorIds.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        // Same "open" definition as the carrier freight board: Open status and not expired.
+        return await (
+            from auction in _dbContext.Auctions.AsNoTracking()
+            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on auction.RouteId equals route.Id
+            where contractorIds.Contains(route.ContractorId)
+                && auction.Status == AuctionStatus.Open
+                && auction.ExpiresAt > now
+            group auction by route.ContractorId into g
+            select new { ContractorId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ContractorId, x => x.Count, cancellationToken);
     }
 }

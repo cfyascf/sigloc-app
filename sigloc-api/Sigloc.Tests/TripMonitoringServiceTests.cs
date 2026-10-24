@@ -5,6 +5,7 @@ using Sigloc.Application.Exceptions;
 using Sigloc.Application.Services;
 using Sigloc.Domain.Entities;
 using Sigloc.Domain.Enums;
+using Sigloc.Tests.Common;
 
 namespace Sigloc.Tests;
 
@@ -107,6 +108,14 @@ public class TripMonitoringServiceTests
         var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.Equal(risk, result.Risk);
         Assert.Equal(risk == "CRITIC" ? "ATRASADO" : "AGUARDANDO_COLETA", result.Status);
+        // Only the ETA newly exceeding the deadline warns the contractor.
+        if (risk == "CRITIC")
+        {
+            var notice = Assert.Single(h.Notifications.Sent);
+            Assert.Equal(h.CompanyId, notice.RecipientCompanyId);
+            Assert.Equal(NotificationCatalog.TripAtRiskType, notice.Type);
+        }
+        else Assert.Empty(h.Notifications.Sent);
     }
 
     [Theory]
@@ -139,7 +148,7 @@ public class TripMonitoringServiceTests
 
     [Theory]
     [InlineData("old")] [InlineData("future")] [InlineData("coordinate")] [InlineData("device")]
-    [InlineData("identity")] [InlineData("missing-device")]
+    [InlineData("identity")]
     public async Task Invalid_fixes_never_write_or_route(string failure)
     {
         var h = new Harness();
@@ -152,9 +161,19 @@ public class TripMonitoringServiceTests
             "identity" => h.Tracking.Fix with { ObservationId = "" },
             _ => h.Tracking.Fix
         };
-        if (failure == "missing-device") h.State.Vehicle.TraccarDeviceId = null;
         await Assert.ThrowsAsync<TrackingUnavailableException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true));
         Assert.Equal(0, h.Routing.Calls); Assert.Null(h.Store.State!.Snapshot);
+    }
+
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public async Task Missing_tracker_is_reported_as_such_even_with_a_cached_snapshot(bool cached)
+    {
+        var h = new Harness();
+        if (cached) h.Cached(16);
+        h.State.Vehicle.TraccarDeviceId = null;
+        await Assert.ThrowsAsync<VehicleWithoutTrackerException>(() => h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true));
+        Assert.Equal(0, h.Tracking.Calls); Assert.Equal(0, h.Routing.Calls);
     }
 
     [Fact]
@@ -235,6 +254,7 @@ public class TripMonitoringServiceTests
         public FakeRouting Routing { get; } = new();
         public FakeClock Clock { get; } = new();
         public TripMonitoringService Service { get; }
+        public RecordingNotificationPublisher Notifications { get; } = new();
         public Harness()
         {
             var route = new ConsolidatedRoute { Id = Guid.NewGuid(), ContractorId = CompanyId, TotalDistanceKm = 100, TotalVolumeM3 = 30 };
@@ -244,7 +264,7 @@ public class TripMonitoringServiceTests
             var trip = new Trip { Id = Guid.NewGuid(), RouteId = route.Id, VehicleId = vehicle.Id };
             trip.Stops = TripItineraryBuilder.Build(trip.Id, new[] { segment });
             Store = new FakeStore(new TripState(trip, route, vehicle, new Carrier { Cnpj = "123", CompanyName = "Carrier" }, new() { segment }, null, new()));
-            Service = new TripMonitoringService(Store, Tracking, Routing, Clock, new TripMonitoringOptions());
+            Service = new TripMonitoringService(Store, Tracking, Routing, Clock, new TripMonitoringOptions(), notifications: Notifications);
         }
         public void Cached(double minutes) => State.Snapshot = new TripMonitoring
         {

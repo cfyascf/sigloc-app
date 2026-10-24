@@ -51,6 +51,9 @@ namespace Sigloc.Application.DTOs
         string CurrentLocation,
         OperationalStatus Status,
         long? TraccarDeviceId = null,
-        string? DriverPhone = null
+        string? DriverPhone = null,
+        // True while the vehicle is committed to a trip awaiting pickup or in transit. Kept apart
+        // from Status, which is the carrier-managed value round-tripped by the edit form.
+        bool OnActiveTrip = false
     );
 }

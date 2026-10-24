@@ -45,13 +45,15 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
         var origin = await originGeocodeTask;
         var destination = await destinationGeocodeTask;
 
-        var matrix = await ComputeMatrixAsync(origin, destination, cancellationToken);
+        var matrix = await ComputeMatrixAsync(origin.Coordinate, destination.Coordinate, cancellationToken);
 
         return new RouteGeometry(
-            OriginCoordinate: FormatCoordinate(origin),
-            DestinationCoordinate: FormatCoordinate(destination),
+            OriginCoordinate: FormatCoordinate(origin.Coordinate),
+            DestinationCoordinate: FormatCoordinate(destination.Coordinate),
             DistanceKm: Math.Round(matrix.DistanceMeters / MetersPerKilometer, 2),
-            EstimatedTimeHours: Math.Round(matrix.DurationSeconds / SecondsPerHour, 2));
+            EstimatedTimeHours: Math.Round(matrix.DurationSeconds / SecondsPerHour, 2),
+            OriginPlace: origin.Place,
+            DestinationPlace: destination.Place);
     }
 
     public async Task<RouteLeg> ComputeLegAsync(
@@ -76,14 +78,14 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
             !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude) ||
             !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude))
         {
-            throw new GeocodingException($"The coordinate '{coordinate}' is not in the expected 'longitude,latitude' format.");
+            throw new GeocodingException($"A coordenada '{coordinate}' não está no formato 'longitude,latitude'.");
         }
 
         // OpenRouteService always works in [longitude, latitude] order.
         return new[] { longitude, latitude };
     }
 
-    private async Task<double[]> GeocodeAsync(string address, CancellationToken cancellationToken)
+    private async Task<(double[] Coordinate, string? Place)> GeocodeAsync(string address, CancellationToken cancellationToken)
     {
         var url = $"{GeocodePath}?text={Uri.EscapeDataString(address)}";
 
@@ -94,18 +96,34 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
         {
-            throw new GeocodingException($"Could not geocode the address '{address}'.", ex);
+            throw new GeocodingException($"Não foi possível localizar o endereço '{address}'.", ex);
         }
 
-        var coordinates = response?.Features?.FirstOrDefault()?.Geometry?.Coordinates;
+        var feature = response?.Features?.FirstOrDefault();
+        var coordinates = feature?.Geometry?.Coordinates;
         if (coordinates is not { Length: >= 2 })
         {
-            throw new GeocodingException($"No coordinates were found for the address '{address}'.");
+            throw new AddressNotFoundException(address);
         }
 
         // OpenRouteService always works in [longitude, latitude] order.
-        return new[] { coordinates[0], coordinates[1] };
+        return (new[] { coordinates[0], coordinates[1] }, FormatPlace(feature!.Properties));
     }
+
+    /// <summary>
+    /// "City, UF" from the Pelias result, so a street address still shows its city. Null when the
+    /// result has no city-level field (e.g. a whole state was matched).
+    /// </summary>
+    private static string? FormatPlace(GeocodeProperties? properties)
+    {
+        var city = FirstText(properties?.Locality, properties?.LocalAdmin, properties?.County);
+        if (city is null) return null;
+        var state = FirstText(properties?.RegionCode)?.ToUpperInvariant() ?? FirstText(properties?.Region);
+        return state is null ? city : $"{city}, {state}";
+    }
+
+    private static string? FirstText(params string?[] values) =>
+        values.Select(v => v?.Trim()).FirstOrDefault(v => !string.IsNullOrEmpty(v));
 
     private async Task<(double DistanceMeters, double DurationSeconds)> ComputeMatrixAsync(
         double[] origin,
@@ -127,7 +145,7 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
         {
-            throw new GeocodingException("Could not compute the route distance and duration.", ex);
+            throw new GeocodingException("Não foi possível calcular a distância e a duração da rota.", ex);
         }
 
         // The outbound leg (origin → destination) is at [0][1] of each matrix.
@@ -141,7 +159,7 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
     {
         if (matrix is not { Length: >= 1 } || matrix[0] is not { Length: >= 2 })
         {
-            throw new GeocodingException($"The routing provider returned an invalid {metric} matrix.");
+            throw new GeocodingException($"O serviço de rotas retornou uma matriz de {metric} inválida.");
         }
 
         return matrix[0][1];
@@ -162,6 +180,28 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
     {
         [JsonPropertyName("geometry")]
         public GeocodeGeometry? Geometry { get; init; }
+
+        [JsonPropertyName("properties")]
+        public GeocodeProperties? Properties { get; init; }
+    }
+
+    private sealed class GeocodeProperties
+    {
+        [JsonPropertyName("locality")]
+        public string? Locality { get; init; }
+
+        [JsonPropertyName("localadmin")]
+        public string? LocalAdmin { get; init; }
+
+        [JsonPropertyName("county")]
+        public string? County { get; init; }
+
+        /// <summary>State abbreviation, e.g. "PR".</summary>
+        [JsonPropertyName("region_a")]
+        public string? RegionCode { get; init; }
+
+        [JsonPropertyName("region")]
+        public string? Region { get; init; }
     }
 
     private sealed class GeocodeGeometry

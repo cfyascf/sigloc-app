@@ -40,9 +40,9 @@ function logoLetterFrom(name) {
  * Normalizes a single carrier-network `CarrierNetworkPartnerDto` (the contractor
  * side, from the carrier's point of view) into a plain object for the UI.
  *
- * Metrics like open offers / active lanes are not modeled in the domain yet, so
- * they default to 0. The contractor CNPJ doubles as the connection code shown on
- * the card.
+ * `ofertasAbertas` counts the contractor's auctions open to bids now; `corredoresAtivos`
+ * counts the distinct lanes the carrier runs for them on active trips. The contractor CNPJ
+ * doubles as the connection code shown on the card.
  */
 function toContractorPartner(dto) {
   const contractor = dto?.contratante ?? {}
@@ -55,8 +55,8 @@ function toContractorPartner(dto) {
     status: partnershipStatusLabel(dto?.statusParceria),
     cnpj: contractor.cnpj ?? "",
     lastInteraction: dto?.ultimaInteracao ?? null,
-    openOffers: 0,
-    currentLanes: 0,
+    openOffers: dto?.ofertasAbertas ?? 0,
+    currentLanes: dto?.corredoresAtivos ?? 0,
     inviteCode: contractor.cnpj ?? "—",
   }
 }

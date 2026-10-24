@@ -41,7 +41,10 @@ public class PartnerConnectionRepository : IPartnerConnectionRepository
 
     public Task<PartnerConnection?> GetTrackedByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        // Both companies come along so the side that did not end the partnership can be told who did.
         return _dbContext.PartnerConnections
+            .Include(c => c.Contractor)
+            .Include(c => c.Carrier)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
 

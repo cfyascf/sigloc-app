@@ -7,8 +7,11 @@ namespace Sigloc.Application.Exceptions;
 /// </summary>
 public sealed class OfferNotFoundException : Exception
 {
+    public Guid OfferId { get; }
+
     public OfferNotFoundException(Guid id)
-        : base($"Offer {id} not found.")
+        : base("Oferta não encontrada ou não está mais disponível.")
     {
+        OfferId = id;
     }
 }

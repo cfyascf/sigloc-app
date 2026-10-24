@@ -12,6 +12,9 @@ public class ProductService : IProductService
     private const int DefaultPage = 1;
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
+    public const int MaxSkuLength = 50;
+    public const int MaxNameLength = 120;
+    public const int MaxHandlingRestrictionLength = 500;
 
     private readonly IProductRepository _repository;
 
@@ -22,7 +25,7 @@ public class ProductService : IProductService
 
     public async Task<ProductResponseDto> CreateAsync(Guid contractorId, ProductRequestDto dto, CancellationToken cancellationToken = default)
     {
-        var validated = Validate(dto);
+        var validated = Validate(dto, "Não foi possível cadastrar o produto.");
 
         if (await _repository.SkuExistsAsync(contractorId, validated.Sku, excludeId: null, cancellationToken))
         {
@@ -94,7 +97,7 @@ public class ProductService : IProductService
         var product = await _repository.GetByIdAsync(id, contractorId, cancellationToken)
             ?? throw new ProductNotFoundException(id);
 
-        var validated = Validate(dto);
+        var validated = Validate(dto, "Não foi possível atualizar o produto.");
 
         if (await _repository.SkuExistsAsync(contractorId, validated.Sku, excludeId: id, cancellationToken))
         {
@@ -134,7 +137,7 @@ public class ProductService : IProductService
         await _repository.DeleteAsync(product, cancellationToken);
     }
 
-    private static ValidatedProduct Validate(ProductRequestDto dto)
+    private static ValidatedProduct Validate(ProductRequestDto dto, string failureMessage)
     {
         var errors = new List<ValidationError>();
 
@@ -143,11 +146,24 @@ public class ProductService : IProductService
         {
             errors.Add(new ValidationError("sku", "Obrigatório."));
         }
+        else if (sku.Length > MaxSkuLength)
+        {
+            errors.Add(new ValidationError("sku", $"Use no máximo {MaxSkuLength} caracteres."));
+        }
 
         var name = dto.Name?.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
             errors.Add(new ValidationError("nome", "Obrigatório."));
+        }
+        else if (name.Length > MaxNameLength)
+        {
+            errors.Add(new ValidationError("nome", $"Use no máximo {MaxNameLength} caracteres."));
+        }
+
+        if (dto.HandlingRestriction?.Trim().Length > MaxHandlingRestrictionLength)
+        {
+            errors.Add(new ValidationError("restricaoManuseio", $"Use no máximo {MaxHandlingRestrictionLength} caracteres."));
         }
 
         var categoryParsed = ProductEnumMappings.TryParseCategory(dto.Category, out var category);
@@ -212,7 +228,7 @@ public class ProductService : IProductService
 
         if (errors.Count > 0)
         {
-            throw new ValidationException(errors);
+            throw new ValidationException(errors, failureMessage);
         }
 
         return new ValidatedProduct(

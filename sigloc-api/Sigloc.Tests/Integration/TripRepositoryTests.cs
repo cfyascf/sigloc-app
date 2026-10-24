@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Sigloc.Domain.Entities;
 using Sigloc.Domain.Enums;
 using Sigloc.Infrastructure.Contexts;
@@ -52,6 +53,56 @@ public class TripRepositoryTests : IDisposable
             AgreedValue = 1000m,
             Status = status,
         };
+    }
+
+    [Fact]
+    public async Task CountActiveByCarrierForContractorAsync_counts_only_active_trips_of_that_contractor()
+    {
+        var ctx = _db.CreateContext();
+        var active = await SeedTripAsync(ctx, TripStatus.InTransit);
+        var delivered = await SeedTripAsync(ctx, TripStatus.Delivered);
+        var otherContractors = await SeedTripAsync(ctx, TripStatus.AwaitingPickup);
+        ctx.Trips.AddRange(active, delivered, otherContractors);
+        await ctx.SaveChangesAsync();
+
+        // Each seeded trip has its own route; put the first two under the same contractor.
+        var contractorId = Guid.NewGuid();
+        await _db.CreateContext().ConsolidatedRoutes
+            .Where(r => r.Id == active.RouteId || r.Id == delivered.RouteId)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.ContractorId, contractorId));
+
+        var counts = await new TripRepository(_db.CreateContext()).CountActiveByCarrierForContractorAsync(
+            contractorId, new[] { active.CarrierId, delivered.CarrierId, otherContractors.CarrierId });
+
+        counts.Should().BeEquivalentTo(new Dictionary<Guid, int> { [active.CarrierId] = 1 });
+    }
+
+    [Fact]
+    public async Task CountActiveLanesByContractorForCarrierAsync_counts_distinct_lanes_of_active_trips()
+    {
+        var ctx = _db.CreateContext();
+        var trip = await SeedTripAsync(ctx, TripStatus.InTransit);
+        ctx.Trips.Add(trip);
+        var contractorId = (await ctx.ConsolidatedRoutes.FindAsync(trip.RouteId))!.ContractorId;
+        RouteSegment Leg(string origin, string destination) => new()
+        {
+            Id = Guid.NewGuid(), ContractorId = contractorId, RouteId = trip.RouteId,
+            OriginAddress = origin, DestinationAddress = destination,
+            OriginCoordinate = "-49.27,-25.42", DestinationCoordinate = "-46.63,-23.55",
+            PickupDeadline = DateTimeOffset.UtcNow.AddDays(1), DeliveryDeadline = DateTimeOffset.UtcNow.AddDays(2),
+            Status = SegmentStatus.InTransit,
+        };
+        // Same lane twice (different case) plus a second lane.
+        ctx.RouteSegments.AddRange(
+            Leg("Curitiba, PR", "São Paulo, SP"),
+            Leg("curitiba, pr", "são paulo, sp"),
+            Leg("São Paulo, SP", "Campinas, SP"));
+        await ctx.SaveChangesAsync();
+
+        var lanes = await new TripRepository(_db.CreateContext())
+            .CountActiveLanesByContractorForCarrierAsync(trip.CarrierId, new[] { contractorId });
+
+        lanes.Should().BeEquivalentTo(new Dictionary<Guid, int> { [contractorId] = 2 });
     }
 
     [Fact]

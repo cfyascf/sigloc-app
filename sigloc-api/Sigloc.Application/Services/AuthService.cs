@@ -24,6 +24,7 @@ public partial class AuthService : IAuthService
     private readonly IPasswordResetTokenRepository _passwordResetTokens;
     private readonly IPasswordResetLinkBuilder _passwordResetLinkBuilder;
     private readonly IEmailSender _emailSender;
+    private readonly INotificationPublisher _notifications;
 
     public AuthService(
         IUserRepository users,
@@ -38,7 +39,8 @@ public partial class AuthService : IAuthService
         IInviteLinkBuilder inviteLinkBuilder,
         IPasswordResetTokenRepository passwordResetTokens,
         IPasswordResetLinkBuilder passwordResetLinkBuilder,
-        IEmailSender emailSender)
+        IEmailSender emailSender,
+        INotificationPublisher? notifications = null)
     {
         _users = users;
         _contractors = contractors;
@@ -53,6 +55,7 @@ public partial class AuthService : IAuthService
         _passwordResetTokens = passwordResetTokens;
         _passwordResetLinkBuilder = passwordResetLinkBuilder;
         _emailSender = emailSender;
+        _notifications = notifications ?? NullNotificationPublisher.Instance;
     }
 
     public async Task<AuthResultDto> RegisterContractorAsync(RegisterContractorDto dto, CancellationToken cancellationToken = default)
@@ -237,6 +240,7 @@ public partial class AuthService : IAuthService
         await _connections.AddAsync(connection, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        await NotifyPartnerJoinedAsync(contractor.Id, carrier);
         return BuildAuthResult(user);
     }
 
@@ -270,9 +274,15 @@ public partial class AuthService : IAuthService
         await _connections.AddAsync(connection, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        var carrier = await _carriers.GetByIdAsync(carrierId, cancellationToken);
+        if (carrier is not null) await NotifyPartnerJoinedAsync(contractor.Id, carrier);
+
         var contractorName = contractor.TradeName ?? contractor.CompanyName;
         return new PartnerConnectionCreatedDto(connection.Id, contractorName, "ATIVA");
     }
+
+    private Task NotifyPartnerJoinedAsync(Guid contractorId, Carrier carrier) =>
+        _notifications.PublishAsync([NotificationCatalog.PartnerJoined(contractorId, NotificationCatalog.CompanyName(carrier.CompanyName, carrier.TradeName))]);
 
     public async Task<AuthResultDto> LoginAsync(LoginDto dto, CancellationToken cancellationToken = default)
     {
@@ -298,9 +308,17 @@ public partial class AuthService : IAuthService
     public async Task RequestPasswordResetAsync(PasswordResetRequestDto dto, CancellationToken cancellationToken = default)
     {
         var email = NormalizeEmail(dto.Email);
-        var user = string.IsNullOrWhiteSpace(email)
-            ? null
-            : await _users.GetByEmailAsync(email, cancellationToken);
+
+        // Rejecting a malformed address reveals nothing about which accounts exist; well-formed
+        // addresses keep the uniform "if an account exists" outcome.
+        if (string.IsNullOrWhiteSpace(email) || !EmailRegex().IsMatch(email))
+        {
+            throw new ValidationException(
+                new[] { new ValidationError("email", "Informe um e-mail válido.") },
+                "Não foi possível solicitar a redefinição de senha.");
+        }
+
+        var user = await _users.GetByEmailAsync(email, cancellationToken);
 
         if (user is null || user.AuthProvider != AuthProvider.Local || string.IsNullOrWhiteSpace(user.PasswordHash))
         {
@@ -472,6 +490,7 @@ public partial class AuthService : IAuthService
         await _connections.AddAsync(connection, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        await NotifyPartnerJoinedAsync(contractor.Id, carrier);
         return BuildAuthResult(user);
     }
 
@@ -527,9 +546,9 @@ public partial class AuthService : IAuthService
     {
         var errors = new List<ValidationError>();
 
-        if (cnpj.Length != 14)
+        if (!CnpjValidator.IsValid(cnpj))
         {
-            errors.Add(new ValidationError("cnpj", "CNPJ inválido. Informe os 14 dígitos."));
+            errors.Add(new ValidationError("cnpj", "CNPJ inválido. Confira os 14 dígitos informados."));
         }
 
         if (string.IsNullOrWhiteSpace(companyName))
@@ -575,9 +594,9 @@ public partial class AuthService : IAuthService
     {
         var errors = new List<ValidationError>();
 
-        if (cnpj.Length != 14)
+        if (!CnpjValidator.IsValid(cnpj))
         {
-            errors.Add(new ValidationError("cnpj", "CNPJ inválido. Informe os 14 dígitos."));
+            errors.Add(new ValidationError("cnpj", "CNPJ inválido. Confira os 14 dígitos informados."));
         }
 
         if (string.IsNullOrWhiteSpace(companyName))

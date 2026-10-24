@@ -64,7 +64,9 @@ public record RouteSegmentResponseDto(
     IReadOnlyList<RouteSegmentItemDto> Items,
     CalculatedTotalsDto CalculatedTotals,
     ConsolidatedVehicleRequirementDto ConsolidatedVehicleRequirement,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? OriginCity = null,
+    string? DestinationCity = null);
 
 /// <summary>Paged list response.</summary>
 public record PagedRouteSegmentsDto(

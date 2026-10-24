@@ -97,7 +97,7 @@ public static class DependencyInjection
         }
         services.AddScoped<IBlockedBidAttemptRepository, BlockedBidAttemptRepository>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
-        services.AddScoped<IAuctionNotifier, LoggingAuctionNotifier>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddScoped<IContractorRepository, ContractorRepository>();

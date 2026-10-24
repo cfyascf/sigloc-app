@@ -11,11 +11,22 @@ public class PartnerNetworkService : IPartnerNetworkService
 {
     private readonly IPartnerConnectionRepository _connections;
     private readonly IVehicleRepository _vehicles;
+    private readonly ITripRepository _trips;
+    private readonly IAuctionRepository _auctions;
+    private readonly INotificationPublisher _notifications;
 
-    public PartnerNetworkService(IPartnerConnectionRepository connections, IVehicleRepository vehicles)
+    public PartnerNetworkService(
+        IPartnerConnectionRepository connections,
+        IVehicleRepository vehicles,
+        ITripRepository trips,
+        IAuctionRepository auctions,
+        INotificationPublisher? notifications = null)
     {
         _connections = connections;
         _vehicles = vehicles;
+        _trips = trips;
+        _auctions = auctions;
+        _notifications = notifications ?? NullNotificationPublisher.Instance;
     }
 
     public async Task<PartnerNetworkDto> GetNetworkAsync(Guid contractorId, CancellationToken cancellationToken = default)
@@ -27,9 +38,10 @@ public class PartnerNetworkService : IPartnerNetworkService
 
         var carrierIds = connections.Select(c => c.CarrierId).Distinct().ToList();
         var freeVehicleCounts = await _vehicles.CountFreeByCarrierIdsAsync(carrierIds, cancellationToken);
+        var activeTripCounts = await _trips.CountActiveByCarrierForContractorAsync(contractorId, carrierIds, cancellationToken);
 
         var partners = connections
-            .Select(connection => MontarDto(connection, freeVehicleCounts))
+            .Select(connection => MontarDto(connection, freeVehicleCounts, activeTripCounts))
             .ToList();
 
         return new PartnerNetworkDto(totalActive, totalPending, partners);
@@ -42,8 +54,12 @@ public class PartnerNetworkService : IPartnerNetworkService
         var totalActive = connections.Count(c => c.Status == PartnershipStatus.Active);
         var totalPending = connections.Count(c => c.Status == PartnershipStatus.Pending);
 
+        var contractorIds = connections.Select(c => c.ContractorId).Distinct().ToList();
+        var openOffers = await _auctions.CountOpenByContractorsAsync(contractorIds, DateTimeOffset.UtcNow, cancellationToken);
+        var activeLanes = await _trips.CountActiveLanesByContractorForCarrierAsync(carrierId, contractorIds, cancellationToken);
+
         var partners = connections
-            .Select(MontarContratanteDto)
+            .Select(connection => MontarContratanteDto(connection, openOffers, activeLanes))
             .ToList();
 
         return new CarrierNetworkDto(totalActive, totalPending, partners);
@@ -69,9 +85,20 @@ public class PartnerNetworkService : IPartnerNetworkService
         // Soft end: keep the record so it stays visible as an inactive partnership.
         connection.Status = PartnershipStatus.Rejected;
         await _connections.UpdateAsync(connection, cancellationToken);
+
+        // The other side learns who ended it.
+        var endedByContractor = connection.ContractorId == companyId;
+        var endedBy = endedByContractor
+            ? connection.Contractor is { } contractor ? NotificationCatalog.CompanyName(contractor.CompanyName, contractor.TradeName) : "O embarcador"
+            : connection.Carrier is { } carrier ? NotificationCatalog.CompanyName(carrier.CompanyName, carrier.TradeName) : "A transportadora";
+        await _notifications.PublishAsync([NotificationCatalog.PartnershipEnded(
+            endedByContractor ? connection.CarrierId : connection.ContractorId, endedBy)]);
     }
 
-    private static CarrierNetworkPartnerDto MontarContratanteDto(PartnerConnection connection)
+    private static CarrierNetworkPartnerDto MontarContratanteDto(
+        PartnerConnection connection,
+        Dictionary<Guid, int> openOffers,
+        Dictionary<Guid, int> activeLanes)
     {
         var contractor = connection.Contractor;
 
@@ -84,10 +111,16 @@ public class PartnerNetworkService : IPartnerNetworkService
             connection.Id,
             MapStatus(connection.Status),
             contractorDto,
-            connection.UpdatedAt);
+            connection.UpdatedAt,
+            // An ended or pending partnership cannot see the contractor's offers.
+            OpenOffers: connection.Status == PartnershipStatus.Active ? openOffers.GetValueOrDefault(connection.ContractorId, 0) : 0,
+            ActiveLanes: activeLanes.GetValueOrDefault(connection.ContractorId, 0));
     }
 
-    private static PartnerDto MontarDto(PartnerConnection connection, Dictionary<Guid, int> freeVehicleCounts)
+    private static PartnerDto MontarDto(
+        PartnerConnection connection,
+        Dictionary<Guid, int> freeVehicleCounts,
+        Dictionary<Guid, int> activeTripCounts)
     {
         var carrier = connection.Carrier;
 
@@ -100,9 +133,9 @@ public class PartnerNetworkService : IPartnerNetworkService
 
         var freeVehicles = freeVehicleCounts.GetValueOrDefault(connection.CarrierId, 0);
 
-        // TODO: viagensAtivasConosco depende da entidade Viagem/Trip, que ainda não existe
-        // no domínio. Fixo em 0 até essa entidade existir.
-        var metrics = new OperationalMetricsDto(freeVehicles, 0, connection.UpdatedAt);
+        var activeTrips = activeTripCounts.GetValueOrDefault(connection.CarrierId, 0);
+
+        var metrics = new OperationalMetricsDto(freeVehicles, activeTrips, connection.UpdatedAt);
 
         return new PartnerDto(
             connection.Id,

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FormField } from "@/components/auth/FormField"
 import { FormAlert } from "@/components/auth/FormAlert"
 import { useAsyncAction } from "@/hooks/use-async-action"
+import { formatCnpj } from "@/lib/formatters"
 import { profileService } from "@/services/profile-service"
 import { ROLES } from "@/constants/roles"
 
@@ -168,7 +169,7 @@ export default function Profile() {
                     id="cnpj"
                     label="CNPJ"
                     type="text"
-                    value={profile.cnpj}
+                    value={formatCnpj(profile.cnpj)}
                     disabled
                     readOnly
                   />

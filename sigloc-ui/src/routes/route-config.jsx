@@ -83,7 +83,6 @@ export const ROUTES = [
   // Authenticated only (all roles)
   { path: "/control-tower", element: <ControlTower />, access: AuthAccess.AUTHENTICATED, nav: false },
   { path: "/profile", element: <Profile />, access: AuthAccess.AUTHENTICATED, nav: false },
-  { path: "/register-vehicle",       element: <RegisterVehicle />,       access: AuthAccess.AUTHENTICATED, nav: false },
   {
     path: "/partner-network",
     element: <PartnerNetwork />,
@@ -145,6 +144,7 @@ export const ROUTES = [
     nav: true,
   },
   { path: "/bid-analysis/:auctionId", element: <BidAnalysis />, access: [ROLES.CARRIER], nav: false },
+  { path: "/register-vehicle", element: <RegisterVehicle />, access: [ROLES.CARRIER], nav: false },
   {
     path: "/carrier-route-tracking",
     element: <CarrierActiveRoutes />,

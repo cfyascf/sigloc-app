@@ -20,9 +20,13 @@ export function RequireAuth() {
 
 export function PublicOnly() {
   const { isAuthenticated, user } = useAuth()
+  const location = useLocation()
 
   if (isAuthenticated) {
-    return <Navigate to={getDefaultRouteForRole(user?.role)} replace />
+    // This guard re-renders as soon as login succeeds, before the form's own redirect runs, so
+    // it must also honour the page RequireAuth saved; otherwise deep links land on the dashboard.
+    const target = location.state?.from?.pathname || getDefaultRouteForRole(user?.role)
+    return <Navigate to={target} replace />
   }
 
   // Outlet renders the matched child route

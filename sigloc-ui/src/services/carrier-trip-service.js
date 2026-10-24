@@ -1,6 +1,6 @@
 import { apiClient, ApiError } from "@/lib/api-client"
 import { TRIP_OCCURRENCE_TYPES } from "@/constants/trip-occurrences"
-import { listTripsAt, toStopTimeline, toTripDetails } from "@/services/trip-service"
+import { listTripsAt, toProof, toStopTimeline, toTripDetails } from "@/services/trip-service"
 
 const BASE = "/api/transportador/viagens"
 const tripPath = (tripId) => `${BASE}/${encodeURIComponent(tripId)}`
@@ -60,17 +60,6 @@ export function toOccurrence(dto) {
     stopId: dto.paradaId ?? null,
     resolvedAt: dto.encerradaEm ?? null,
     open: dto.aberta ?? !dto.encerradaEm,
-  }
-}
-
-export function toProof(dto) {
-  return {
-    id: dto.id,
-    stopId: dto.paradaId,
-    fileName: dto.nomeArquivo ?? "comprovante",
-    contentType: dto.tipoConteudo,
-    sizeBytes: numberOrNull(dto.tamanhoBytes),
-    uploadedAt: dto.enviadoEm,
   }
 }
 

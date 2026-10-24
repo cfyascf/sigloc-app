@@ -301,6 +301,53 @@ namespace Sigloc.Infrastructure.Migrations
                     b.ToTable("Contractor");
                 });
 
+            modelBuilder.Entity("Sigloc.Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Link")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RecipientCompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientCompanyId", "CreatedAt");
+
+                    b.ToTable("Notification");
+                });
+
             modelBuilder.Entity("Sigloc.Domain.Entities.PartnerConnection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -535,6 +582,10 @@ namespace Sigloc.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("DestinationCity")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
                     b.Property<string>("DestinationCoordinate")
                         .IsRequired()
                         .HasColumnType("text");
@@ -551,6 +602,10 @@ namespace Sigloc.Infrastructure.Migrations
                     b.Property<string>("OriginAddress")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("OriginCity")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
 
                     b.Property<string>("OriginCoordinate")
                         .IsRequired()

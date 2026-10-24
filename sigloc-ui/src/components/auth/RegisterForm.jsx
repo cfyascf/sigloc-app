@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Building2, KeyRound, LoaderCircle } from "lucide-react"
 
+import { mapAuthFieldErrors } from "@/constants/auth"
 import { useAuth } from "@/contexts/AuthContext"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { usePostAuthRedirect } from "@/hooks/use-post-auth-redirect"
@@ -24,7 +25,7 @@ export function RegisterForm() {
   const credentialAction = useAsyncAction(registerContractor)
   const googleAction = useAsyncAction(registerContractorWithGoogle)
   const pending = credentialAction.pending || googleAction.pending
-  const fieldErrors = { ...credentialAction.fieldErrors, ...googleAction.fieldErrors }
+  const fieldErrors = mapAuthFieldErrors({ ...credentialAction.fieldErrors, ...googleAction.fieldErrors })
   const errorMessage = credentialAction.error?.message || googleAction.error?.message || googleError
 
   const handleCompanyChange = (event) => {

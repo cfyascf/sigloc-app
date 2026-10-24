@@ -1,16 +1,19 @@
 import { useCallback, useRef } from "react"
-import { ArrowLeft, RefreshCw, Truck, Clock, Phone, User, Scale, ArrowRightLeft, Target, Loader2 } from "lucide-react"
+import { ArrowLeft, RefreshCw, Truck, Clock, Phone, User, Scale, ArrowRightLeft, Target, Loader2, FileText } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/toast"
 import { TripCard } from "@/components/trips/trip-card"
 import { TripEventLog } from "@/components/trips/trip-event-log"
 import { TripKpiCard } from "@/components/trips/trip-kpi-card"
 import { TripLocationCard } from "@/components/trips/trip-location-card"
 import { TripStopTimeline } from "@/components/trips/trip-stop-timeline"
+import { useAsyncAction } from "@/hooks/use-async-action"
 import { useTripRequest } from "@/hooks/use-trip-request"
-import { getTripDetails } from "@/services/trip-service"
-import { formatTripDate, formatTripNumber, slaAlert, tripStatusLabel } from "@/lib/trip-formatters"
+import { saveBlob } from "@/lib/save-blob"
+import { downloadTripProof, getTripDetails } from "@/services/trip-service"
+import { formatFileSize, formatRouteProgress, formatTripDate, formatTripNumber, slaAlert, tripStatusLabel } from "@/lib/trip-formatters"
 
 export default function ActiveRouteTracking() {
   const { tripId } = useParams()
@@ -27,6 +30,13 @@ export default function ActiveRouteTracking() {
     refreshNext.current = true
     reload()
   }, [reload])
+  const toast = useToast()
+  const downloadAction = useAsyncAction((id, proofId) => downloadTripProof(id, proofId))
+  const handleDownload = async (proof) => {
+    const result = await downloadAction.run(tripId, proof.id)
+    if (result.ok) saveBlob(result.data, proof.fileName)
+    else toast.error("Não foi possível baixar o comprovante", result.error?.message || "Tente novamente.")
+  }
 
   return (
     <AppShell title={`Monitoramento: ${trip?.reference || tripId || "Viagem"}`}>
@@ -50,7 +60,7 @@ export default function ActiveRouteTracking() {
             {trip?.stale && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{trip.warning || "Dados de monitoramento desatualizados."}</p>}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-              <TripKpiCard icon={ArrowRightLeft} label="Progresso da Rota" value={`${formatTripNumber(trip?.traveled, " km")} / ${formatTripNumber(trip?.totalDistance, " km")}`} />
+              <TripKpiCard icon={ArrowRightLeft} label="Progresso da Rota" value={formatRouteProgress(trip)} />
               <TripKpiCard icon={Target} tone="indigo" alert={slaAlert(trip?.sla)} label="Conf. SLA" value={tripStatusLabel(trip?.sla)} />
               <TripKpiCard icon={Scale} tone="purple" label="Utilização Carga" value={formatTripNumber(trip?.utilization, "%")} />
               <TripKpiCard icon={Clock} tone="emerald" label="ETA Previsto" value={formatTripDate(trip?.eta)} />
@@ -75,6 +85,19 @@ export default function ActiveRouteTracking() {
                     <div className="flex items-center gap-2 text-xs text-slate-600"><Phone size={14} className="text-slate-400" /> {trip?.driver?.phone || "Não informado"}</div>
                   </div>
                 </TripCard>
+
+                {trip && (
+                  <TripCard icon={FileText} title="Comprovantes de Entrega" bodyClassName="space-y-2 p-4">
+                    {trip.proofs.length === 0 && <p className="text-xs text-slate-500">Nenhum comprovante enviado pela transportadora ainda.</p>}
+                    {trip.proofs.map((proof) => (
+                      <button key={proof.id} type="button" onClick={() => handleDownload(proof)} disabled={downloadAction.pending} className="flex w-full items-center gap-2 text-left text-xs font-medium text-blue-600 hover:underline disabled:opacity-50">
+                        <FileText size={14} className="shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">{proof.fileName}</span>
+                        <span className="shrink-0 font-mono text-[10px] text-slate-400">{formatFileSize(proof.sizeBytes)} · {formatTripDate(proof.uploadedAt)}</span>
+                      </button>
+                    ))}
+                  </TripCard>
+                )}
               </div>
             </div>
           </div>

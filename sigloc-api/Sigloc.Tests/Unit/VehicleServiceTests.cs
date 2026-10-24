@@ -49,13 +49,13 @@ public class VehicleServiceTests
     }
 
     [Fact]
-    public async Task CreateAsync_duplicate_plate_throws_InvalidOperation()
+    public async Task CreateAsync_duplicate_plate_throws_DuplicatePlate()
     {
         _repository.ExistsByPlateAsync("ABC1D23", Arg.Any<CancellationToken>()).Returns(true);
 
         var act = () => _service.CreateAsync(_carrierId, NewVehicleDto());
 
-        await act.Should().ThrowAsync<InvalidOperationException>();
+        (await act.Should().ThrowAsync<DuplicatePlateException>()).Which.Plate.Should().Be("ABC1D23");
         await _repository.DidNotReceive().AddAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
     }
 
@@ -141,6 +141,22 @@ public class VehicleServiceTests
     }
 
     [Fact]
+    public async Task GetAllAsync_flags_vehicles_on_active_trips_without_changing_status()
+    {
+        var busy = TestData.Vehicle(_carrierId, "AAA1A11"); busy.Id = Guid.NewGuid();
+        var idle = TestData.Vehicle(_carrierId, "BBB2B22"); idle.Id = Guid.NewGuid();
+        _repository.GetAllAsync(_carrierId, Arg.Any<CancellationToken>()).Returns(new[] { busy, idle });
+        _repository.GetIdsOnActiveTripsAsync(_carrierId, Arg.Any<CancellationToken>())
+            .Returns(new HashSet<Guid> { busy.Id });
+
+        var result = (await _service.GetAllAsync(_carrierId)).ToList();
+
+        result.Single(v => v.Id == busy.Id).OnActiveTrip.Should().BeTrue();
+        result.Single(v => v.Id == busy.Id).Status.Should().Be(OperationalStatus.LIVRE);
+        result.Single(v => v.Id == idle.Id).OnActiveTrip.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task UpdateAsync_not_found_throws_KeyNotFound()
     {
         _repository.GetByIdAsync(Arg.Any<Guid>(), _carrierId, Arg.Any<CancellationToken>())
@@ -170,6 +186,27 @@ public class VehicleServiceTests
         vehicle.Model.Should().Be(originalModel);
         vehicle.Status.Should().Be(OperationalStatus.EM_TRANSITO);
         await _repository.Received(1).UpdateAsync(vehicle, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(0, null, null, "axleCount")]
+    [InlineData(null, -500, null, "capacityWeight")]
+    [InlineData(null, null, 0, "capacityVolume")]
+    public async Task UpdateAsync_non_positive_capacity_throws_ValidationException_and_does_not_save(
+        int? axles, int? weight, int? volume, string field)
+    {
+        var vehicle = TestData.Vehicle(_carrierId);
+        _repository.GetByIdAsync(vehicle.Id, _carrierId, Arg.Any<CancellationToken>()).Returns(vehicle);
+
+        var dto = new UpdateVehicleDto(
+            Model: null, AxleCount: axles, CapacityWeight: weight, CapacityVolume: volume,
+            BodyType: null, RefrigerationLevel: null, HasMopp: null, HasCargoSecuring: null,
+            Driver: null, CurrentLocation: null, Status: null);
+        var act = () => _service.UpdateAsync(_carrierId, vehicle.Id, dto);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(e => e.Field == field);
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

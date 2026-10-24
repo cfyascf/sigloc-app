@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
 using Sigloc.Application.Exceptions;
@@ -12,6 +13,8 @@ public class AuctionService : IAuctionService
     private const int DefaultPage = 1;
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
+
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
 
     private readonly IRouteSegmentRepository _segmentRepository;
     private readonly IConsolidatedRouteRepository _routeRepository;
@@ -51,7 +54,7 @@ public class AuctionService : IAuctionService
     public async Task<CreateAuctionResponseDto> CreateAsync(Guid contractorId, CreateAuctionRequestDto dto, CancellationToken cancellationToken = default)
     {
         var segmentIds = RoutePreviewService.ValidateSegmentIds(dto.SegmentIds);
-        var expiresAt = ValidateExpiry(dto.ExpiresAt);
+        var expiresAt = ValidateExpiry(dto.ExpiresAt, StartAuctionFailed);
 
         // Load tracked segments so they can be updated inside the transaction.
         var segments = await _segmentRepository.GetByIdsAsync(contractorId, segmentIds, tracked: true, cancellationToken);
@@ -76,6 +79,7 @@ public class AuctionService : IAuctionService
         var aggregate = await RouteAggregator.AggregateAsync(segmentIds, segments, _geocodingService, cancellationToken);
 
         ValidateDeadlineWindow(segments, aggregate.EstimatedTimeHours);
+        ValidateExpiryBeforeFirstPickup(expiresAt, segments, StartAuctionFailed);
 
         var openedAt = DateTimeOffset.UtcNow;
 
@@ -121,7 +125,7 @@ public class AuctionService : IAuctionService
             return (route, auction);
         }, cancellationToken);
 
-        await _notifier.AuctionOpenedAsync(result.auction.Id, result.route.Id, contractorId, cancellationToken);
+        await _notifier.AuctionOpenedAsync(result.auction.Id, contractorId, NotificationCatalog.RouteLabel(segments), cancellationToken);
 
         return MapToResponse(result.auction, result.route, segmentIds.Count);
     }
@@ -209,8 +213,8 @@ public class AuctionService : IAuctionService
         var segments = detail.Segments.Select(s => new AuctionSegmentDto(
             Id: s.Id,
             MainProduct: ResolveMainProduct(s),
-            Origin: CityName(s.OriginAddress),
-            Destination: CityName(s.DestinationAddress),
+            Origin: CityName(s.OriginPlace),
+            Destination: CityName(s.DestinationPlace),
             FinancialCeiling: s.BudgetCeiling)).ToList();
 
         var route = detail.Route;
@@ -244,7 +248,12 @@ public class AuctionService : IAuctionService
 
         if (dto.ExpiresAt is not null)
         {
-            auction.ExpiresAt = ValidateExpiry(dto.ExpiresAt);
+            var expiresAt = ValidateExpiry(dto.ExpiresAt, UpdateAuctionFailed);
+
+            var detail = await _auctionRepository.GetDetailAsync(id, contractorId, cancellationToken);
+            ValidateExpiryBeforeFirstPickup(expiresAt, detail?.Segments ?? Array.Empty<RouteSegment>(), UpdateAuctionFailed);
+
+            auction.ExpiresAt = expiresAt;
         }
 
         await _auctionRepository.UpdateAsync(auction, cancellationToken);
@@ -266,6 +275,13 @@ public class AuctionService : IAuctionService
 
         var route = await _routeRepository.GetTrackedByIdAsync(auction.RouteId, cancellationToken);
         var segments = await _segmentRepository.GetTrackedByRouteAsync(auction.RouteId, cancellationToken);
+        // Captured before the segments are released from the route below.
+        var routeLabel = NotificationCatalog.RouteLabel(segments);
+        var bidders = (await _bidRepository.GetTrackedByAuctionAsync(id, cancellationToken) ?? [])
+            .Where(b => b.Status != BidStatus.Withdrawn)
+            .Select(b => b.CarrierId)
+            .Distinct()
+            .ToList();
 
         await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -288,6 +304,8 @@ public class AuctionService : IAuctionService
             await _unitOfWork.SaveChangesAsync(ct);
             return true;
         }, cancellationToken);
+
+        await _notifier.AuctionCancelledAsync(bidders, routeLabel, cancellationToken);
     }
 
     public async Task<BidRankingDto> GetBidRankingAsync(Guid contractorId, Guid auctionId, CancellationToken cancellationToken = default)
@@ -379,8 +397,33 @@ public class AuctionService : IAuctionService
         var route = await _routeRepository.GetTrackedByIdAsync(auction.RouteId, cancellationToken)
             ?? throw new AuctionNotFoundException(auctionId);
 
+        // A winner or a route already past the auction stage means this auction was awarded
+        // before (even if its status says Open), so awarding again would create a second trip.
+        if (bids.Any(b => b.Status == BidStatus.Winner)
+            || route.Status is RouteStatus.AwaitingPickup or RouteStatus.InTransit or RouteStatus.Completed)
+        {
+            throw new AuctionNotOpenException(auctionId);
+        }
+
+        var routeLabel = string.Empty;
         var trip = await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
+            // 0. Anti-overbooking: the bid-time check only saw trips that existed when the bid was
+            // placed. Re-check the winning vehicle now, holding a lock on it so two concurrent
+            // awards for the same vehicle cannot both pass.
+            await _vehicleRepository.LockForScheduleAsync(winner.VehicleId, ct);
+
+            var detail = await _auctionRepository.GetDetailAsync(auction.Id, contractorId, ct)
+                ?? throw new AuctionNotFoundException(auction.Id);
+            routeLabel = NotificationCatalog.RouteLabel(detail.Segments);
+
+            if (await OverlapsActiveTripAsync(winner.VehicleId, detail.Segments, ct))
+            {
+                throw new BidRejectedException(
+                    BidRejectionCode.Overbooked,
+                    "Overbooking: o veículo do lance vencedor já possui uma viagem ativa que se sobrepõe à janela desta rota. Escolha outro lance.");
+            }
+
             // 1 & 2. Elect the winner and mark every other bid as a loser.
             foreach (var bid in bids)
             {
@@ -406,8 +449,6 @@ public class AuctionService : IAuctionService
                 Status = TripStatus.AwaitingPickup
             };
 
-            var detail = await _auctionRepository.GetDetailAsync(auction.Id, contractorId, ct)
-                ?? throw new AuctionNotFoundException(auction.Id);
             newTrip.Stops = TripItineraryBuilder.Build(newTrip.Id, detail.Segments);
             await _tripRepository.AddAsync(newTrip, ct);
 
@@ -415,6 +456,13 @@ public class AuctionService : IAuctionService
 
             return newTrip;
         }, cancellationToken);
+
+        var otherBidders = bids
+            .Where(b => b.CarrierId != winner.CarrierId && b.Status != BidStatus.Withdrawn)
+            .Select(b => b.CarrierId)
+            .Distinct()
+            .ToList();
+        await _notifier.AuctionAwardedAsync(trip.Id, winner.CarrierId, otherBidders, routeLabel, cancellationToken);
 
         return new AwardAuctionResponseDto(
             TripId: trip.Id,
@@ -489,7 +537,8 @@ public class AuctionService : IAuctionService
             Competition: new CarrierAnalysisCompetitionDto(
                 ActiveBids: totalBids,
                 BestLeaderOffer: bestBid?.TotalValue,
-                AuctionCeiling: detail.Route.ConsolidatedCeiling),
+                AuctionCeiling: detail.Route.ConsolidatedCeiling,
+                EstimatedToll: detail.Segments.Sum(s => s.EstimatedTollCost)),
             PhysicalRequirements: physical,
             CarrierAvailableFleet: fleet
                 .Select(v => new CarrierAnalysisVehicleDto(
@@ -527,11 +576,17 @@ public class AuctionService : IAuctionService
                 "O valor oferecido deve ser maior que zero.");
         }
 
-        if (dto.ValorOferecido > route.ConsolidatedCeiling)
+        // The ceiling caps what the contractor pays, so it applies to the total (freight + toll),
+        // which is also what the contractor's ranking compares against the ceiling.
+        var tollValue = detail.Segments.Sum(s => s.EstimatedTollCost);
+        var totalValue = dto.ValorOferecido + tollValue;
+
+        if (totalValue > route.ConsolidatedCeiling)
         {
             throw new BidRejectedException(
                 BidRejectionCode.AboveCeiling,
-                $"Valor acima do teto do leilão ({route.ConsolidatedCeiling:C}).");
+                $"Valor acima do teto do leilão: frete {FormatBrl(dto.ValorOferecido)} + pedágio {FormatBrl(tollValue)} = "
+                + $"{FormatBrl(totalValue)}, acima do teto de {FormatBrl(route.ConsolidatedCeiling)}.");
         }
 
         // The vehicle must belong to the carrier placing the bid.
@@ -574,30 +629,23 @@ public class AuctionService : IAuctionService
         }
 
         // --- 5. Temporal trava: anti-overbooking --------------------------------
-        var newWindowStart = detail.Segments.Count > 0 ? detail.Segments.Min(s => s.PickupDeadline) : (DateTimeOffset?)null;
-        var newWindowEnd = detail.Segments.Count > 0 ? detail.Segments.Max(s => s.DeliveryDeadline) : (DateTimeOffset?)null;
-
-        if (newWindowStart is not null && newWindowEnd is not null)
+        if (await OverlapsActiveTripAsync(dto.VeiculoId, detail.Segments, cancellationToken))
         {
-            var occupiedWindows = await _tripRepository.GetActiveWindowsForVehicleAsync(dto.VeiculoId, cancellationToken);
-            var overlaps = occupiedWindows.Any(w => w.Start <= newWindowEnd.Value && newWindowStart.Value <= w.End);
-            if (overlaps)
-            {
-                await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Sla, cancellationToken);
-                throw new BidRejectedException(
-                    BidRejectionCode.Overbooked,
-                    "Overbooking: o veículo já possui uma viagem ativa que se sobrepõe à janela desta rota.");
-            }
+            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Sla, cancellationToken);
+            throw new BidRejectedException(
+                BidRejectionCode.Overbooked,
+                "Overbooking: o veículo já possui uma viagem ativa que se sobrepõe à janela desta rota.");
         }
 
         // --- All travas passed: upsert the bid ----------------------------------
         // A carrier holds a single bid per auction, so re-bidding overwrites the previous
         // one (value, vehicle, toll, total, timestamp) instead of stacking new rows.
-        var tollValue = detail.Segments.Sum(s => s.EstimatedTollCost);
-        var totalValue = dto.ValorOferecido + tollValue;
         var submittedAt = DateTimeOffset.UtcNow;
 
         var bid = await _bidRepository.GetTrackedByCarrierAndAuctionAsync(carrierId, auctionId, cancellationToken);
+        var updated = bid is not null;
+        // The leader before this bid: if another carrier held the lowest total, it is now outbid.
+        var leader = (await _bidRepository.GetRankedBidsAsync(auctionId, cancellationToken) ?? []).FirstOrDefault()?.Bid;
 
         await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -632,6 +680,12 @@ public class AuctionService : IAuctionService
             return true;
         }, cancellationToken);
 
+        var outbidCarrierId = leader is not null && leader.CarrierId != carrierId && totalValue < leader.TotalValue
+            ? leader.CarrierId
+            : (Guid?)null;
+        await _notifier.BidPlacedAsync(auctionId, route.ContractorId, carrierId, NotificationCatalog.RouteLabel(detail.Segments),
+            totalValue, updated, outbidCarrierId, cancellationToken);
+
         return new PlaceBidResponseDto(
             BidId: bid!.Id,
             AuctionId: auctionId,
@@ -640,6 +694,29 @@ public class AuctionService : IAuctionService
             TotalValue: bid.TotalValue,
             SubmittedAt: bid.SubmittedAt,
             Status: bid.Status.ToWire());
+    }
+
+    private static string FormatBrl(decimal value) => value.ToString("C", PtBr);
+
+    private static string FormatHours(double hours) => $"{Math.Round(hours, 1).ToString("0.#", PtBr)} h";
+
+    // True when the vehicle already has an active trip whose window overlaps the window of these
+    // segments (first pickup deadline to last delivery deadline).
+    private async Task<bool> OverlapsActiveTripAsync(
+        Guid vehicleId,
+        IReadOnlyCollection<RouteSegment> segments,
+        CancellationToken cancellationToken)
+    {
+        if (segments.Count == 0)
+        {
+            return false;
+        }
+
+        var windowStart = segments.Min(s => s.PickupDeadline);
+        var windowEnd = segments.Max(s => s.DeliveryDeadline);
+
+        var occupiedWindows = await _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, cancellationToken);
+        return occupiedWindows.Any(w => w.Start <= windowEnd && windowStart <= w.End);
     }
 
     private Task LogBlockedAttemptAsync(
@@ -830,23 +907,53 @@ public class AuctionService : IAuctionService
         return string.Join(" · ", parts);
     }
 
-    private static DateTimeOffset ValidateExpiry(DateTimeOffset? expiresAt)
+    private const string StartAuctionFailed = "Não foi possível iniciar o leilão.";
+    private const string UpdateAuctionFailed = "Não foi possível alterar o prazo do leilão.";
+
+    /// <param name="failureMessage">Summary for the action being performed (start vs. edit).</param>
+    private static DateTimeOffset ValidateExpiry(DateTimeOffset? expiresAt, string failureMessage)
     {
         if (expiresAt is null)
         {
             throw new ValidationException(
-                new[] { new ValidationError("expiresAt", "Required.") },
-                "Could not start the auction.");
+                new[] { new ValidationError("expiresAt", "Campo obrigatório.") },
+                failureMessage);
         }
 
         if (expiresAt.Value <= DateTimeOffset.UtcNow)
         {
             throw new ValidationException(
-                new[] { new ValidationError("expiresAt", "Must be in the future.") },
-                "Could not start the auction.");
+                new[] { new ValidationError("expiresAt", "O prazo de encerramento deve estar no futuro.") },
+                failureMessage);
         }
 
         return expiresAt.Value;
+    }
+
+    /// <summary>
+    /// The winner must be known before the truck has to be at the first pickup. Combined with
+    /// <see cref="ValidateExpiry"/> (expiry in the future) this also rules out auctioning a load
+    /// whose pickup deadline has already passed.
+    /// </summary>
+    private static void ValidateExpiryBeforeFirstPickup(DateTimeOffset expiresAt, IReadOnlyCollection<RouteSegment> segments, string failureMessage)
+    {
+        if (segments.Count == 0)
+        {
+            return;
+        }
+
+        var firstPickup = segments.Min(s => s.PickupDeadline);
+        if (expiresAt >= firstPickup)
+        {
+            throw new ValidationException(
+                new[]
+                {
+                    new ValidationError(
+                        "expiresAt",
+                        $"O leilão deve encerrar antes do primeiro prazo de coleta ({BrasiliaTime.Format(firstPickup)}).")
+                },
+                failureMessage);
+        }
     }
 
     /// <summary>
@@ -874,9 +981,9 @@ public class AuctionService : IAuctionService
                 {
                     new ValidationError(
                         "deliveryDeadline",
-                        $"The window between the first pickup deadline and the last delivery deadline ({Math.Round(availableHours, 2)}h) is shorter than the estimated route time ({Math.Round(estimatedTimeHours, 2)}h). The carrier could never complete the route on time.")
+                        $"O intervalo entre a primeira coleta e a última entrega ({FormatHours(availableHours)}) é menor que o tempo estimado da rota ({FormatHours(estimatedTimeHours)}); a transportadora não conseguiria cumprir o prazo.")
                 },
-                "Could not start the auction.");
+                StartAuctionFailed);
         }
     }
 

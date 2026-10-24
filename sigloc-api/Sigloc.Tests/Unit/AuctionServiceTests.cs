@@ -176,7 +176,7 @@ public class AuctionServiceTests
             .Returns(new[] { seg });
 
         var act = () => _service.CreateAsync(_contractorId,
-            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddDays(1), AutomaticAward: false));
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddHours(12), AutomaticAward: false));
 
         (await act.Should().ThrowAsync<SegmentUnavailableException>()).Which.SegmentId.Should().Be(seg.Id);
     }
@@ -189,7 +189,8 @@ public class AuctionServiceTests
         _segmentRepository.GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), true, Arg.Any<CancellationToken>())
             .Returns(new[] { seg });
 
-        var expiresAt = DateTimeOffset.UtcNow.AddDays(1);
+        // Must close before the segment's first pickup (default: one day from now).
+        var expiresAt = DateTimeOffset.UtcNow.AddHours(12);
         var result = await _service.CreateAsync(_contractorId,
             new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: expiresAt, AutomaticAward: true));
 
@@ -203,7 +204,7 @@ public class AuctionServiceTests
 
         await _routeRepository.Received(1).AddAsync(Arg.Any<ConsolidatedRoute>(), Arg.Any<CancellationToken>());
         await _auctionRepository.Received(1).AddAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
-        await _notifier.Received(1).AuctionOpenedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), _contractorId, Arg.Any<CancellationToken>());
+        await _notifier.Received(1).AuctionOpenedAsync(Arg.Any<Guid>(), _contractorId, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -222,7 +223,7 @@ public class AuctionServiceTests
             .Returns(new[] { seg });
 
         var act = () => _service.CreateAsync(_contractorId,
-            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddDays(1), AutomaticAward: false));
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddHours(12), AutomaticAward: false));
 
         var assertion = await act.Should().ThrowAsync<ValidationException>();
         assertion.Which.Errors.Should().ContainSingle(e => e.Field == "deliveryDeadline");
@@ -245,10 +246,25 @@ public class AuctionServiceTests
             .Returns(new[] { seg });
 
         var result = await _service.CreateAsync(_contractorId,
-            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddDays(1), AutomaticAward: false));
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddHours(12), AutomaticAward: false));
 
         result.Auction.Status.Should().Be(AuctionStatus.Open.ToWire());
         await _auctionRepository.Received(1).AddAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_expiry_not_before_first_pickup_throws_Validation()
+    {
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var seg = Segment(contractorId: _contractorId, status: SegmentStatus.Available, pickup: pickup, delivery: pickup.AddDays(1), products: TestData.Product());
+        _segmentRepository.GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), true, Arg.Any<CancellationToken>())
+            .Returns(new[] { seg });
+
+        var act = () => _service.CreateAsync(_contractorId,
+            new CreateAuctionRequestDto(SegmentIds: new[] { seg.Id }, ExpiresAt: pickup.AddHours(1), AutomaticAward: false));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().Contain(e => e.Field == "expiresAt");
+        await _auctionRepository.DidNotReceive().AddAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
     }
 
     // =====================================================================
@@ -406,6 +422,24 @@ public class AuctionServiceTests
     }
 
     [Fact]
+    public async Task UpdateAsync_expiry_after_first_pickup_throws_Validation_and_keeps_expiry()
+    {
+        var route = Route();
+        var auction = Auction(routeId: route.Id);
+        var originalExpiry = auction.ExpiresAt;
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var detail = new AuctionWithRoute(auction, route, new[] { Segment(pickup: pickup, delivery: pickup.AddDays(1)) });
+        _auctionRepository.GetDetailAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(detail);
+
+        var act = () => _service.UpdateAsync(_contractorId, auction.Id, new UpdateAuctionRequestDto(pickup.AddDays(1)));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().Contain(e => e.Field == "expiresAt");
+        auction.ExpiresAt.Should().Be(originalExpiry);
+        await _auctionRepository.DidNotReceive().UpdateAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task UpdateAsync_null_expiry_keeps_existing_and_persists()
     {
         var auction = Auction();
@@ -447,9 +481,19 @@ public class AuctionServiceTests
         _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
         _segmentRepository.GetTrackedByRouteAsync(route.Id, Arg.Any<CancellationToken>())
             .Returns(new List<RouteSegment> { segment });
+        var bidder = Guid.NewGuid();
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[]
+        {
+            new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = bidder, Status = BidStatus.Pending },
+            new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = Guid.NewGuid(), Status = BidStatus.Withdrawn },
+        });
 
         await _service.DeleteAsync(_contractorId, auction.Id);
 
+        // Only carriers with a live bid are told; the label is taken before the segment is released.
+        await _notifier.Received(1).AuctionCancelledAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { bidder })),
+            $"{segment.OriginAddress} → {segment.DestinationAddress}", Arg.Any<CancellationToken>());
         auction.Status.Should().Be(AuctionStatus.Cancelled);
         route.Status.Should().Be(RouteStatus.Planned);
         segment.Status.Should().Be(SegmentStatus.Available);
@@ -671,6 +715,76 @@ public class AuctionServiceTests
         await _tripRepository.Received(1).AddAsync(
             Arg.Is<Trip>(t => t.AuctionId == auction.Id && t.BidId == winner.Id && t.AgreedValue == 500m),
             Arg.Any<CancellationToken>());
+        await _notifier.Received(1).AuctionAwardedAsync(result.TripId, _carrierId,
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { loser.CarrierId })), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AwardAsync_auction_with_an_existing_winner_is_rejected()
+    {
+        var route = Route();
+        var auction = Auction(routeId: route.Id);
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
+        var previousWinner = new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = _carrierId, VehicleId = Guid.NewGuid(), TotalValue = 500m, Status = BidStatus.Winner };
+        var other = new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = Guid.NewGuid(), VehicleId = Guid.NewGuid(), TotalValue = 600m, Status = BidStatus.Pending };
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[] { previousWinner, other });
+
+        var act = () => _service.AwardAsync(_contractorId, auction.Id, new AwardAuctionRequestDto(other.Id));
+
+        await act.Should().ThrowAsync<AuctionNotOpenException>();
+        await _tripRepository.DidNotReceive().AddAsync(Arg.Any<Trip>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(RouteStatus.AwaitingPickup)]
+    [InlineData(RouteStatus.InTransit)]
+    [InlineData(RouteStatus.Completed)]
+    public async Task AwardAsync_route_already_past_the_auction_is_rejected(RouteStatus routeStatus)
+    {
+        var route = Route();
+        route.Status = routeStatus;
+        var auction = Auction(routeId: route.Id);
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
+        var bid = new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = _carrierId, VehicleId = Guid.NewGuid(), TotalValue = 500m, Status = BidStatus.Pending };
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[] { bid });
+
+        var act = () => _service.AwardAsync(_contractorId, auction.Id, new AwardAuctionRequestDto(bid.Id));
+
+        await act.Should().ThrowAsync<AuctionNotOpenException>();
+        route.Status.Should().Be(routeStatus);
+    }
+
+    [Fact]
+    public async Task AwardAsync_vehicle_already_booked_in_overlapping_window_is_rejected_without_changes()
+    {
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var delivery = DateTimeOffset.UtcNow.AddDays(2);
+        var route = Route();
+        var auction = Auction(routeId: route.Id);
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
+
+        var vehicleId = Guid.NewGuid();
+        var winner = new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = _carrierId, VehicleId = vehicleId, TotalValue = 500m, Status = BidStatus.Pending };
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[] { winner });
+
+        var detail = new AuctionWithRoute(auction, route, new[] { Segment(pickup: pickup, delivery: delivery, products: TestData.Product()) });
+        _auctionRepository.GetDetailAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(detail);
+
+        // The same vehicle won another auction after this bid was placed.
+        _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, Arg.Any<CancellationToken>())
+            .Returns(new[] { new TripScheduleWindow(pickup.AddHours(3), delivery.AddHours(3)) });
+
+        var act = () => _service.AwardAsync(_contractorId, auction.Id, new AwardAuctionRequestDto(winner.Id));
+
+        (await act.Should().ThrowAsync<BidRejectedException>()).Which.Code.Should().Be(BidRejectionCode.Overbooked);
+        await _vehicleRepository.Received(1).LockForScheduleAsync(vehicleId, Arg.Any<CancellationToken>());
+        winner.Status.Should().Be(BidStatus.Pending);
+        auction.Status.Should().Be(AuctionStatus.Open);
+        route.Status.Should().NotBe(RouteStatus.AwaitingPickup);
+        await _tripRepository.DidNotReceive().AddAsync(Arg.Any<Trip>(), Arg.Any<CancellationToken>());
     }
 
     // =====================================================================
@@ -803,6 +917,22 @@ public class AuctionServiceTests
         var act = () => _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(2000m, Guid.NewGuid()));
 
         (await act.Should().ThrowAsync<BidRejectedException>()).Which.Code.Should().Be(BidRejectionCode.AboveCeiling);
+    }
+
+    [Fact]
+    public async Task PlaceBidAsync_freight_within_ceiling_but_total_with_toll_above_is_rejected()
+    {
+        // Segment toll defaults to 50: freight 1000 + toll 50 = 1050 > ceiling 1000.
+        var offer = AvailableOffer(ceiling: 1000m);
+        _auctionRepository.GetAvailableForCarrierAsync(offer.Auction.Id, _carrierId, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(offer);
+
+        var act = () => _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(1000m, Guid.NewGuid()));
+
+        var ex = (await act.Should().ThrowAsync<BidRejectedException>()).Which;
+        ex.Code.Should().Be(BidRejectionCode.AboveCeiling);
+        ex.Message.Should().Contain("R$").And.Contain("1.050,00");
+        await _bidRepository.DidNotReceive().AddAsync(Arg.Any<Bid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -955,6 +1085,51 @@ public class AuctionServiceTests
         existing.VehicleId.Should().Be(vehicleId);
         existing.Status.Should().Be(BidStatus.Pending);
         await _bidRepository.DidNotReceive().AddAsync(Arg.Any<Bid>(), Arg.Any<CancellationToken>());
+        await _notifier.Received(1).BidPlacedAsync(offer.Auction.Id, offer.Route.ContractorId, _carrierId, Arg.Any<string>(),
+            1250m, true, null, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(1100, true)]   // 1100 + 50 toll = 1150 < leader's 1200: the leader is outbid
+    [InlineData(1150, false)]  // 1150 + 50 = 1200 ties the leader: it keeps the lead
+    public async Task PlaceBidAsync_notifies_the_contractor_and_the_carrier_that_lost_the_lead(decimal freight, bool outbid)
+    {
+        var offer = AvailableOffer(ceiling: 5000m, weightKg: 100, volumeM3: 5);
+        _auctionRepository.GetAvailableForCarrierAsync(offer.Auction.Id, _carrierId, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(offer);
+        var vehicleId = Guid.NewGuid();
+        _vehicleRepository.GetByIdAsync(vehicleId, _carrierId, Arg.Any<CancellationToken>()).Returns(TestData.Vehicle(carrierId: _carrierId));
+        _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, Arg.Any<CancellationToken>()).Returns(Array.Empty<TripScheduleWindow>());
+        _bidRepository.GetTrackedByCarrierAndAuctionAsync(_carrierId, offer.Auction.Id, Arg.Any<CancellationToken>()).Returns((Bid?)null);
+        var leader = TestData.Carrier();
+        var leaderBid = new Bid { Id = Guid.NewGuid(), AuctionId = offer.Auction.Id, CarrierId = leader.Id, TotalValue = 1200m, Status = BidStatus.Pending };
+        _bidRepository.GetRankedBidsAsync(offer.Auction.Id, Arg.Any<CancellationToken>())
+            .Returns(new[] { new RankedBid(leaderBid, leader, TestData.Vehicle(carrierId: leader.Id)) });
+
+        await _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(freight, vehicleId));
+
+        await _notifier.Received(1).BidPlacedAsync(offer.Auction.Id, offer.Route.ContractorId, _carrierId, Arg.Any<string>(),
+            freight + 50m, false, outbid ? leader.Id : null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlaceBidAsync_rebid_by_the_leader_outbids_nobody()
+    {
+        var offer = AvailableOffer(ceiling: 5000m, weightKg: 100, volumeM3: 5);
+        _auctionRepository.GetAvailableForCarrierAsync(offer.Auction.Id, _carrierId, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(offer);
+        var vehicleId = Guid.NewGuid();
+        _vehicleRepository.GetByIdAsync(vehicleId, _carrierId, Arg.Any<CancellationToken>()).Returns(TestData.Vehicle(carrierId: _carrierId));
+        _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, Arg.Any<CancellationToken>()).Returns(Array.Empty<TripScheduleWindow>());
+        var own = new Bid { Id = Guid.NewGuid(), AuctionId = offer.Auction.Id, CarrierId = _carrierId, TotalValue = 1200m, Status = BidStatus.Pending };
+        _bidRepository.GetTrackedByCarrierAndAuctionAsync(_carrierId, offer.Auction.Id, Arg.Any<CancellationToken>()).Returns(own);
+        _bidRepository.GetRankedBidsAsync(offer.Auction.Id, Arg.Any<CancellationToken>())
+            .Returns(new[] { new RankedBid(own, TestData.Carrier(_carrierId), TestData.Vehicle(carrierId: _carrierId)) });
+
+        await _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(900m, vehicleId));
+
+        await _notifier.Received(1).BidPlacedAsync(offer.Auction.Id, offer.Route.ContractorId, _carrierId, Arg.Any<string>(),
+            950m, true, null, Arg.Any<CancellationToken>());
     }
 
     // =====================================================================

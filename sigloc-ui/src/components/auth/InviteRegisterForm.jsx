@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useMemo, useState } from "react"
 
+import { mapAuthFieldErrors } from "@/constants/auth"
 import { useAuth } from "@/contexts/AuthContext"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { formatCnpj, onlyDigits } from "@/lib/formatters"
@@ -31,10 +32,10 @@ export function InviteRegisterForm({ token, onSuccess, onExistingCarrier }) {
   const googleAction = useAsyncAction((data) => registerCarrierByInviteWithGoogle(token, data))
 
   const pending = credentialAction.pending || googleAction.pending
-  const fieldErrors = {
+  const fieldErrors = mapAuthFieldErrors({
     ...credentialAction.fieldErrors,
     ...googleAction.fieldErrors,
-  }
+  })
   const errorMessage =
     credentialAction.error?.message || googleAction.error?.message || googleError
 

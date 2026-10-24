@@ -8,6 +8,12 @@ namespace Sigloc.Application.Services;
 /// <summary>Projects a loaded trip graph into the monitoring detail shared by shippers and carriers.</summary>
 public static class TripDetailMapper
 {
+    /// <summary>Proof-of-delivery files of the trip, newest first.</summary>
+    public static IReadOnlyList<TripProofOfDeliveryDto> Proofs(TripState state) =>
+        state.Proofs.OrderByDescending(p => p.UploadedAt).ThenBy(p => p.Id)
+            .Select(p => new TripProofOfDeliveryDto(p.Id, p.TripStopId, p.FileName, p.ContentType, p.SizeBytes, p.UploadedAt))
+            .ToList();
+
     public static string Reference(Guid tripId) => "TRP-" + tripId.ToString("N")[..6].ToUpperInvariant();
 
     public static TripDetailDto Map(TripState state, bool renewed, bool stale = false)

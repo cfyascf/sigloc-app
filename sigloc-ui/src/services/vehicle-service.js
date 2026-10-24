@@ -44,6 +44,8 @@ export function toVehicle(dto) {
     location: dto.currentLocation ?? "",
     bodyType: bodyTypeLabel(dto.bodyType),
     status: statusLabel(dto.status),
+    // Committed to a trip awaiting pickup or in transit; display-only, never sent on update.
+    onActiveTrip: Boolean(dto.onActiveTrip),
     weightKg: dto.capacityWeight ?? 0,
     volumeM3: dto.capacityVolume ?? 0,
     // Preserved for round-tripping through update (no UI on this screen).

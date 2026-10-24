@@ -54,6 +54,19 @@ public class VehicleRepository : IVehicleRepository
                 .AnyAsync(v => v.Plate == plate, cancellationToken);
         }
 
+    public async Task LockForScheduleAsync(Guid vehicleId, CancellationToken cancellationToken = default)
+    {
+        // Row locks are Postgres-only; SQLite (tests) already serialises writers.
+        if (!_dbContext.Database.IsNpgsql())
+        {
+            return;
+        }
+
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"Vehicle\" WHERE \"Id\" = {vehicleId} FOR UPDATE",
+            cancellationToken);
+    }
+
     public async Task<Dictionary<Guid, int>> CountFreeByCarrierIdsAsync(IEnumerable<Guid> carrierIds, CancellationToken cancellationToken = default)
     {
         var ids = carrierIds.ToList();
@@ -62,11 +75,28 @@ public class VehicleRepository : IVehicleRepository
             return new Dictionary<Guid, int>();
         }
 
+        // Free = marked LIVRE and not committed to an active trip.
         return await _dbContext.Vehicles
             .AsNoTracking()
-            .Where(v => ids.Contains(v.TransportadoraId) && v.Status == OperationalStatus.LIVRE)
+            .Where(v => ids.Contains(v.TransportadoraId)
+                && v.Status == OperationalStatus.LIVRE
+                && !_dbContext.Trips.Any(t => t.VehicleId == v.Id
+                    && (t.Status == TripStatus.AwaitingPickup || t.Status == TripStatus.InTransit)))
             .GroupBy(v => v.TransportadoraId)
             .Select(g => new { CarrierId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CarrierId, x => x.Count, cancellationToken);
+    }
+
+    public async Task<IReadOnlySet<Guid>> GetIdsOnActiveTripsAsync(Guid transportadoraId, CancellationToken cancellationToken = default)
+    {
+        var ids = await _dbContext.Trips
+            .AsNoTracking()
+            .Where(t => t.CarrierId == transportadoraId
+                && (t.Status == TripStatus.AwaitingPickup || t.Status == TripStatus.InTransit))
+            .Select(t => t.VehicleId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return ids.ToHashSet();
     }
 }

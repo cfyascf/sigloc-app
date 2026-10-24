@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Search, Box, SlidersHorizontal, TrendingDown, Clock, AlertCircle, Loader2, Archive } from "lucide-react"
 import { Link, useSearchParams } from "react-router-dom"
 import AppShell from "@/components/app-shell"
@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { listFreightOffers } from "@/services/freight-offer-service"
-import { RISK } from "@/constants/risk"
+import { RISK, RISK_OPTIONS, riskLabel } from "@/constants/risk"
+import { ListFilters, activeFilterCount, filtersLabel } from "@/components/list-filters"
 
 const BOARD_STATUS = { OPEN: "OPEN", CLOSED: "CLOSED" }
 
 const SEARCH_DEBOUNCE_MS = 350
 const PAGE_SIZE = 50
+const NO_FILTERS = { risk: "", bid: "", requirement: "" }
 
 const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value)
 
@@ -23,7 +25,7 @@ const getRiskBadge = (risk) => {
     [RISK.WARNING]: "bg-amber-50 text-amber-700 border-amber-200",
     [RISK.CRITIC]: "bg-rose-50 text-rose-700 border-rose-200",
   }
-  return <Badge variant="outline" className={`rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 ${styles[risk] || "bg-slate-50"}`}>{risk}</Badge>
+  return <Badge variant="outline" className={`rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 ${styles[risk] || "bg-slate-50"}`}>{riskLabel(risk)}</Badge>
 }
 
 const getRequirementBadge = (req) => {
@@ -39,6 +41,8 @@ export default function FreightsOffersOverview() {
   const [debouncedSearch, setDebouncedSearch] = useState(searchTerm.trim())
   const [boardStatus, setBoardStatus] = useState(BOARD_STATUS.OPEN)
   const [ofertas, setOfertas] = useState([])
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filters, setFilters] = useState(NO_FILTERS)
 
   const isHistory = boardStatus === BOARD_STATUS.CLOSED
 
@@ -59,19 +63,32 @@ export default function FreightsOffersOverview() {
     const result = await runList({
       search: debouncedSearch || undefined,
       status: boardStatus,
+      risk: filters.risk || undefined,
       page: 1,
       pageSize: PAGE_SIZE,
     })
     if (result.ok) {
       setOfertas(result.data.items)
     }
-  }, [runList, debouncedSearch, boardStatus])
+  }, [runList, debouncedSearch, boardStatus, filters.risk])
 
   useEffect(() => {
     loadOffers()
   }, [loadOffers])
 
-  const isEmpty = !listPending && !listError && ofertas.length === 0
+  // Risk is filtered by the API; the bid and cargo requirement filters apply to the loaded page.
+  const filterFields = useMemo(() => [
+    { key: "risk", label: "Filtrar por risco", allLabel: "Todos os riscos", options: RISK_OPTIONS },
+    { key: "bid", label: "Filtrar por lance", allLabel: "Com e sem meu lance", options: [{ value: "with", label: "Com meu lance" }, { value: "without", label: "Sem meu lance" }] },
+    { key: "requirement", label: "Filtrar por exigência da carga", allLabel: "Todas as exigências",
+      options: [...new Set([...ofertas.flatMap((o) => o.requirements), filters.requirement].filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, "pt-BR")).map((req) => ({ value: req, label: req })) },
+  ], [ofertas, filters.requirement])
+  const visibleOfertas = ofertas.filter((o) =>
+    (!filters.bid || (filters.bid === "with" ? !!o.bidStatus : !o.bidStatus))
+    && (!filters.requirement || o.requirements.includes(filters.requirement)))
+
+  const isEmpty = !listPending && !listError && visibleOfertas.length === 0
 
   return (
     <AppShell title="Mural de Fretes">
@@ -93,11 +110,13 @@ export default function FreightsOffersOverview() {
                 className="h-9 border-slate-200 bg-white pl-9 text-xs"
               />
             </div>
-            <Button variant="outline" className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700">
-              <SlidersHorizontal size={14} className="mr-1.5 text-slate-500" /> Filtros
+            <Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)} className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700">
+              <SlidersHorizontal size={14} className="mr-1.5 text-slate-500" /> {filtersLabel(filters)}
             </Button>
           </div>
         </div>
+
+        {filtersOpen && <div className="shrink-0"><ListFilters filters={filters} fields={filterFields} onChange={setFilters} /></div>}
 
         {/* ABAS: ABERTAS / HISTÓRICO */}
         <div className="shrink-0">
@@ -141,14 +160,14 @@ export default function FreightsOffersOverview() {
             {isEmpty && (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
                 {isHistory ? <Archive size={20} className="text-slate-400" /> : <Box size={20} className="text-slate-400" />}
-                <p>{isHistory ? "Nenhuma oferta encerrada no histórico." : "Nenhuma oportunidade disponível no momento."}</p>
+                <p>{activeFilterCount(filters) ? "Nenhuma oferta encontrada para os filtros selecionados." : isHistory ? "Nenhuma oferta encerrada no histórico." : "Nenhuma oportunidade disponível no momento."}</p>
               </div>
             )}
 
-            {!listPending && !listError && ofertas.length > 0 && (
+            {!listPending && !listError && visibleOfertas.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
-              {ofertas.map((o) => {
+              {visibleOfertas.map((o) => {
                 const hasBid = !!o.bidStatus;
                 
                 return (
@@ -171,7 +190,7 @@ export default function FreightsOffersOverview() {
                              )}
                           </div>
                       </div>
-                      <p className="text-sm font-bold text-slate-800 leading-tight">{o.routeLabel}</p>
+                      <p className="text-sm font-bold text-slate-800 leading-tight">{o.routeLabel || "Rota indisponível"}</p>
                     </div>
 
                     {/* CORPO */}

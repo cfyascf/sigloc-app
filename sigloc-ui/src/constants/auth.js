@@ -14,6 +14,23 @@ export function getDefaultRouteForRole(role) {
   return "/contractor-dashboard"
 }
 
+// The auth API reports some fields under their Portuguese names; the forms use English ids.
+const AUTH_FIELD_MAP = {
+  razaoSocial: "companyName",
+  nomeFantasia: "tradeName",
+  senha: "password",
+}
+
+/** Re-keys API field errors (`{ razaoSocial: "…" }`) to the auth form field ids. */
+export function mapAuthFieldErrors(fieldErrors) {
+  const mapped = {}
+  for (const [field, message] of Object.entries(fieldErrors ?? {})) {
+    const key = AUTH_FIELD_MAP[field] ?? field
+    if (!mapped[key]) mapped[key] = message
+  }
+  return mapped
+}
+
 export const AUTH_OPTIONS = [
   { value: Auth.PUBLIC, label: "Público" },
   { value: Auth.AUTHENTICATED, label: "Autenticado" },

@@ -9,35 +9,59 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { vehicleService } from "@/services/vehicle-service"
-import { BODY_TYPE_OPTIONS, STATUS_OPTIONS } from "@/constants/vehicles"
+import { BODY_TYPE_OPTIONS, REFRIGERATION_BY_VALUE, STATUS_OPTIONS } from "@/constants/vehicles"
+import { ListFilters, filtersLabel } from "@/components/list-filters"
+import { validateVehicle } from "@/lib/vehicle-validation"
 import VehicleForm from "@/pages/VehicleForm"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`
 
+const ON_TRIP_LABEL = "Em viagem"
+
+// A "Livre" vehicle already committed to an active trip is not free; the stored status is the
+// carrier-managed value, so this only changes what the list shows.
+const displayStatus = (vehicle) =>
+  vehicle.onActiveTrip && vehicle.status === "Livre" ? ON_TRIP_LABEL : vehicle.status
+
 // Cores baseadas no status do veículo
 const getStatusDotStyle = (status) => {
   if (status === "Livre") return "bg-emerald-500"
-  if (status === "Em Trânsito") return "bg-blue-500"
+  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "bg-blue-500"
   if (status === "Manutenção") return "bg-amber-500"
   return "bg-slate-300"
 }
 
+// Mirrors the API limits so an invalid edit never reaches the server.
+const toOptions = (labels) => labels.map((label) => ({ value: label, label }))
+const FILTER_FIELDS = [
+  { key: "status", label: "Filtrar por status", allLabel: "Todos os status", options: toOptions(["Livre", ON_TRIP_LABEL, "Em Trânsito", "Manutenção"]) },
+  { key: "bodyType", label: "Filtrar por carroceria", allLabel: "Todas as carrocerias", options: toOptions(BODY_TYPE_OPTIONS) },
+  { key: "refrigeration", label: "Filtrar por refrigeração", allLabel: "Qualquer refrigeração", options: Object.entries(REFRIGERATION_BY_VALUE).map(([value, label]) => ({ value, label })) },
+]
+const NO_FILTERS = { status: "", bodyType: "", refrigeration: "" }
+
+const FieldError = ({ message }) =>
+  message ? <p className="text-[10px] font-semibold text-rose-600">{message}</p> : null
+
 const getStatusTextStyle = (status) => {
   if (status === "Livre") return "text-emerald-600 font-bold"
-  if (status === "Em Trânsito") return "text-blue-600 font-bold"
+  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "text-blue-600 font-bold"
   if (status === "Manutenção") return "text-amber-600 font-bold"
   return "text-slate-400"
 }
 
 export default function FleetManagement() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filters, setFilters] = useState(NO_FILTERS)
 
   const [vehicles, setVehicles] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
+  const [editErrors, setEditErrors] = useState({})
   const [deletingId, setDeletingId] = useState(null)
 
   const saveAction = useAsyncAction(vehicleService.updateVehicle)
@@ -65,14 +89,18 @@ export default function FleetManagement() {
   }, [])
 
   const visibleVehicles = vehicles.filter((vehicle) => {
+    if (filters.status && displayStatus(vehicle) !== filters.status) return false
+    if (filters.bodyType && vehicle.bodyType !== filters.bodyType) return false
+    if (filters.refrigeration && String(vehicle.refrigerationLevel ?? 0) !== filters.refrigeration) return false
     const term = searchTerm.trim().toLowerCase()
     if (!term) return true
-    return [vehicle.plate, vehicle.model, vehicle.bodyType, vehicle.driver, vehicle.location, vehicle.status].join(" ").toLowerCase().includes(term)
+    return [vehicle.plate, vehicle.model, vehicle.bodyType, vehicle.driver, vehicle.location, displayStatus(vehicle)].join(" ").toLowerCase().includes(term)
   })
 
   const startEditing = (vehicle) => {
     setEditingId(vehicle.id)
     setEditForm({ ...vehicle })
+    setEditErrors({})
     setDeletingId(null)
     saveAction.reset()
   }
@@ -80,10 +108,15 @@ export default function FleetManagement() {
   const cancelEditing = () => {
     setEditingId(null)
     setEditForm(null)
+    setEditErrors({})
     saveAction.reset()
   }
 
   const saveEdit = async () => {
+    const errors = validateVehicle(editForm)
+    setEditErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
     const result = await saveAction.run(editingId, editForm)
     if (!result.ok) return
 
@@ -120,8 +153,8 @@ export default function FleetManagement() {
               <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por placa, modelo, status..." className="h-9 border-slate-200 bg-white pl-9 text-xs" />
             </div>
 
-            <Button variant="outline" className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-              <Settings2 size={14} className="mr-1.5" /> Filtros
+            <Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)} className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+              <Settings2 size={14} className="mr-1.5" /> {filtersLabel(filters)}
             </Button>
 
             <Button asChild className="h-9 bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700">
@@ -129,6 +162,8 @@ export default function FleetManagement() {
             </Button>
           </div>
         </div>
+
+        {filtersOpen && <ListFilters filters={filters} fields={FILTER_FIELDS} onChange={setFilters} />}
 
         {/* ESTADO: CARREGANDO */}
         {isLoading && (
@@ -149,7 +184,7 @@ export default function FleetManagement() {
           <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
             <Truck size={24} className="text-slate-300" />
             <p className="text-sm font-semibold text-slate-600">
-              {vehicles.length === 0 ? "Nenhum veículo cadastrado." : "Nenhum veículo encontrado para a busca."}
+              {vehicles.length === 0 ? "Nenhum veículo cadastrado." : "Nenhum veículo encontrado para a busca ou os filtros."}
             </p>
           </div>
         )}
@@ -196,7 +231,7 @@ export default function FleetManagement() {
                     {/* Col 1: Status e Tipo */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`h-2 w-2 rounded-full ${getStatusDotStyle(vehicle.status)}`} />
+                        <span className={`h-2 w-2 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
                       </div>
                       <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600 font-bold uppercase tracking-wide border-none px-1.5 py-0">
                         {vehicle.bodyType}
@@ -216,13 +251,13 @@ export default function FleetManagement() {
                       <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5">
                         <User size={14} className="text-slate-400" /> {vehicle.driver}
                       </p>
-                      <span className={`text-[11px] flex items-center gap-1 mt-0.5 ${getStatusTextStyle(vehicle.status)}`}>
-                        {vehicle.status} <span className="text-slate-300 mx-0.5">•</span> <MapPin size={10} /> {vehicle.location}
+                      <span className={`text-[11px] flex items-center gap-1 mt-0.5 ${getStatusTextStyle(displayStatus(vehicle))}`}>
+                        {displayStatus(vehicle)} <span className="text-slate-300 mx-0.5">•</span> <MapPin size={10} /> {vehicle.location}
                       </span>
                     </div>
 
-                    {/* Col 4: Capacidade (Peso/Vol) */}
-                    <div className="flex items-center justify-end gap-3 text-xs font-bold whitespace-nowrap">
+                    {/* Col 4: Capacidade (Peso/Vol). Right padding keeps it clear of the hover actions. */}
+                    <div className="flex items-center justify-end gap-3 pr-20 text-xs font-bold whitespace-nowrap">
                       <div className="text-right mr-2">
                         <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Capacidade Total</span>
                       </div>
@@ -259,7 +294,8 @@ export default function FleetManagement() {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marca / Modelo</label>
-                        <Input value={editForm.model} onChange={(e) => setEditForm({...editForm, model: e.target.value})} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                        <Input value={editForm.model} onChange={(e) => setEditForm({...editForm, model: e.target.value})} aria-invalid={Boolean(editErrors.model)} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                        <FieldError message={editErrors.model} />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Motorista Atribuído</label>
@@ -274,18 +310,20 @@ export default function FleetManagement() {
                           <Scale size={12} className="text-slate-400" /> Capacidade (Peso)
                         </label>
                         <div className="relative">
-                          <Input type="number" value={editForm.weightKg} onChange={(e) => setEditForm({...editForm, weightKg: Number(e.target.value)})} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                          <Input type="number" step="any" value={editForm.weightKg} onChange={(e) => setEditForm({...editForm, weightKg: Number(e.target.value)})} aria-invalid={Boolean(editErrors.weightKg || saveAction.fieldErrors.capacityWeight)} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
                           <span className="absolute right-2.5 top-2.5 text-[10px] font-semibold text-slate-400">kg</span>
                         </div>
+                        <FieldError message={editErrors.weightKg ?? saveAction.fieldErrors.capacityWeight} />
                       </div>
                       <div className="space-y-1.5">
                         <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                           <Box size={12} className="text-slate-400" /> Cubagem (Volume)
                         </label>
                         <div className="relative">
-                          <Input type="number" value={editForm.volumeM3} onChange={(e) => setEditForm({...editForm, volumeM3: Number(e.target.value)})} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                          <Input type="number" step="any" value={editForm.volumeM3} onChange={(e) => setEditForm({...editForm, volumeM3: Number(e.target.value)})} aria-invalid={Boolean(editErrors.volumeM3 || saveAction.fieldErrors.capacityVolume)} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
                           <span className="absolute right-2.5 top-2.5 text-[10px] font-semibold text-slate-400">m³</span>
                         </div>
+                        <FieldError message={editErrors.volumeM3 ?? saveAction.fieldErrors.capacityVolume} />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tipo de Carroceria</label>

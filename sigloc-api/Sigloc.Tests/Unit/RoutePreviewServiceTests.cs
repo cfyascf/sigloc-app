@@ -64,6 +64,24 @@ public class RoutePreviewServiceTests
         await _repository.Received(1).GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), false, Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(SegmentStatus.Routed)]
+    [InlineData(SegmentStatus.InTransit)]
+    public async Task PreviewAsync_unavailable_segment_throws_SegmentUnavailable(SegmentStatus status)
+    {
+        var product = TestData.Product(contractorId: _contractorId);
+        var id = Guid.NewGuid();
+        var segment = Segment(id, product, quantity: 1);
+        segment.Status = status;
+        _repository
+            .GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), false, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { segment });
+
+        var act = () => _service.PreviewAsync(_contractorId, new RoutePreviewRequestDto(new[] { id }));
+
+        (await act.Should().ThrowAsync<SegmentUnavailableException>()).Which.SegmentId.Should().Be(id);
+    }
+
     [Fact]
     public async Task PreviewAsync_maps_consolidated_vehicle_requirement()
     {

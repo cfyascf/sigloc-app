@@ -69,6 +69,25 @@ public class RouteSegmentServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_stores_the_geocoded_cities_of_a_street_address()
+    {
+        var product = TestData.Product(contractorId: _contractorId);
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { product });
+        _geocoding.ResolveAsync("Rua Terra Roxa, 100", "Rua Lothario Boutin, 50", Arg.Any<CancellationToken>())
+            .Returns(new RouteGeometry("-49.1,-25.1", "-49.2,-25.4", 12, 0.5, "Curitiba, PR", "Curitiba, PR"));
+
+        var result = await _service.CreateAsync(_contractorId,
+            ValidDto(origin: "Rua Terra Roxa, 100", destination: "Rua Lothario Boutin, 50", items: new[] { Item(product.Id) }));
+
+        // The typed address is kept; the city is what lists and itineraries show.
+        result.Origin.Should().Be("Rua Terra Roxa, 100");
+        result.OriginCity.Should().Be("Curitiba, PR");
+        result.DestinationCity.Should().Be("Curitiba, PR");
+        await _repository.Received(1).AddAsync(Arg.Is<RouteSegment>(s => s.OriginPlace == "Curitiba, PR"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CreateAsync_trims_origin_and_destination()
     {
         var product = TestData.Product(contractorId: _contractorId);
@@ -117,7 +136,52 @@ public class RouteSegmentServiceTests
         var act = () => _service.CreateAsync(_contractorId, dto);
 
         var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
-        ex.Errors.Should().Contain(e => e.Field == "deliveryDeadline" && e.Reason.Contains("later"));
+        ex.Errors.Should().Contain(e => e.Field == "deliveryDeadline" && e.Reason.Contains("posterior"));
+    }
+
+    [Fact]
+    public async Task CreateAsync_pickup_in_the_past_throws_validation()
+    {
+        var dto = ValidDto(
+            pickup: DateTimeOffset.UtcNow.AddDays(-2),
+            delivery: DateTimeOffset.UtcNow.AddDays(-1),
+            items: new[] { Item(Guid.NewGuid()) });
+
+        var act = () => _service.CreateAsync(_contractorId, dto);
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().Contain(e => e.Field == "pickupDeadline");
+        await _repository.DidNotReceive().AddAsync(Arg.Any<RouteSegment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("Lugar Inexistente, ZZ", "São Paulo, SP", "origin")]
+    [InlineData("Curitiba, PR", "Lugar Inexistente, ZZ", "destination")]
+    public async Task CreateAsync_unknown_address_is_a_field_error(string origin, string destination, string field)
+    {
+        var product = TestData.Product(contractorId: _contractorId);
+        _repository
+            .GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { product });
+        _geocoding
+            .ResolveAsync(origin, destination, Arg.Any<CancellationToken>())
+            .Returns<RouteGeometry>(_ => throw new AddressNotFoundException("Lugar Inexistente, ZZ"));
+
+        var act = () => _service.CreateAsync(_contractorId, ValidDto(origin: origin, destination: destination, items: new[] { Item(product.Id) }));
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().ContainSingle(e => e.Field == field && e.Reason.Contains("Lugar Inexistente"));
+    }
+
+    [Fact]
+    public async Task CreateAsync_same_origin_and_destination_throws_validation()
+    {
+        var dto = ValidDto(origin: "Curitiba, PR", destination: " curitiba, pr ", items: new[] { Item(Guid.NewGuid()) });
+
+        var act = () => _service.CreateAsync(_contractorId, dto);
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().Contain(e => e.Field == "destination");
     }
 
     [Fact]

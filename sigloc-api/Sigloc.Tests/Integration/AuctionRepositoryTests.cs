@@ -97,6 +97,28 @@ public class AuctionRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task GetTrackedByIdAsync_returns_a_tracked_entity_so_SaveChanges_persists_status()
+    {
+        var route = Route(_contractorId);
+        var auction = Auction(route.Id);
+
+        var seedCtx = _db.CreateContext();
+        seedCtx.ConsolidatedRoutes.Add(route);
+        seedCtx.Auctions.Add(auction);
+        await seedCtx.SaveChangesAsync();
+
+        // Mirrors AuctionService cancel/award: mutate the tracked entity and save through the
+        // context (unit of work) without calling the repository's UpdateAsync.
+        var ctx = _db.CreateContext();
+        var tracked = await new AuctionRepository(ctx).GetTrackedByIdAsync(auction.Id, _contractorId);
+        tracked!.Status = AuctionStatus.Cancelled;
+        await ctx.SaveChangesAsync();
+
+        var reloaded = await _db.CreateContext().Auctions.FindAsync(auction.Id);
+        reloaded!.Status.Should().Be(AuctionStatus.Cancelled);
+    }
+
+    [Fact]
     public async Task SearchAsync_filters_by_status_search_and_orders_by_expiry()
     {
         var routeEarly = Route(_contractorId);
@@ -108,6 +130,48 @@ public class AuctionRepositoryTests : IDisposable
         var (items, total) = await new AuctionRepository(_db.CreateContext())
             .SearchAsync(_contractorId, null, AuctionStatus.Open, 1, 10);
         total.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SearchAsync_lists_expired_open_auctions_in_history_with_closed_ones()
+    {
+        var liveRoute = Route(_contractorId);
+        var expiredRoute = Route(_contractorId);
+        var closedRoute = Route(_contractorId);
+        var live = Auction(liveRoute.Id, AuctionStatus.Open, DateTimeOffset.UtcNow.AddHours(5));
+        var expired = Auction(expiredRoute.Id, AuctionStatus.Open, DateTimeOffset.UtcNow.AddHours(-5));
+        var closed = Auction(closedRoute.Id, AuctionStatus.Closed);
+        var ctx = _db.CreateContext();
+        ctx.ConsolidatedRoutes.AddRange(liveRoute, expiredRoute, closedRoute);
+        ctx.Auctions.AddRange(live, expired, closed);
+        await ctx.SaveChangesAsync();
+
+        var repo = new AuctionRepository(_db.CreateContext());
+        var (open, _) = await repo.SearchAsync(_contractorId, null, AuctionStatus.Open, 1, 10);
+        var (history, _) = await repo.SearchAsync(_contractorId, null, AuctionStatus.Closed, 1, 10);
+
+        open.Select(i => i.Auction.Id).Should().BeEquivalentTo(new[] { live.Id });
+        history.Select(i => i.Auction.Id).Should().BeEquivalentTo(new[] { expired.Id, closed.Id });
+    }
+
+    [Fact]
+    public async Task CountOpenByContractorsAsync_counts_only_open_non_expired_auctions()
+    {
+        var otherContractor = Guid.NewGuid();
+        var routes = new[] { Route(_contractorId), Route(_contractorId), Route(_contractorId), Route(otherContractor) };
+        var ctx = _db.CreateContext();
+        ctx.ConsolidatedRoutes.AddRange(routes);
+        ctx.Auctions.AddRange(
+            Auction(routes[0].Id, AuctionStatus.Open),
+            Auction(routes[1].Id, AuctionStatus.Open, DateTimeOffset.UtcNow.AddHours(-1)),
+            Auction(routes[2].Id, AuctionStatus.Closed),
+            Auction(routes[3].Id, AuctionStatus.Open));
+        await ctx.SaveChangesAsync();
+
+        var counts = await new AuctionRepository(_db.CreateContext())
+            .CountOpenByContractorsAsync(new[] { _contractorId }, DateTimeOffset.UtcNow);
+
+        counts.Should().BeEquivalentTo(new Dictionary<Guid, int> { [_contractorId] = 1 });
     }
 
     [Fact]
