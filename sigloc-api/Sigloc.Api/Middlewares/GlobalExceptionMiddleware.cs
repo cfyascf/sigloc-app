@@ -228,6 +228,14 @@ public class GlobalExceptionHandlerMiddleware
                     message = partnershipExists.Message
                 }),
 
+            NotificationNotFoundException notificationNotFound => (
+                (int)HttpStatusCode.NotFound,
+                new
+                {
+                    error = "NOTIFICACAO_NAO_ENCONTRADA",
+                    message = notificationNotFound.Message
+                }),
+
             PartnershipNotFoundException partnershipNotFound => (
                 (int)HttpStatusCode.NotFound,
                 new

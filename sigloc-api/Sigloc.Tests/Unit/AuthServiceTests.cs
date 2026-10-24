@@ -24,6 +24,7 @@ public class AuthServiceTests
     private readonly IPasswordResetTokenRepository _passwordResetTokens = Substitute.For<IPasswordResetTokenRepository>();
     private readonly IPasswordResetLinkBuilder _passwordResetLinkBuilder = Substitute.For<IPasswordResetLinkBuilder>();
     private readonly IEmailSender _emailSender = Substitute.For<IEmailSender>();
+    private readonly INotificationPublisher _notifications = Substitute.For<INotificationPublisher>();
 
     private readonly AuthService _service;
 
@@ -45,7 +46,8 @@ public class AuthServiceTests
             _inviteLinkBuilder,
             _passwordResetTokens,
             _passwordResetLinkBuilder,
-            _emailSender);
+            _emailSender,
+            _notifications);
 
         _passwordHasher.Hash(Arg.Any<string>()).Returns("hashed-password");
         _jwtProvider.Generate(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>())
@@ -404,6 +406,10 @@ public class AuthServiceTests
                 && c.InitiatedBy == PartnershipInitiator.Contractor),
             Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        // The inviting contractor learns the carrier joined, by trade name.
+        await _notifications.Received(1).PublishAsync(Arg.Is<IReadOnlyCollection<NotificationMessage>>(m =>
+            m.Single().RecipientCompanyId == contractor.Id && m.Single().Type == NotificationCatalog.PartnerJoinedType
+            && m.Single().Message.StartsWith("Transp aceitou")));
     }
 
     [Fact]

@@ -204,7 +204,7 @@ public class AuctionServiceTests
 
         await _routeRepository.Received(1).AddAsync(Arg.Any<ConsolidatedRoute>(), Arg.Any<CancellationToken>());
         await _auctionRepository.Received(1).AddAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
-        await _notifier.Received(1).AuctionOpenedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), _contractorId, Arg.Any<CancellationToken>());
+        await _notifier.Received(1).AuctionOpenedAsync(Arg.Any<Guid>(), _contractorId, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -481,9 +481,19 @@ public class AuctionServiceTests
         _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
         _segmentRepository.GetTrackedByRouteAsync(route.Id, Arg.Any<CancellationToken>())
             .Returns(new List<RouteSegment> { segment });
+        var bidder = Guid.NewGuid();
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[]
+        {
+            new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = bidder, Status = BidStatus.Pending },
+            new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = Guid.NewGuid(), Status = BidStatus.Withdrawn },
+        });
 
         await _service.DeleteAsync(_contractorId, auction.Id);
 
+        // Only carriers with a live bid are told; the label is taken before the segment is released.
+        await _notifier.Received(1).AuctionCancelledAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { bidder })),
+            $"{segment.OriginAddress} → {segment.DestinationAddress}", Arg.Any<CancellationToken>());
         auction.Status.Should().Be(AuctionStatus.Cancelled);
         route.Status.Should().Be(RouteStatus.Planned);
         segment.Status.Should().Be(SegmentStatus.Available);
@@ -705,6 +715,8 @@ public class AuctionServiceTests
         await _tripRepository.Received(1).AddAsync(
             Arg.Is<Trip>(t => t.AuctionId == auction.Id && t.BidId == winner.Id && t.AgreedValue == 500m),
             Arg.Any<CancellationToken>());
+        await _notifier.Received(1).AuctionAwardedAsync(result.TripId, _carrierId,
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { loser.CarrierId })), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1073,6 +1085,51 @@ public class AuctionServiceTests
         existing.VehicleId.Should().Be(vehicleId);
         existing.Status.Should().Be(BidStatus.Pending);
         await _bidRepository.DidNotReceive().AddAsync(Arg.Any<Bid>(), Arg.Any<CancellationToken>());
+        await _notifier.Received(1).BidPlacedAsync(offer.Auction.Id, offer.Route.ContractorId, _carrierId, Arg.Any<string>(),
+            1250m, true, null, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(1100, true)]   // 1100 + 50 toll = 1150 < leader's 1200: the leader is outbid
+    [InlineData(1150, false)]  // 1150 + 50 = 1200 ties the leader: it keeps the lead
+    public async Task PlaceBidAsync_notifies_the_contractor_and_the_carrier_that_lost_the_lead(decimal freight, bool outbid)
+    {
+        var offer = AvailableOffer(ceiling: 5000m, weightKg: 100, volumeM3: 5);
+        _auctionRepository.GetAvailableForCarrierAsync(offer.Auction.Id, _carrierId, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(offer);
+        var vehicleId = Guid.NewGuid();
+        _vehicleRepository.GetByIdAsync(vehicleId, _carrierId, Arg.Any<CancellationToken>()).Returns(TestData.Vehicle(carrierId: _carrierId));
+        _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, Arg.Any<CancellationToken>()).Returns(Array.Empty<TripScheduleWindow>());
+        _bidRepository.GetTrackedByCarrierAndAuctionAsync(_carrierId, offer.Auction.Id, Arg.Any<CancellationToken>()).Returns((Bid?)null);
+        var leader = TestData.Carrier();
+        var leaderBid = new Bid { Id = Guid.NewGuid(), AuctionId = offer.Auction.Id, CarrierId = leader.Id, TotalValue = 1200m, Status = BidStatus.Pending };
+        _bidRepository.GetRankedBidsAsync(offer.Auction.Id, Arg.Any<CancellationToken>())
+            .Returns(new[] { new RankedBid(leaderBid, leader, TestData.Vehicle(carrierId: leader.Id)) });
+
+        await _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(freight, vehicleId));
+
+        await _notifier.Received(1).BidPlacedAsync(offer.Auction.Id, offer.Route.ContractorId, _carrierId, Arg.Any<string>(),
+            freight + 50m, false, outbid ? leader.Id : null, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlaceBidAsync_rebid_by_the_leader_outbids_nobody()
+    {
+        var offer = AvailableOffer(ceiling: 5000m, weightKg: 100, volumeM3: 5);
+        _auctionRepository.GetAvailableForCarrierAsync(offer.Auction.Id, _carrierId, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(offer);
+        var vehicleId = Guid.NewGuid();
+        _vehicleRepository.GetByIdAsync(vehicleId, _carrierId, Arg.Any<CancellationToken>()).Returns(TestData.Vehicle(carrierId: _carrierId));
+        _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, Arg.Any<CancellationToken>()).Returns(Array.Empty<TripScheduleWindow>());
+        var own = new Bid { Id = Guid.NewGuid(), AuctionId = offer.Auction.Id, CarrierId = _carrierId, TotalValue = 1200m, Status = BidStatus.Pending };
+        _bidRepository.GetTrackedByCarrierAndAuctionAsync(_carrierId, offer.Auction.Id, Arg.Any<CancellationToken>()).Returns(own);
+        _bidRepository.GetRankedBidsAsync(offer.Auction.Id, Arg.Any<CancellationToken>())
+            .Returns(new[] { new RankedBid(own, TestData.Carrier(_carrierId), TestData.Vehicle(carrierId: _carrierId)) });
+
+        await _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(900m, vehicleId));
+
+        await _notifier.Received(1).BidPlacedAsync(offer.Auction.Id, offer.Route.ContractorId, _carrierId, Arg.Any<string>(),
+            950m, true, null, Arg.Any<CancellationToken>());
     }
 
     // =====================================================================

@@ -34,7 +34,8 @@ public class AuctionMonitoringTests
             Assert.True(unit.InTransaction); staged = (Trip)args![0]!; Assert.NotEmpty(staged.Stops); return Task.CompletedTask;
         });
         var vehicles = Stub<IVehicleRepository>.New((name, _) => { Assert.Equal("LockForScheduleAsync", name); Assert.True(unit.InTransaction); return Task.CompletedTask; });
-        var service = new AuctionService(null!, routes, auctions, bids, trips, vehicles, null!, null!, null!, unit);
+        var notifier = Stub<IAuctionNotifier>.New((_, _) => Task.CompletedTask);
+        var service = new AuctionService(null!, routes, auctions, bids, trips, vehicles, null!, null!, notifier, unit);
         await service.AwardAsync(companyId, auction.Id, new AwardAuctionRequestDto(bid.Id));
         Assert.NotNull(staged); Assert.Equal(second.Id, staged.Stops[0].Actions[0].SegmentId);
         Assert.Equal(TripStatus.AwaitingPickup, staged.Status); Assert.Equal(RouteStatus.AwaitingPickup, route.Status);

@@ -10,10 +10,12 @@ namespace Sigloc.Application.Services;
 
 public sealed class TripMonitoringService(
     ITripMonitoringStore store, ITripTrackingProvider tracking, ITripRoutingProvider routing,
-    TimeProvider clock, TripMonitoringOptions options, ILogger<TripMonitoringService>? logger = null) : ITripMonitoringService
+    TimeProvider clock, TripMonitoringOptions options, ILogger<TripMonitoringService>? logger = null,
+    INotificationPublisher? notifications = null) : ITripMonitoringService
 {
     private readonly TripMonitoringOptions _settings = options;
     private readonly ILogger _logger = logger ?? NullLogger<TripMonitoringService>.Instance;
+    private readonly INotificationPublisher _notifications = notifications ?? NullNotificationPublisher.Instance;
 
     public Task<PagedTripsDto> SearchAsync(Guid contractorId, TripQueryDto query, CancellationToken ct = default) =>
         SearchAsync(TripScope.ForShipper(contractorId), query, ct);
@@ -49,10 +51,12 @@ public sealed class TripMonitoringService(
         TrackingFix? fix = null;
         var estimates = new Dictionary<string, TripRouteEstimate>();
         var refreshId = Guid.NewGuid();
+        NotificationMessage? riskNotice = null;
         try
         {
-            return await store.UpdateAsync(scope, tripId, async (state, token) =>
+            var projected = await store.UpdateAsync(scope, tripId, async (state, token) =>
             {
+                riskNotice = null;
                 var now = clock.GetUtcNow();
                 if (TripMonitoringCalculator.IsTerminal(state.Trip) || TripMonitoringCalculator.IsFresh(state.Snapshot, now))
                     return Project(state, false);
@@ -107,11 +111,17 @@ public sealed class TripMonitoringService(
                 snapshot.RemainingDistanceKm = estimate.RemainingDistanceKm; snapshot.LastCalculatedEta = eta;
                 snapshot.NextStopId = next?.Id; snapshot.NextStopDeadline = deadline; snapshot.Risk = risk;
                 AddSlaEventIfChanged(state, riskBefore, refreshId, now);
+                // Occurrences notify on their own; this covers the ETA newly exceeding the next deadline.
+                if (riskBefore != TripRiskEvaluator.Critical
+                    && TripRiskEvaluator.Effective(snapshot.Risk, state.Occurrences) == TripRiskEvaluator.Critical)
+                    riskNotice = NotificationCatalog.TripAtRisk(state.Route.ContractorId, state.Trip.Id);
                 state.NewTelemetry.Add(new TripTelemetry { Id = refreshId, TripId = state.Trip.Id, ObservationId = fix.ObservationId,
                     DeviceId = fix.DeviceId, Latitude = fix.Latitude, Longitude = fix.Longitude, FixTime = fix.FixTime, CalculatedAt = now });
                 TripStopCompletion.AddEvent(state, refreshId, "CALCULO", "Posição observada e percurso restante calculado sob demanda.", now);
                 return Project(state, true);
             }, ct);
+            if (riskNotice != null) await _notifications.PublishAsync([riskNotice]);
+            return projected;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (TripNotFoundException) { throw; }

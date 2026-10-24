@@ -13,17 +13,20 @@ public class PartnerNetworkService : IPartnerNetworkService
     private readonly IVehicleRepository _vehicles;
     private readonly ITripRepository _trips;
     private readonly IAuctionRepository _auctions;
+    private readonly INotificationPublisher _notifications;
 
     public PartnerNetworkService(
         IPartnerConnectionRepository connections,
         IVehicleRepository vehicles,
         ITripRepository trips,
-        IAuctionRepository auctions)
+        IAuctionRepository auctions,
+        INotificationPublisher? notifications = null)
     {
         _connections = connections;
         _vehicles = vehicles;
         _trips = trips;
         _auctions = auctions;
+        _notifications = notifications ?? NullNotificationPublisher.Instance;
     }
 
     public async Task<PartnerNetworkDto> GetNetworkAsync(Guid contractorId, CancellationToken cancellationToken = default)
@@ -82,6 +85,14 @@ public class PartnerNetworkService : IPartnerNetworkService
         // Soft end: keep the record so it stays visible as an inactive partnership.
         connection.Status = PartnershipStatus.Rejected;
         await _connections.UpdateAsync(connection, cancellationToken);
+
+        // The other side learns who ended it.
+        var endedByContractor = connection.ContractorId == companyId;
+        var endedBy = endedByContractor
+            ? connection.Contractor is { } contractor ? NotificationCatalog.CompanyName(contractor.CompanyName, contractor.TradeName) : "O embarcador"
+            : connection.Carrier is { } carrier ? NotificationCatalog.CompanyName(carrier.CompanyName, carrier.TradeName) : "A transportadora";
+        await _notifications.PublishAsync([NotificationCatalog.PartnershipEnded(
+            endedByContractor ? connection.CarrierId : connection.ContractorId, endedBy)]);
     }
 
     private static CarrierNetworkPartnerDto MontarContratanteDto(

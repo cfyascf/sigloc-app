@@ -24,6 +24,7 @@ public partial class AuthService : IAuthService
     private readonly IPasswordResetTokenRepository _passwordResetTokens;
     private readonly IPasswordResetLinkBuilder _passwordResetLinkBuilder;
     private readonly IEmailSender _emailSender;
+    private readonly INotificationPublisher _notifications;
 
     public AuthService(
         IUserRepository users,
@@ -38,7 +39,8 @@ public partial class AuthService : IAuthService
         IInviteLinkBuilder inviteLinkBuilder,
         IPasswordResetTokenRepository passwordResetTokens,
         IPasswordResetLinkBuilder passwordResetLinkBuilder,
-        IEmailSender emailSender)
+        IEmailSender emailSender,
+        INotificationPublisher? notifications = null)
     {
         _users = users;
         _contractors = contractors;
@@ -53,6 +55,7 @@ public partial class AuthService : IAuthService
         _passwordResetTokens = passwordResetTokens;
         _passwordResetLinkBuilder = passwordResetLinkBuilder;
         _emailSender = emailSender;
+        _notifications = notifications ?? NullNotificationPublisher.Instance;
     }
 
     public async Task<AuthResultDto> RegisterContractorAsync(RegisterContractorDto dto, CancellationToken cancellationToken = default)
@@ -237,6 +240,7 @@ public partial class AuthService : IAuthService
         await _connections.AddAsync(connection, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        await NotifyPartnerJoinedAsync(contractor.Id, carrier);
         return BuildAuthResult(user);
     }
 
@@ -270,9 +274,15 @@ public partial class AuthService : IAuthService
         await _connections.AddAsync(connection, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        var carrier = await _carriers.GetByIdAsync(carrierId, cancellationToken);
+        if (carrier is not null) await NotifyPartnerJoinedAsync(contractor.Id, carrier);
+
         var contractorName = contractor.TradeName ?? contractor.CompanyName;
         return new PartnerConnectionCreatedDto(connection.Id, contractorName, "ATIVA");
     }
+
+    private Task NotifyPartnerJoinedAsync(Guid contractorId, Carrier carrier) =>
+        _notifications.PublishAsync([NotificationCatalog.PartnerJoined(contractorId, NotificationCatalog.CompanyName(carrier.CompanyName, carrier.TradeName))]);
 
     public async Task<AuthResultDto> LoginAsync(LoginDto dto, CancellationToken cancellationToken = default)
     {
@@ -480,6 +490,7 @@ public partial class AuthService : IAuthService
         await _connections.AddAsync(connection, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        await NotifyPartnerJoinedAsync(contractor.Id, carrier);
         return BuildAuthResult(user);
     }
 

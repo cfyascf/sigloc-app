@@ -125,7 +125,7 @@ public class AuctionService : IAuctionService
             return (route, auction);
         }, cancellationToken);
 
-        await _notifier.AuctionOpenedAsync(result.auction.Id, result.route.Id, contractorId, cancellationToken);
+        await _notifier.AuctionOpenedAsync(result.auction.Id, contractorId, NotificationCatalog.RouteLabel(segments), cancellationToken);
 
         return MapToResponse(result.auction, result.route, segmentIds.Count);
     }
@@ -275,6 +275,13 @@ public class AuctionService : IAuctionService
 
         var route = await _routeRepository.GetTrackedByIdAsync(auction.RouteId, cancellationToken);
         var segments = await _segmentRepository.GetTrackedByRouteAsync(auction.RouteId, cancellationToken);
+        // Captured before the segments are released from the route below.
+        var routeLabel = NotificationCatalog.RouteLabel(segments);
+        var bidders = (await _bidRepository.GetTrackedByAuctionAsync(id, cancellationToken) ?? [])
+            .Where(b => b.Status != BidStatus.Withdrawn)
+            .Select(b => b.CarrierId)
+            .Distinct()
+            .ToList();
 
         await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -297,6 +304,8 @@ public class AuctionService : IAuctionService
             await _unitOfWork.SaveChangesAsync(ct);
             return true;
         }, cancellationToken);
+
+        await _notifier.AuctionCancelledAsync(bidders, routeLabel, cancellationToken);
     }
 
     public async Task<BidRankingDto> GetBidRankingAsync(Guid contractorId, Guid auctionId, CancellationToken cancellationToken = default)
@@ -396,6 +405,7 @@ public class AuctionService : IAuctionService
             throw new AuctionNotOpenException(auctionId);
         }
 
+        var routeLabel = string.Empty;
         var trip = await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             // 0. Anti-overbooking: the bid-time check only saw trips that existed when the bid was
@@ -405,6 +415,7 @@ public class AuctionService : IAuctionService
 
             var detail = await _auctionRepository.GetDetailAsync(auction.Id, contractorId, ct)
                 ?? throw new AuctionNotFoundException(auction.Id);
+            routeLabel = NotificationCatalog.RouteLabel(detail.Segments);
 
             if (await OverlapsActiveTripAsync(winner.VehicleId, detail.Segments, ct))
             {
@@ -445,6 +456,13 @@ public class AuctionService : IAuctionService
 
             return newTrip;
         }, cancellationToken);
+
+        var otherBidders = bids
+            .Where(b => b.CarrierId != winner.CarrierId && b.Status != BidStatus.Withdrawn)
+            .Select(b => b.CarrierId)
+            .Distinct()
+            .ToList();
+        await _notifier.AuctionAwardedAsync(trip.Id, winner.CarrierId, otherBidders, routeLabel, cancellationToken);
 
         return new AwardAuctionResponseDto(
             TripId: trip.Id,
@@ -625,6 +643,9 @@ public class AuctionService : IAuctionService
         var submittedAt = DateTimeOffset.UtcNow;
 
         var bid = await _bidRepository.GetTrackedByCarrierAndAuctionAsync(carrierId, auctionId, cancellationToken);
+        var updated = bid is not null;
+        // The leader before this bid: if another carrier held the lowest total, it is now outbid.
+        var leader = (await _bidRepository.GetRankedBidsAsync(auctionId, cancellationToken) ?? []).FirstOrDefault()?.Bid;
 
         await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -658,6 +679,12 @@ public class AuctionService : IAuctionService
             await _unitOfWork.SaveChangesAsync(ct);
             return true;
         }, cancellationToken);
+
+        var outbidCarrierId = leader is not null && leader.CarrierId != carrierId && totalValue < leader.TotalValue
+            ? leader.CarrierId
+            : (Guid?)null;
+        await _notifier.BidPlacedAsync(auctionId, route.ContractorId, carrierId, NotificationCatalog.RouteLabel(detail.Segments),
+            totalValue, updated, outbidCarrierId, cancellationToken);
 
         return new PlaceBidResponseDto(
             BidId: bid!.Id,

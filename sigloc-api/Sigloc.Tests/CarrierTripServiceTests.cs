@@ -30,6 +30,9 @@ public class CarrierTripServiceTests
         Assert.Equal("ENTREGA", result.CurrentAction.Kind);
         Assert.True(result.CurrentAction.RequiresProof);
         Assert.Empty(c.Files.Stored);
+        var notice = Assert.Single(c.H.Notifications.Sent);
+        Assert.Equal((c.H.CompanyId, NotificationCatalog.PickupConfirmedType), (notice.RecipientCompanyId, notice.Type));
+        Assert.Equal($"/active-route-tracking/{c.H.State.Trip.Id}", notice.Link);
     }
 
     [Fact]
@@ -65,6 +68,8 @@ public class CarrierTripServiceTests
         Assert.Equal("ENTREGUE", result.Trip.Status);
         Assert.Null(result.CurrentAction);
         Assert.Single(result.Proofs);
+        // The last delivery reports the whole trip as delivered.
+        Assert.Equal(new[] { NotificationCatalog.PickupConfirmedType, NotificationCatalog.TripDeliveredType }, c.H.Notifications.Sent.Select(n => n.Type));
     }
 
     [Fact]
@@ -147,6 +152,9 @@ public class CarrierTripServiceTests
         Assert.True(Assert.Single(result.Occurrences).IsOpen);
         Assert.Single(c.H.Store.State.Events, e => e.Kind == "OCORRENCIA");
         Assert.Single(c.H.Store.State.Events, e => e.Kind == "SLA");
+        var notice = Assert.Single(c.H.Notifications.Sent);
+        Assert.Equal((c.H.CompanyId, NotificationCatalog.OccurrenceType), (notice.RecipientCompanyId, notice.Type));
+        Assert.Equal(severity == "CRITIC", notice.Message.Contains("crítica"));
     }
 
     [Fact]
@@ -251,7 +259,7 @@ public class CarrierTripServiceTests
         public CarrierHarness()
         {
             H.State.Trip.CarrierId = CarrierId;
-            Service = new CarrierTripService(H.Service, H.Store, Files, H.Clock);
+            Service = new CarrierTripService(H.Service, H.Store, Files, H.Clock, notifications: H.Notifications);
         }
 
         public Task<CarrierTripDetailDto> Complete(Guid stopId, byte[]? file = null, string? note = null) =>

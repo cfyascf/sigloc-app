@@ -10,10 +10,11 @@ namespace Sigloc.Application.Services;
 
 public sealed class CarrierTripService(
     ITripMonitoringService monitoring, ITripMonitoringStore store, IFileStorage files, TimeProvider clock,
-    ILogger<CarrierTripService>? logger = null) : ICarrierTripService
+    ILogger<CarrierTripService>? logger = null, INotificationPublisher? notifications = null) : ICarrierTripService
 {
     private const int MaxNoteLength = 500;
     private readonly ILogger _logger = logger ?? NullLogger<CarrierTripService>.Instance;
+    private readonly INotificationPublisher _notifications = notifications ?? NullNotificationPublisher.Instance;
 
     public Task<PagedTripsDto> SearchAsync(Guid carrierId, TripQueryDto query, CancellationToken ct = default) =>
         monitoring.SearchAsync(TripScope.ForCarrier(carrierId), query, ct);
@@ -21,7 +22,7 @@ public sealed class CarrierTripService(
     public Task<CarrierTripDetailDto> GetDetailAsync(Guid carrierId, Guid tripId, bool refresh = false, CancellationToken ct = default) =>
         monitoring.GetDetailAsync(TripScope.ForCarrier(carrierId), tripId, refresh, CarrierTripMapper.Map, ct);
 
-    public Task<CarrierTripDetailDto> ReportOccurrenceAsync(Guid carrierId, Guid userId, Guid tripId,
+    public async Task<CarrierTripDetailDto> ReportOccurrenceAsync(Guid carrierId, Guid userId, Guid tripId,
         ReportTripOccurrenceRequestDto request, CancellationToken ct = default)
     {
         var errors = new List<ValidationError>();
@@ -30,15 +31,18 @@ public sealed class CarrierTripService(
         var note = NormalizeNote(request.Note, errors);
         if (errors.Count > 0) throw new ValidationException(errors, "Não foi possível registrar a ocorrência.");
 
-        return store.UpdateAsync(TripScope.ForCarrier(carrierId), tripId, (state, _) =>
+        NotificationMessage? notice = null;
+        var detail = await store.UpdateAsync(TripScope.ForCarrier(carrierId), tripId, (state, _) =>
         {
             EnsureActive(state);
             var now = clock.GetUtcNow();
             var operationId = Guid.NewGuid();
             var riskBefore = TripRiskEvaluator.Effective(state.Snapshot?.Risk, state.Occurrences);
+            var severity = TripRiskEvaluator.SeverityOf(type);
+            notice = NotificationCatalog.OccurrenceReported(state.Route.ContractorId, state.Trip.Id, type.ToLabel(), severity == TripRiskEvaluator.Critical);
             state.Occurrences.Insert(0, new TripOccurrence
             {
-                Id = Guid.NewGuid(), TripId = state.Trip.Id, Type = type, Severity = TripRiskEvaluator.SeverityOf(type),
+                Id = Guid.NewGuid(), TripId = state.Trip.Id, Type = type, Severity = severity,
                 Note = note, ReportedByUserId = userId, ReportedAt = now,
                 BlockingStopId = TripStopCompletion.FirstPending(state.Trip)?.Id
             });
@@ -47,6 +51,8 @@ public sealed class CarrierTripService(
             TripMonitoringService.AddSlaEventIfChanged(state, riskBefore, operationId, now);
             return Task.FromResult(CarrierTripMapper.Map(state, TripDetailMapper.Map(state, false)));
         }, ct);
+        if (notice != null) await _notifications.PublishAsync([notice]);
+        return detail;
     }
 
     public async Task<CarrierTripDetailDto> CompleteStopAsync(Guid carrierId, Guid userId, Guid tripId, Guid stopId,
@@ -65,9 +71,11 @@ public sealed class CarrierTripService(
             key = await files.SaveAsync($"trips/{tripId:N}", content, file.Extension, ct);
         }
 
+        NotificationMessage? notice = null;
+        CarrierTripDetailDto detail;
         try
         {
-            return await store.UpdateAsync(TripScope.ForCarrier(carrierId), tripId, (state, _) =>
+            detail = await store.UpdateAsync(TripScope.ForCarrier(carrierId), tripId, (state, _) =>
             {
                 EnsureActive(state);
                 var stop = state.Trip.Stops.FirstOrDefault(s => s.Id == stopId) ?? throw new TripStopNotFoundException(stopId);
@@ -94,6 +102,8 @@ public sealed class CarrierTripService(
                     + (normalizedNote == null ? "." : $" — {normalizedNote}")), now);
                 InvalidateEta(state);
                 TripMonitoringService.AddSlaEventIfChanged(state, riskBefore, operationId, now);
+                notice = NotificationCatalog.StopConfirmed(state.Route.ContractorId, state.Trip.Id, stop.City, delivers,
+                    state.Trip.Status == TripStatus.Delivered);
                 return Task.FromResult(CarrierTripMapper.Map(state, TripDetailMapper.Map(state, false)));
             }, ct);
         }
@@ -102,6 +112,8 @@ public sealed class CarrierTripService(
             if (key != null) await DeleteQuietlyAsync(key);
             throw;
         }
+        if (notice != null) await _notifications.PublishAsync([notice]);
+        return detail;
     }
 
     public Task<ProofOfDeliveryFileDto> OpenProofAsync(Guid carrierId, Guid tripId, Guid proofId, CancellationToken ct = default) =>
