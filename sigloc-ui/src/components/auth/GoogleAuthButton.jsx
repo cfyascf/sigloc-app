@@ -1,8 +1,31 @@
 /* eslint-disable react/prop-types */
+import { useEffect, useRef, useState } from "react"
 import { GoogleLogin } from "@react-oauth/google"
 import { LoaderCircle } from "lucide-react"
 
 import { isGoogleAuthEnabled } from "@/config/env"
+
+// Google Identity Services only accepts a pixel width (at most 400), not "100%".
+const GSI_MAX_WIDTH = 400
+
+/** Width of the element in whole pixels, capped for GSI; null until first measured. */
+function useButtonWidth(ref) {
+  const [width, setWidth] = useState(null)
+
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return undefined
+
+    // ResizeObserver also reports the initial size as soon as observation starts.
+    const observer = new ResizeObserver(([entry]) => {
+      setWidth(Math.min(GSI_MAX_WIDTH, Math.floor(entry.contentRect.width)))
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [ref])
+
+  return width
+}
 
 /**
  * Reusable Google sign-in button.
@@ -25,6 +48,9 @@ export function GoogleAuthButton({
   text = "continue_with",
   disabled = false,
 }) {
+  const containerRef = useRef(null)
+  const buttonWidth = useButtonWidth(containerRef)
+
   if (!isGoogleAuthEnabled) {
     return (
       <button
@@ -41,25 +67,28 @@ export function GoogleAuthButton({
 
   return (
     <div
-      className={disabled ? "pointer-events-none relative opacity-60" : "relative"}
+      ref={containerRef}
+      className={disabled ? "pointer-events-none relative flex min-h-10 justify-center opacity-60" : "relative flex min-h-10 justify-center"}
       aria-disabled={disabled}
       aria-busy={disabled || undefined}
     >
-      <GoogleLogin
-        onSuccess={(response) => {
-          if (response?.credential) {
-            onCredential(response.credential)
-          } else {
-            onError?.(new Error("Credencial do Google ausente."))
-          }
-        }}
-        onError={() => onError?.(new Error("Falha na autenticação com o Google."))}
-        text={text}
-        width="100%"
-        theme="outline"
-        shape="rectangular"
-        logo_alignment="center"
-      />
+      {buttonWidth ? (
+        <GoogleLogin
+          onSuccess={(response) => {
+            if (response?.credential) {
+              onCredential(response.credential)
+            } else {
+              onError?.(new Error("Credencial do Google ausente."))
+            }
+          }}
+          onError={() => onError?.(new Error("Falha na autenticação com o Google."))}
+          text={text}
+          width={buttonWidth}
+          theme="outline"
+          shape="rectangular"
+          logo_alignment="center"
+        />
+      ) : null}
       {disabled ? (
         <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-white/80 text-sm font-medium text-slate-700" role="status">
           <LoaderCircle className="animate-spin" aria-hidden="true" />
