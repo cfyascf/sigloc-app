@@ -77,8 +77,8 @@ public class RouteSegmentService : IRouteSegmentService
             if (!SegmentEnumMappings.TryParseStatus(query.Status, out var parsed))
             {
                 throw new ValidationException(
-                    new[] { new ValidationError("status", "Invalid value. Use 'AVAILABLE', 'ROUTED', 'IN_TRANSIT' or 'COMPLETED'.") },
-                    "Could not list the route segments.");
+                    new[] { new ValidationError("status", "Valor inválido. Use 'AVAILABLE', 'ROUTED', 'IN_TRANSIT' ou 'COMPLETED'.") },
+                    "Não foi possível listar os trechos.");
             }
 
             status = parsed;
@@ -172,9 +172,9 @@ public class RouteSegmentService : IRouteSegmentService
         if (missing.Count > 0)
         {
             var errors = missing
-                .Select(pid => new ValidationError("items", $"Product {pid} does not exist or does not belong to this contractor."))
+                .Select(pid => new ValidationError("items", $"O produto {pid} não existe ou não pertence a este contratante."))
                 .ToList();
-            throw new ValidationException(errors, "Could not save the route segment.");
+            throw new ValidationException(errors, "Não foi possível salvar o trecho.");
         }
 
         return byId;
@@ -187,30 +187,30 @@ public class RouteSegmentService : IRouteSegmentService
         var origin = dto.Origin?.Trim();
         if (string.IsNullOrWhiteSpace(origin))
         {
-            errors.Add(new ValidationError("origin", "Required."));
+            errors.Add(new ValidationError("origin", "Campo obrigatório."));
         }
 
         var destination = dto.Destination?.Trim();
         if (string.IsNullOrWhiteSpace(destination))
         {
-            errors.Add(new ValidationError("destination", "Required."));
+            errors.Add(new ValidationError("destination", "Campo obrigatório."));
         }
 
         if (dto.PickupDeadline is null)
         {
-            errors.Add(new ValidationError("pickupDeadline", "Required."));
+            errors.Add(new ValidationError("pickupDeadline", "Campo obrigatório."));
         }
 
         if (dto.DeliveryDeadline is null)
         {
-            errors.Add(new ValidationError("deliveryDeadline", "Required."));
+            errors.Add(new ValidationError("deliveryDeadline", "Campo obrigatório."));
         }
 
         if (dto.PickupDeadline is DateTimeOffset pickup &&
             dto.DeliveryDeadline is DateTimeOffset delivery &&
             delivery <= pickup)
         {
-            errors.Add(new ValidationError("deliveryDeadline", "Must be later than pickupDeadline."));
+            errors.Add(new ValidationError("deliveryDeadline", "A entrega deve ser posterior à coleta."));
         }
 
         if (dto.PickupDeadline is DateTimeOffset pickupAt && pickupAt <= DateTimeOffset.UtcNow)
@@ -227,18 +227,18 @@ public class RouteSegmentService : IRouteSegmentService
 
         if (dto.EstimatedTollCost is not decimal toll || toll < 0)
         {
-            errors.Add(new ValidationError("estimatedTollCost", "Must be zero or greater."));
+            errors.Add(new ValidationError("estimatedTollCost", "Deve ser zero ou maior."));
         }
 
         if (dto.BudgetCeiling is decimal budget && budget < 0)
         {
-            errors.Add(new ValidationError("budgetCeiling", "Must be zero or greater."));
+            errors.Add(new ValidationError("budgetCeiling", "Deve ser zero ou maior."));
         }
 
         var validatedItems = new List<ValidatedItem>();
         if (dto.Items is null || dto.Items.Count == 0)
         {
-            errors.Add(new ValidationError("items", "The route segment must contain at least one linked product."));
+            errors.Add(new ValidationError("items", "O trecho deve conter ao menos um produto."));
         }
         else
         {
@@ -264,7 +264,7 @@ public class RouteSegmentService : IRouteSegmentService
 
         if (errors.Count > 0)
         {
-            throw new ValidationException(errors, "Could not save the route segment.");
+            throw new ValidationException(errors, "Não foi possível salvar o trecho.");
         }
 
         return new ValidatedSegment(

@@ -7,7 +7,7 @@ namespace Sigloc.Application.Exceptions;
 public sealed class RouteSegmentNotEditableException : Exception
 {
     public RouteSegmentNotEditableException(Guid id)
-        : base($"Route segment {id} is attached to a consolidated route. Remove it from the route before editing or deleting it.")
+        : base("Este trecho faz parte de uma rota consolidada. Remova-o da rota antes de editar ou excluir.")
     {
     }
 }

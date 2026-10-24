@@ -154,5 +154,5 @@ public sealed class TripMonitoringService(
     }
 
     private static string? Normalize(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim().ToUpperInvariant();
-    private static void Invalid(string field) => throw new ValidationException(new[] { new ValidationError(field, "Invalid monitoring filter or page.") });
+    private static void Invalid(string field) => throw new ValidationException(new[] { new ValidationError(field, "Filtro ou página de monitoramento inválido.") });
 }

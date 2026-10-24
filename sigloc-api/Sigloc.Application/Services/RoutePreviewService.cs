@@ -55,8 +55,8 @@ public class RoutePreviewService : IRoutePreviewService
         if (ids.Count == 0)
         {
             throw new ValidationException(
-                new[] { new ValidationError("segmentIds", "At least one route segment is required.") },
-                "Could not process the route.");
+                new[] { new ValidationError("segmentIds", "Selecione ao menos um trecho.") },
+                "Não foi possível processar a rota.");
         }
 
         return ids;

@@ -22,7 +22,7 @@ public class ProductService : IProductService
 
     public async Task<ProductResponseDto> CreateAsync(Guid contractorId, ProductRequestDto dto, CancellationToken cancellationToken = default)
     {
-        var validated = Validate(dto);
+        var validated = Validate(dto, "Não foi possível cadastrar o produto.");
 
         if (await _repository.SkuExistsAsync(contractorId, validated.Sku, excludeId: null, cancellationToken))
         {
@@ -94,7 +94,7 @@ public class ProductService : IProductService
         var product = await _repository.GetByIdAsync(id, contractorId, cancellationToken)
             ?? throw new ProductNotFoundException(id);
 
-        var validated = Validate(dto);
+        var validated = Validate(dto, "Não foi possível atualizar o produto.");
 
         if (await _repository.SkuExistsAsync(contractorId, validated.Sku, excludeId: id, cancellationToken))
         {
@@ -134,7 +134,7 @@ public class ProductService : IProductService
         await _repository.DeleteAsync(product, cancellationToken);
     }
 
-    private static ValidatedProduct Validate(ProductRequestDto dto)
+    private static ValidatedProduct Validate(ProductRequestDto dto, string failureMessage)
     {
         var errors = new List<ValidationError>();
 
@@ -212,7 +212,7 @@ public class ProductService : IProductService
 
         if (errors.Count > 0)
         {
-            throw new ValidationException(errors);
+            throw new ValidationException(errors, failureMessage);
         }
 
         return new ValidatedProduct(

@@ -7,7 +7,7 @@ namespace Sigloc.Application.Exceptions;
 public sealed class RouteSegmentNotFoundException : Exception
 {
     public RouteSegmentNotFoundException(Guid id)
-        : base($"Route segment {id} does not exist or does not belong to this contractor.")
+        : base("Trecho não encontrado ou não pertence a este contratante.")
     {
     }
 }

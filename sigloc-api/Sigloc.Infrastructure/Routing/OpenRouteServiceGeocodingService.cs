@@ -76,7 +76,7 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
             !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude) ||
             !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude))
         {
-            throw new GeocodingException($"The coordinate '{coordinate}' is not in the expected 'longitude,latitude' format.");
+            throw new GeocodingException($"A coordenada '{coordinate}' não está no formato 'longitude,latitude'.");
         }
 
         // OpenRouteService always works in [longitude, latitude] order.
@@ -94,13 +94,13 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
         {
-            throw new GeocodingException($"Could not geocode the address '{address}'.", ex);
+            throw new GeocodingException($"Não foi possível localizar o endereço '{address}'.", ex);
         }
 
         var coordinates = response?.Features?.FirstOrDefault()?.Geometry?.Coordinates;
         if (coordinates is not { Length: >= 2 })
         {
-            throw new GeocodingException($"No coordinates were found for the address '{address}'.");
+            throw new GeocodingException($"Endereço não encontrado: '{address}'. Confira a cidade e a UF (ex.: Curitiba, PR).");
         }
 
         // OpenRouteService always works in [longitude, latitude] order.
@@ -127,7 +127,7 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
         {
-            throw new GeocodingException("Could not compute the route distance and duration.", ex);
+            throw new GeocodingException("Não foi possível calcular a distância e a duração da rota.", ex);
         }
 
         // The outbound leg (origin → destination) is at [0][1] of each matrix.
@@ -141,7 +141,7 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
     {
         if (matrix is not { Length: >= 1 } || matrix[0] is not { Length: >= 2 })
         {
-            throw new GeocodingException($"The routing provider returned an invalid {metric} matrix.");
+            throw new GeocodingException($"O serviço de rotas retornou uma matriz de {metric} inválida.");
         }
 
         return matrix[0][1];

@@ -54,7 +54,7 @@ public class AuctionService : IAuctionService
     public async Task<CreateAuctionResponseDto> CreateAsync(Guid contractorId, CreateAuctionRequestDto dto, CancellationToken cancellationToken = default)
     {
         var segmentIds = RoutePreviewService.ValidateSegmentIds(dto.SegmentIds);
-        var expiresAt = ValidateExpiry(dto.ExpiresAt);
+        var expiresAt = ValidateExpiry(dto.ExpiresAt, StartAuctionFailed);
 
         // Load tracked segments so they can be updated inside the transaction.
         var segments = await _segmentRepository.GetByIdsAsync(contractorId, segmentIds, tracked: true, cancellationToken);
@@ -79,7 +79,7 @@ public class AuctionService : IAuctionService
         var aggregate = await RouteAggregator.AggregateAsync(segmentIds, segments, _geocodingService, cancellationToken);
 
         ValidateDeadlineWindow(segments, aggregate.EstimatedTimeHours);
-        ValidateExpiryBeforeFirstPickup(expiresAt, segments);
+        ValidateExpiryBeforeFirstPickup(expiresAt, segments, StartAuctionFailed);
 
         var openedAt = DateTimeOffset.UtcNow;
 
@@ -248,10 +248,10 @@ public class AuctionService : IAuctionService
 
         if (dto.ExpiresAt is not null)
         {
-            var expiresAt = ValidateExpiry(dto.ExpiresAt);
+            var expiresAt = ValidateExpiry(dto.ExpiresAt, UpdateAuctionFailed);
 
             var detail = await _auctionRepository.GetDetailAsync(id, contractorId, cancellationToken);
-            ValidateExpiryBeforeFirstPickup(expiresAt, detail?.Segments ?? Array.Empty<RouteSegment>());
+            ValidateExpiryBeforeFirstPickup(expiresAt, detail?.Segments ?? Array.Empty<RouteSegment>(), UpdateAuctionFailed);
 
             auction.ExpiresAt = expiresAt;
         }
@@ -671,6 +671,8 @@ public class AuctionService : IAuctionService
 
     private static string FormatBrl(decimal value) => value.ToString("C", PtBr);
 
+    private static string FormatHours(double hours) => $"{Math.Round(hours, 1).ToString("0.#", PtBr)} h";
+
     // Deadlines are stored in UTC; users read them in Brasília time (UTC−3, no DST since 2019).
     private static string FormatBrasiliaTime(DateTimeOffset value)
         => value.ToOffset(TimeSpan.FromHours(-3)).ToString("dd/MM/yyyy HH:mm", PtBr);
@@ -882,20 +884,24 @@ public class AuctionService : IAuctionService
         return string.Join(" · ", parts);
     }
 
-    private static DateTimeOffset ValidateExpiry(DateTimeOffset? expiresAt)
+    private const string StartAuctionFailed = "Não foi possível iniciar o leilão.";
+    private const string UpdateAuctionFailed = "Não foi possível alterar o prazo do leilão.";
+
+    /// <param name="failureMessage">Summary for the action being performed (start vs. edit).</param>
+    private static DateTimeOffset ValidateExpiry(DateTimeOffset? expiresAt, string failureMessage)
     {
         if (expiresAt is null)
         {
             throw new ValidationException(
-                new[] { new ValidationError("expiresAt", "Required.") },
-                "Could not start the auction.");
+                new[] { new ValidationError("expiresAt", "Campo obrigatório.") },
+                failureMessage);
         }
 
         if (expiresAt.Value <= DateTimeOffset.UtcNow)
         {
             throw new ValidationException(
-                new[] { new ValidationError("expiresAt", "Must be in the future.") },
-                "Could not start the auction.");
+                new[] { new ValidationError("expiresAt", "O prazo de encerramento deve estar no futuro.") },
+                failureMessage);
         }
 
         return expiresAt.Value;
@@ -906,7 +912,7 @@ public class AuctionService : IAuctionService
     /// <see cref="ValidateExpiry"/> (expiry in the future) this also rules out auctioning a load
     /// whose pickup deadline has already passed.
     /// </summary>
-    private static void ValidateExpiryBeforeFirstPickup(DateTimeOffset expiresAt, IReadOnlyCollection<RouteSegment> segments)
+    private static void ValidateExpiryBeforeFirstPickup(DateTimeOffset expiresAt, IReadOnlyCollection<RouteSegment> segments, string failureMessage)
     {
         if (segments.Count == 0)
         {
@@ -923,7 +929,7 @@ public class AuctionService : IAuctionService
                         "expiresAt",
                         $"O leilão deve encerrar antes do primeiro prazo de coleta ({FormatBrasiliaTime(firstPickup)}).")
                 },
-                "Prazo de encerramento do leilão inválido.");
+                failureMessage);
         }
     }
 
@@ -952,9 +958,9 @@ public class AuctionService : IAuctionService
                 {
                     new ValidationError(
                         "deliveryDeadline",
-                        $"The window between the first pickup deadline and the last delivery deadline ({Math.Round(availableHours, 2)}h) is shorter than the estimated route time ({Math.Round(estimatedTimeHours, 2)}h). The carrier could never complete the route on time.")
+                        $"O intervalo entre a primeira coleta e a última entrega ({FormatHours(availableHours)}) é menor que o tempo estimado da rota ({FormatHours(estimatedTimeHours)}); a transportadora não conseguiria cumprir o prazo.")
                 },
-                "Could not start the auction.");
+                StartAuctionFailed);
         }
     }
 

@@ -9,7 +9,7 @@ public sealed class RouteSegmentsNotFoundException : Exception
     public IReadOnlyList<Guid> MissingIds { get; }
 
     public RouteSegmentsNotFoundException(IReadOnlyList<Guid> missingIds)
-        : base($"{missingIds.Count} route segment(s) do not exist or do not belong to this contractor.")
+        : base($"{missingIds.Count} trecho(s) não existem ou não pertencem a este contratante.")
     {
         MissingIds = missingIds;
     }

@@ -117,7 +117,7 @@ public class RouteSegmentServiceTests
         var act = () => _service.CreateAsync(_contractorId, dto);
 
         var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
-        ex.Errors.Should().Contain(e => e.Field == "deliveryDeadline" && e.Reason.Contains("later"));
+        ex.Errors.Should().Contain(e => e.Field == "deliveryDeadline" && e.Reason.Contains("posterior"));
     }
 
     [Fact]

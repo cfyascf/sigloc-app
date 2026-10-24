@@ -135,10 +135,10 @@ public class VehicleService : IVehicleService
     private static void ValidateMonitoringFields(long? deviceId, string? phone)
     {
         var errors = new List<Sigloc.Application.Exceptions.ValidationError>();
-        if (deviceId is <= 0) errors.Add(new("traccarDeviceId", "Device ID must be positive."));
+        if (deviceId is <= 0) errors.Add(new("traccarDeviceId", "O ID do dispositivo Traccar deve ser um número positivo."));
         if (phone != null && (phone.Length > 40 || phone.Any(c => !char.IsDigit(c) && !" +-().".Contains(c))))
-            errors.Add(new("driverPhone", "Phone must contain at most 40 phone-number characters."));
-        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Invalid vehicle monitoring fields.");
+            errors.Add(new("driverPhone", "Telefone inválido: use apenas números, espaços e + - ( ) ., com até 40 caracteres."));
+        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Dados de rastreamento do veículo inválidos.");
     }
 
     private static VehicleResponseDto MapToDto(Vehicle vehicle, bool onActiveTrip = false)

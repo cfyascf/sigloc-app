@@ -7,7 +7,7 @@ namespace Sigloc.Application.Exceptions;
 public sealed class BidNotFoundException : Exception
 {
     public BidNotFoundException(Guid id)
-        : base($"Bid {id} does not exist or does not belong to this auction.")
+        : base("Lance não encontrado neste leilão.")
     {
     }
 }
