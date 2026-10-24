@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useLocation, useNavigate, Link } from "react-router-dom"
 import {
+  AlertTriangle,
   ArrowLeft,
   Box,
+  CalendarClock,
   Clock,
   DollarSign,
   Gavel,
@@ -20,7 +22,13 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { FormAlert } from "@/components/auth/FormAlert"
 import { useAsyncAction } from "@/hooks/use-async-action"
-import { segmentShortId } from "@/constants/route-segments"
+import { buildUnifiedTimeline } from "@/lib/travel-timeline"
+import {
+  earliestPickup,
+  latestDelivery,
+  formatDeadline,
+  hasDeadlineOrderingConflict,
+} from "@/lib/deadline-formatters"
 import { getRouteSegment } from "@/services/route-segment-service"
 import { previewRoute } from "@/services/route-service"
 import { createAuction } from "@/services/auction-service"
@@ -34,30 +42,6 @@ const formatCurrency = (value) =>
     currency: "BRL",
     maximumFractionDigits: 0,
   }).format(value ?? 0)
-
-const cityLabel = (value) => (value ? value.split(",")[0] : "—")
-
-/** Builds a de-duplicated, ordered itinerary from the resolved segments. */
-const buildUnifiedTimeline = (segments) => {
-  const nodes = []
-  const addAction = (city, action) => {
-    const existing = nodes.find((n) => n.city === city)
-    if (existing) {
-      existing.actions.push(action)
-      return
-    }
-    nodes.push({ city, actions: [action] })
-  }
-
-  segments.forEach((s) => {
-    const label = s.items?.[0]?.name ?? "Carga"
-    const ref = segmentShortId(s.id)
-    addAction(s.originCity ?? s.origin, `Coleta · ${label} · ${ref}`)
-    addAction(s.destinationCity ?? s.destination, `Descarga · ${label} · ${ref}`)
-  })
-
-  return nodes.map((node) => ({ ...node, city: cityLabel(node.city) }))
-}
 
 function SectionHeader({ icon: Icon, iconClassName, children }) {
   return (
@@ -131,6 +115,15 @@ export default function OfferFreight() {
 
   const unifiedTimeline = useMemo(
     () => buildUnifiedTimeline(segments),
+    [segments]
+  )
+
+  const deadlineSummary = useMemo(
+    () => ({
+      firstPickup: earliestPickup(segments),
+      lastDelivery: latestDelivery(segments),
+      hasConflict: hasDeadlineOrderingConflict(segments),
+    }),
     [segments]
   )
 
@@ -219,6 +212,45 @@ export default function OfferFreight() {
                 emptyMessage="Não foi possível montar o itinerário."
               />
             )}
+
+            {!contextPending && segments.length > 0 ? (
+              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock size={16} className="text-slate-400" />
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Primeira Coleta
+                      </p>
+                      <p className="text-sm font-bold text-slate-800">
+                        {formatDeadline(deadlineSummary.firstPickup)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 sm:justify-end">
+                    <CalendarClock size={16} className="text-emerald-500" />
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Última Entrega
+                      </p>
+                      <p className="text-sm font-bold text-slate-800">
+                        {formatDeadline(deadlineSummary.lastDelivery)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {deadlineSummary.hasConflict ? (
+                  <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                    <span>
+                      Há trechos com prazos sobrepostos: uma coleta é exigida antes da
+                      entrega de outro trecho da rota. Revise os prazos dos trechos antes
+                      de ofertar.
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="min-w-0 space-y-6">
