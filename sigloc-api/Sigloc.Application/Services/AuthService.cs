@@ -527,9 +527,9 @@ public partial class AuthService : IAuthService
     {
         var errors = new List<ValidationError>();
 
-        if (cnpj.Length != 14)
+        if (!CnpjValidator.IsValid(cnpj))
         {
-            errors.Add(new ValidationError("cnpj", "CNPJ inválido. Informe os 14 dígitos."));
+            errors.Add(new ValidationError("cnpj", "CNPJ inválido. Confira os 14 dígitos informados."));
         }
 
         if (string.IsNullOrWhiteSpace(companyName))
@@ -575,9 +575,9 @@ public partial class AuthService : IAuthService
     {
         var errors = new List<ValidationError>();
 
-        if (cnpj.Length != 14)
+        if (!CnpjValidator.IsValid(cnpj))
         {
-            errors.Add(new ValidationError("cnpj", "CNPJ inválido. Informe os 14 dígitos."));
+            errors.Add(new ValidationError("cnpj", "CNPJ inválido. Confira os 14 dígitos informados."));
         }
 
         if (string.IsNullOrWhiteSpace(companyName))

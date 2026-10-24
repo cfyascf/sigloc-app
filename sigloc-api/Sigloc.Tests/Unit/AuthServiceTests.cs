@@ -118,6 +118,17 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task RegisterContractorAsync_cnpj_with_wrong_check_digits_ThrowsValidation()
+    {
+        var dto = new RegisterContractorDto("12.345.678/0001-00", "Empresa Ltda", null, "novo@empresa.com", "SenhaForte123");
+
+        var act = () => _service.RegisterContractorAsync(dto);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(e => e.Field == "cnpj");
+    }
+
+    [Fact]
     public async Task RegisterContractorAsync_WithInvalidData_ThrowsValidation()
     {
         var dto = new RegisterContractorDto("123", "", null, "bad-email", "short");
