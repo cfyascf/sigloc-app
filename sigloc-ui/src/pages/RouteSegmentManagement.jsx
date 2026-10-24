@@ -29,6 +29,7 @@ import {
   toDateTimeLocal,
 } from "@/services/route-segment-service"
 import { previewRoute } from "@/services/route-service"
+import { formatDeadline } from "@/lib/deadline-formatters"
 import {
   isSegmentEditable,
   segmentShortId,
@@ -387,6 +388,16 @@ export default function RouteSegmentManagement() {
                           {segment.items.length}{" "}
                           {segment.items.length === 1 ? "produto" : "produtos"} ·
                           ~{numberFormat.format(segment.estimatedTimeHours)}h
+                        </span>
+                        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] font-medium text-slate-400">
+                          <span className="flex items-center gap-1">
+                            <CalendarClock size={11} className="text-slate-400" />
+                            Coleta até {formatDeadline(segment.pickupDeadline)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <CalendarClock size={11} className="text-slate-400" />
+                            Entrega até {formatDeadline(segment.deliveryDeadline)}
+                          </span>
                         </span>
                       </div>
 
