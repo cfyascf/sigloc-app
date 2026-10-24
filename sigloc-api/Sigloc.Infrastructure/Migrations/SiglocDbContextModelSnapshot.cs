@@ -582,6 +582,10 @@ namespace Sigloc.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("DestinationCity")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
                     b.Property<string>("DestinationCoordinate")
                         .IsRequired()
                         .HasColumnType("text");
@@ -598,6 +602,10 @@ namespace Sigloc.Infrastructure.Migrations
                     b.Property<string>("OriginAddress")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("OriginCity")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
 
                     b.Property<string>("OriginCoordinate")
                         .IsRequired()

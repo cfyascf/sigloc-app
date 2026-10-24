@@ -50,6 +50,8 @@ public class RouteSegmentService : IRouteSegmentService
             RouteId = null,
             OriginAddress = validated.Origin,
             DestinationAddress = validated.Destination,
+            OriginCity = geometry.OriginPlace,
+            DestinationCity = geometry.DestinationPlace,
             OriginCoordinate = geometry.OriginCoordinate,
             DestinationCoordinate = geometry.DestinationCoordinate,
             DistanceKm = geometry.DistanceKm,
@@ -132,6 +134,8 @@ public class RouteSegmentService : IRouteSegmentService
 
             segment.OriginAddress = validated.Origin;
             segment.DestinationAddress = validated.Destination;
+            segment.OriginCity = geometry.OriginPlace;
+            segment.DestinationCity = geometry.DestinationPlace;
             segment.OriginCoordinate = geometry.OriginCoordinate;
             segment.DestinationCoordinate = geometry.DestinationCoordinate;
             segment.DistanceKm = geometry.DistanceKm;
@@ -263,13 +267,13 @@ public class RouteSegmentService : IRouteSegmentService
 
                 if (item.ProductId is not Guid productId || productId == Guid.Empty)
                 {
-                    errors.Add(new ValidationError($"items[{index}].productId", "Required."));
+                    errors.Add(new ValidationError($"items[{index}].productId", $"Selecione o produto do item {index + 1}."));
                     continue;
                 }
 
                 if (item.Quantity is not int quantity || quantity <= 0)
                 {
-                    errors.Add(new ValidationError($"items[{index}].quantity", "Must be greater than zero."));
+                    errors.Add(new ValidationError($"items[{index}].quantity", $"A quantidade do item {index + 1} deve ser um número inteiro maior que zero."));
                     continue;
                 }
 
@@ -353,7 +357,9 @@ public class RouteSegmentService : IRouteSegmentService
                 requirement.MinRefrigerationLevel,
                 requirement.RequiresMopp,
                 requirement.RequiresCargoFixing),
-            segment.CreatedAt);
+            segment.CreatedAt,
+            segment.OriginCity,
+            segment.DestinationCity);
     }
 
     private sealed record ValidatedSegment(

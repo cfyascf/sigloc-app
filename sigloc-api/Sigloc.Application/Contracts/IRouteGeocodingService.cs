@@ -1,11 +1,16 @@
 namespace Sigloc.Application.Contracts;
 
-/// <summary>Geographic route computed for an origin/destination pair.</summary>
+/// <summary>
+/// Geographic route computed for an origin/destination pair. The places are the geocoded
+/// "City, UF" of each end, or null when the provider did not resolve a city.
+/// </summary>
 public sealed record RouteGeometry(
     string OriginCoordinate,
     string DestinationCoordinate,
     double DistanceKm,
-    double EstimatedTimeHours);
+    double EstimatedTimeHours,
+    string? OriginPlace = null,
+    string? DestinationPlace = null);
 
 /// <summary>Distance and duration of a driving leg between two known coordinates.</summary>
 public sealed record RouteLeg(

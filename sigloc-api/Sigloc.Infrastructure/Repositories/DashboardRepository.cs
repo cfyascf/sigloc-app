@@ -185,8 +185,9 @@ public class DashboardRepository : IDashboardRepository
             {
                 RouteId = s.RouteId!.Value,
                 s.Status,
-                s.OriginAddress,
-                s.DestinationAddress,
+                // Geocoded city when known, else the typed address (legacy rows).
+                OriginAddress = s.OriginCity ?? s.OriginAddress,
+                DestinationAddress = s.DestinationCity ?? s.DestinationAddress,
                 s.PickupDeadline,
                 s.DeliveryDeadline
             })
@@ -488,7 +489,7 @@ public class DashboardRepository : IDashboardRepository
         var segments = await db.RouteSegments
             .AsNoTracking()
             .Where(s => s.RouteId != null && routeIds.Contains(s.RouteId.Value))
-            .Select(s => new { RouteId = s.RouteId!.Value, s.OriginAddress, s.DestinationAddress, s.PickupDeadline })
+            .Select(s => new { RouteId = s.RouteId!.Value, OriginAddress = s.OriginCity ?? s.OriginAddress, DestinationAddress = s.DestinationCity ?? s.DestinationAddress, s.PickupDeadline })
             .ToListAsync(cancellationToken);
 
         var byRoute = segments

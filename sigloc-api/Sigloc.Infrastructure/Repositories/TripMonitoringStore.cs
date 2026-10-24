@@ -59,9 +59,9 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
                 x.Risk,
                 x.Carrier.TradeName ?? x.Carrier.CompanyName, x.Vehicle.Plate,
                 db.TripStops.Where(s => s.TripId == x.Trip.Id).OrderBy(s => s.Sequence).Select(s => s.Address).FirstOrDefault()
-                    ?? db.RouteSegments.Where(s => s.RouteId == x.Trip.RouteId).OrderBy(s => s.RouteSequence).ThenBy(s => s.PickupDeadline).ThenBy(s => s.Id).Select(s => s.OriginAddress).FirstOrDefault(),
+                    ?? db.RouteSegments.Where(s => s.RouteId == x.Trip.RouteId).OrderBy(s => s.RouteSequence).ThenBy(s => s.PickupDeadline).ThenBy(s => s.Id).Select(s => s.OriginCity ?? s.OriginAddress).FirstOrDefault(),
                 db.TripStops.Where(s => s.TripId == x.Trip.Id).OrderByDescending(s => s.Sequence).Select(s => s.Address).FirstOrDefault()
-                    ?? db.RouteSegments.Where(s => s.RouteId == x.Trip.RouteId).OrderByDescending(s => s.RouteSequence).ThenByDescending(s => s.PickupDeadline).ThenByDescending(s => s.Id).Select(s => s.DestinationAddress).FirstOrDefault(),
+                    ?? db.RouteSegments.Where(s => s.RouteId == x.Trip.RouteId).OrderByDescending(s => s.RouteSequence).ThenByDescending(s => s.PickupDeadline).ThenByDescending(s => s.Id).Select(s => s.DestinationCity ?? s.DestinationAddress).FirstOrDefault(),
                 x.Monitoring == null ? null : x.Monitoring.LastProgressPercentage,
                 x.Monitoring == null ? null : x.Monitoring.LastCalculatedEta,
                 x.Monitoring == null ? null : x.Monitoring.LastSuccessfulCalculationAt,

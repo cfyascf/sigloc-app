@@ -48,8 +48,8 @@ const buildUnifiedTimeline = (segments) => {
   segments.forEach((s) => {
     const label = s.items?.[0]?.name ?? "Carga"
     const ref = segmentShortId(s.id)
-    addAction(s.origin, `📥 Coleta · ${label} · ${ref}`)
-    addAction(s.destination, `📤 Descarga · ${label} · ${ref}`)
+    addAction(s.originCity ?? s.origin, `📥 Coleta · ${label} · ${ref}`)
+    addAction(s.destinationCity ?? s.destination, `📤 Descarga · ${label} · ${ref}`)
   })
 
   return nodes.map((node, idx) => ({

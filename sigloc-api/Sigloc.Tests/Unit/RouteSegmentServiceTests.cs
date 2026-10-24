@@ -69,6 +69,25 @@ public class RouteSegmentServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_stores_the_geocoded_cities_of_a_street_address()
+    {
+        var product = TestData.Product(contractorId: _contractorId);
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { product });
+        _geocoding.ResolveAsync("Rua Terra Roxa, 100", "Rua Lothario Boutin, 50", Arg.Any<CancellationToken>())
+            .Returns(new RouteGeometry("-49.1,-25.1", "-49.2,-25.4", 12, 0.5, "Curitiba, PR", "Curitiba, PR"));
+
+        var result = await _service.CreateAsync(_contractorId,
+            ValidDto(origin: "Rua Terra Roxa, 100", destination: "Rua Lothario Boutin, 50", items: new[] { Item(product.Id) }));
+
+        // The typed address is kept; the city is what lists and itineraries show.
+        result.Origin.Should().Be("Rua Terra Roxa, 100");
+        result.OriginCity.Should().Be("Curitiba, PR");
+        result.DestinationCity.Should().Be("Curitiba, PR");
+        await _repository.Received(1).AddAsync(Arg.Is<RouteSegment>(s => s.OriginPlace == "Curitiba, PR"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CreateAsync_trims_origin_and_destination()
     {
         var product = TestData.Product(contractorId: _contractorId);

@@ -31,7 +31,7 @@ public static class NotificationCatalog
     public static string RouteLabel(IEnumerable<RouteSegment> segments)
     {
         var ordered = segments.OrderBy(s => s.RouteSequence ?? int.MaxValue).ThenBy(s => s.PickupDeadline).ToList();
-        return ordered.Count == 0 ? "rota consolidada" : $"{ordered[0].OriginAddress.Trim()} → {ordered[^1].DestinationAddress.Trim()}";
+        return ordered.Count == 0 ? "rota consolidada" : $"{ordered[0].OriginPlace.Trim()} → {ordered[^1].DestinationPlace.Trim()}";
     }
 
     public static string CompanyName(string companyName, string? tradeName) =>

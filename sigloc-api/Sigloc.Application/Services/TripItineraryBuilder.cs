@@ -15,19 +15,19 @@ public static class TripItineraryBuilder
             : segments.OrderBy(s => s.PickupDeadline).ThenBy(s => s.Id);
         foreach (var segment in ordered)
         {
-            Add(segment, StopActionKind.Pickup, segment.OriginAddress, segment.OriginCoordinate, segment.PickupDeadline);
-            Add(segment, StopActionKind.Delivery, segment.DestinationAddress, segment.DestinationCoordinate, segment.DeliveryDeadline);
+            Add(segment, StopActionKind.Pickup, segment.OriginAddress, segment.OriginPlace, segment.OriginCoordinate, segment.PickupDeadline);
+            Add(segment, StopActionKind.Delivery, segment.DestinationAddress, segment.DestinationPlace, segment.DestinationCoordinate, segment.DeliveryDeadline);
         }
         return stops;
 
-        void Add(RouteSegment segment, StopActionKind kind, string address, string coordinate, DateTimeOffset deadline)
+        void Add(RouteSegment segment, StopActionKind kind, string address, string place, string coordinate, DateTimeOffset deadline)
         {
             var parts = coordinate.Split(',');
             if (parts.Length != 2 || !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var lon)
                 || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var lat)
                 || !double.IsFinite(lat) || !double.IsFinite(lon) || Math.Abs(lat) > 90 || Math.Abs(lon) > 180)
                 throw new TrackingUnavailableException();
-            var location = address.Split(',', StringSplitOptions.TrimEntries);
+            var location = place.Split(',', StringSplitOptions.TrimEntries);
             var city = location[0];
             var state = location.Length > 1 ? location[^1] : string.Empty;
             var stop = stops.LastOrDefault();

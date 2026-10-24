@@ -375,10 +375,10 @@ export default function RouteSegmentManagement() {
                       </div>
 
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                          {cityLabel(segment.origin)}{" "}
+                        <p title={`${segment.origin} ➔ ${segment.destination}`} className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                          {cityLabel(segment.originCity ?? segment.origin)}{" "}
                           <span className="text-slate-300 text-xs">➔</span>{" "}
-                          {cityLabel(segment.destination)}
+                          {cityLabel(segment.destinationCity ?? segment.destination)}
                           <span className="text-xs font-mono font-medium text-slate-400 bg-slate-50 px-1 rounded border border-slate-100">
                             {formatDistance(segment.distanceKm)}
                           </span>

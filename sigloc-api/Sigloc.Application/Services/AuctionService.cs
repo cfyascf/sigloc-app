@@ -213,8 +213,8 @@ public class AuctionService : IAuctionService
         var segments = detail.Segments.Select(s => new AuctionSegmentDto(
             Id: s.Id,
             MainProduct: ResolveMainProduct(s),
-            Origin: CityName(s.OriginAddress),
-            Destination: CityName(s.DestinationAddress),
+            Origin: CityName(s.OriginPlace),
+            Destination: CityName(s.DestinationPlace),
             FinancialCeiling: s.BudgetCeiling)).ToList();
 
         var route = detail.Route;

@@ -103,6 +103,9 @@ export function toRouteSegment(dto) {
     routeId: dto.routeId ?? null,
     origin: dto.origin ?? "",
     destination: dto.destination ?? "",
+    // Geocoded "City, UF"; null for segments created before it was stored.
+    originCity: dto.originCity ?? null,
+    destinationCity: dto.destinationCity ?? null,
     distanceKm: dto.distanceKm ?? 0,
     estimatedTimeHours: dto.estimatedTimeHours ?? 0,
     budgetCeiling: dto.budgetCeiling ?? null,

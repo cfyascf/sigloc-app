@@ -12,6 +12,8 @@ public class RouteSegmentConfiguration : IEntityTypeConfiguration<RouteSegment>
 
         builder.Property(s => s.OriginAddress).IsRequired();
         builder.Property(s => s.DestinationAddress).IsRequired();
+        builder.Property(s => s.OriginCity).HasMaxLength(120);
+        builder.Property(s => s.DestinationCity).HasMaxLength(120);
         builder.Property(s => s.OriginCoordinate).IsRequired();
         builder.Property(s => s.DestinationCoordinate).IsRequired();
 
