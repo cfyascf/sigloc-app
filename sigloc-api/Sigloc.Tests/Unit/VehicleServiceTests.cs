@@ -141,6 +141,22 @@ public class VehicleServiceTests
     }
 
     [Fact]
+    public async Task GetAllAsync_flags_vehicles_on_active_trips_without_changing_status()
+    {
+        var busy = TestData.Vehicle(_carrierId, "AAA1A11"); busy.Id = Guid.NewGuid();
+        var idle = TestData.Vehicle(_carrierId, "BBB2B22"); idle.Id = Guid.NewGuid();
+        _repository.GetAllAsync(_carrierId, Arg.Any<CancellationToken>()).Returns(new[] { busy, idle });
+        _repository.GetIdsOnActiveTripsAsync(_carrierId, Arg.Any<CancellationToken>())
+            .Returns(new HashSet<Guid> { busy.Id });
+
+        var result = (await _service.GetAllAsync(_carrierId)).ToList();
+
+        result.Single(v => v.Id == busy.Id).OnActiveTrip.Should().BeTrue();
+        result.Single(v => v.Id == busy.Id).Status.Should().Be(OperationalStatus.LIVRE);
+        result.Single(v => v.Id == idle.Id).OnActiveTrip.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task UpdateAsync_not_found_throws_KeyNotFound()
     {
         _repository.GetByIdAsync(Arg.Any<Guid>(), _carrierId, Arg.Any<CancellationToken>())

@@ -63,13 +63,15 @@ public class VehicleService : IVehicleService
             throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
         }
 
-        return MapToDto(vehicle);
+        var onActiveTrip = await _repository.GetIdsOnActiveTripsAsync(transportadoraId, cancellationToken);
+        return MapToDto(vehicle, onActiveTrip.Contains(vehicle.Id));
     }
 
     public async Task<IEnumerable<VehicleResponseDto>> GetAllAsync(Guid transportadoraId, CancellationToken cancellationToken = default)
     {
         var vehicles = await _repository.GetAllAsync(transportadoraId, cancellationToken);
-        return vehicles.Select(MapToDto);
+        var onActiveTrip = await _repository.GetIdsOnActiveTripsAsync(transportadoraId, cancellationToken);
+        return vehicles.Select(v => MapToDto(v, onActiveTrip.Contains(v.Id)));
     }
 
     public async Task UpdateAsync(Guid transportadoraId, Guid id, UpdateVehicleDto dto, CancellationToken cancellationToken = default)
@@ -139,7 +141,7 @@ public class VehicleService : IVehicleService
         if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Invalid vehicle monitoring fields.");
     }
 
-    private static VehicleResponseDto MapToDto(Vehicle vehicle)
+    private static VehicleResponseDto MapToDto(Vehicle vehicle, bool onActiveTrip = false)
     {
         return new VehicleResponseDto(
             vehicle.Id,
@@ -157,7 +159,8 @@ public class VehicleService : IVehicleService
             vehicle.CurrentLocation,
             vehicle.Status,
             vehicle.TraccarDeviceId,
-            vehicle.DriverPhone
+            vehicle.DriverPhone,
+            onActiveTrip
         );
     }
 }

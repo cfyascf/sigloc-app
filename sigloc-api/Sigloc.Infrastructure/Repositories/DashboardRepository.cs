@@ -234,9 +234,15 @@ public class DashboardRepository : IDashboardRepository
     {
         await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
+        // Free = marked LIVRE and not committed to an active trip (awarding a trip does not
+        // change the stored vehicle status).
         var availableVehicles = await db.Vehicles
             .AsNoTracking()
-            .CountAsync(v => v.TransportadoraId == carrierId && v.Status == OperationalStatus.LIVRE, cancellationToken);
+            .CountAsync(v => v.TransportadoraId == carrierId
+                && v.Status == OperationalStatus.LIVRE
+                && !db.Trips.Any(t => t.VehicleId == v.Id
+                    && (t.Status == TripStatus.AwaitingPickup || t.Status == TripStatus.InTransit)),
+                cancellationToken);
 
         var activeBids = await (
             from bid in db.Bids.AsNoTracking()
@@ -265,10 +271,15 @@ public class DashboardRepository : IDashboardRepository
             .AsNoTracking()
             .CountAsync(v => v.TransportadoraId == carrierId, cancellationToken);
 
-        // "Fleet in operation": every truck currently not free (in transit or maintenance).
+        // "Fleet in operation": every truck currently not free (on an active trip, or marked in
+        // transit / maintenance).
         var busyVehicles = await db.Vehicles
             .AsNoTracking()
-            .CountAsync(v => v.TransportadoraId == carrierId && v.Status != OperationalStatus.LIVRE, cancellationToken);
+            .CountAsync(v => v.TransportadoraId == carrierId
+                && (v.Status != OperationalStatus.LIVRE
+                    || db.Trips.Any(t => t.VehicleId == v.Id
+                        && (t.Status == TripStatus.AwaitingPickup || t.Status == TripStatus.InTransit))),
+                cancellationToken);
 
         var submittedBids = await db.Bids
             .AsNoTracking()

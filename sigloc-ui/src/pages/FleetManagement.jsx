@@ -15,10 +15,17 @@ import VehicleForm from "@/pages/VehicleForm"
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`
 
+const ON_TRIP_LABEL = "Em viagem"
+
+// A "Livre" vehicle already committed to an active trip is not free; the stored status is the
+// carrier-managed value, so this only changes what the list shows.
+const displayStatus = (vehicle) =>
+  vehicle.onActiveTrip && vehicle.status === "Livre" ? ON_TRIP_LABEL : vehicle.status
+
 // Cores baseadas no status do veículo
 const getStatusDotStyle = (status) => {
   if (status === "Livre") return "bg-emerald-500"
-  if (status === "Em Trânsito") return "bg-blue-500"
+  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "bg-blue-500"
   if (status === "Manutenção") return "bg-amber-500"
   return "bg-slate-300"
 }
@@ -37,7 +44,7 @@ const FieldError = ({ message }) =>
 
 const getStatusTextStyle = (status) => {
   if (status === "Livre") return "text-emerald-600 font-bold"
-  if (status === "Em Trânsito") return "text-blue-600 font-bold"
+  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "text-blue-600 font-bold"
   if (status === "Manutenção") return "text-amber-600 font-bold"
   return "text-slate-400"
 }
@@ -80,7 +87,7 @@ export default function FleetManagement() {
   const visibleVehicles = vehicles.filter((vehicle) => {
     const term = searchTerm.trim().toLowerCase()
     if (!term) return true
-    return [vehicle.plate, vehicle.model, vehicle.bodyType, vehicle.driver, vehicle.location, vehicle.status].join(" ").toLowerCase().includes(term)
+    return [vehicle.plate, vehicle.model, vehicle.bodyType, vehicle.driver, vehicle.location, displayStatus(vehicle)].join(" ").toLowerCase().includes(term)
   })
 
   const startEditing = (vehicle) => {
@@ -215,7 +222,7 @@ export default function FleetManagement() {
                     {/* Col 1: Status e Tipo */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`h-2 w-2 rounded-full ${getStatusDotStyle(vehicle.status)}`} />
+                        <span className={`h-2 w-2 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
                       </div>
                       <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600 font-bold uppercase tracking-wide border-none px-1.5 py-0">
                         {vehicle.bodyType}
@@ -235,8 +242,8 @@ export default function FleetManagement() {
                       <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5">
                         <User size={14} className="text-slate-400" /> {vehicle.driver}
                       </p>
-                      <span className={`text-[11px] flex items-center gap-1 mt-0.5 ${getStatusTextStyle(vehicle.status)}`}>
-                        {vehicle.status} <span className="text-slate-300 mx-0.5">•</span> <MapPin size={10} /> {vehicle.location}
+                      <span className={`text-[11px] flex items-center gap-1 mt-0.5 ${getStatusTextStyle(displayStatus(vehicle))}`}>
+                        {displayStatus(vehicle)} <span className="text-slate-300 mx-0.5">•</span> <MapPin size={10} /> {vehicle.location}
                       </span>
                     </div>
 

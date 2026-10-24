@@ -13,6 +13,13 @@ public interface IVehicleRepository
     Task<Dictionary<Guid, int>> CountFreeByCarrierIdsAsync(IEnumerable<Guid> carrierIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Ids of the carrier's vehicles committed to a trip that is awaiting pickup or in transit.
+    /// The stored <c>Vehicle.Status</c> is not changed by trips, so callers use this to tell
+    /// whether a "Livre" vehicle is actually free.
+    /// </summary>
+    Task<IReadOnlySet<Guid>> GetIdsOnActiveTripsAsync(Guid transportadoraId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Locks the vehicle row until the surrounding transaction ends, so a schedule check and the
     /// trip it guards cannot interleave with another award for the same vehicle.
     /// </summary>

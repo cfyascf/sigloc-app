@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sigloc.Domain.Entities;
 using Sigloc.Domain.Enums;
 using Sigloc.Infrastructure.Repositories;
 using Sigloc.Tests.Common;
@@ -61,6 +62,41 @@ public class VehicleRepositoryTests : IDisposable
 
         all.Should().ContainSingle(v => v.Id == vehicle.Id);
         found!.CapacityWeight.Should().Be(-500m);
+    }
+
+    [Fact]
+    public async Task Active_trips_mark_vehicles_busy_for_free_counts_and_active_trip_ids()
+    {
+        var contractorId = Guid.NewGuid();
+        var onTrip = TestData.Vehicle(_carrierId, plate: "TRP1A11"); onTrip.Id = Guid.NewGuid();
+        var delivered = TestData.Vehicle(_carrierId, plate: "DLV1A11"); delivered.Id = Guid.NewGuid();
+        var idle = TestData.Vehicle(_carrierId, plate: "IDL1A11"); idle.Id = Guid.NewGuid();
+
+        var ctx = _db.CreateContext();
+        ctx.Contractors.Add(TestData.Contractor(contractorId));
+        ctx.Carriers.Add(TestData.Carrier(_carrierId));
+        ctx.Vehicles.AddRange(onTrip, delivered, idle);
+        // One trip per auction (unique), so each trip gets its own route and auction.
+        foreach (var (vehicleId, status) in new[] { (onTrip.Id, TripStatus.InTransit), (delivered.Id, TripStatus.Delivered) })
+        {
+            var route = new ConsolidatedRoute { Id = Guid.NewGuid(), ContractorId = contractorId };
+            var auction = new Auction { Id = Guid.NewGuid(), RouteId = route.Id, OpenedAt = DateTimeOffset.UtcNow, ExpiresAt = DateTimeOffset.UtcNow.AddDays(1), Status = AuctionStatus.Closed };
+            ctx.ConsolidatedRoutes.Add(route);
+            ctx.Auctions.Add(auction);
+            ctx.Trips.Add(new Trip
+            {
+                Id = Guid.NewGuid(), RouteId = route.Id, AuctionId = auction.Id, CarrierId = _carrierId,
+                VehicleId = vehicleId, BidId = Guid.NewGuid(), AgreedValue = 1000, Status = status,
+            });
+        }
+        await ctx.SaveChangesAsync();
+
+        var repo = new VehicleRepository(_db.CreateContext());
+        var free = await repo.CountFreeByCarrierIdsAsync(new[] { _carrierId });
+        var activeIds = await repo.GetIdsOnActiveTripsAsync(_carrierId);
+
+        free[_carrierId].Should().Be(2);
+        activeIds.Should().BeEquivalentTo(new[] { onTrip.Id });
     }
 
     [Fact]

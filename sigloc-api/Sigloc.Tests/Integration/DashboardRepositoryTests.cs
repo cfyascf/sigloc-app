@@ -351,6 +351,33 @@ public class DashboardRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task Carrier_fleet_figures_treat_a_LIVRE_vehicle_on_an_active_trip_as_busy()
+    {
+        var ctx = _db.CreateContext();
+        var awarded = Vehicle(plate: "AWD1A11");
+        var delivered = Vehicle(plate: "DLV1A11");
+        var idle = Vehicle(plate: "IDL1A11");
+        ctx.Vehicles.AddRange(awarded, delivered, idle);
+        // One trip per auction (unique), so each trip gets its own route and auction.
+        foreach (var (vehicleId, status) in new[] { (awarded.Id, TripStatus.AwaitingPickup), (delivered.Id, TripStatus.Delivered) })
+        {
+            var route = Route(_contractorId);
+            var auction = Auction(route.Id, AuctionStatus.Closed);
+            ctx.ConsolidatedRoutes.Add(route);
+            ctx.Auctions.Add(auction);
+            ctx.Trips.Add(Trip(route.Id, auction.Id, _carrierId, vehicleId, status));
+        }
+        await ctx.SaveChangesAsync();
+
+        var kpis = await Repo().GetCarrierKpisAsync(_carrierId);
+        var inputs = await Repo().GetCarrierPerformanceInputsAsync(_carrierId, DateTimeOffset.UtcNow.AddDays(-1));
+
+        kpis.AvailableVehicles.Should().Be(2);
+        inputs.TotalVehicles.Should().Be(3);
+        inputs.BusyVehicles.Should().Be(1);
+    }
+
+    [Fact]
     public async Task GetCarrierKpisAsync_returns_zeros_for_unknown_carrier()
     {
         var kpis = await Repo().GetCarrierKpisAsync(Guid.NewGuid());

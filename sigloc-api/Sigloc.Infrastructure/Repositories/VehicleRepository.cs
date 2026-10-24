@@ -75,11 +75,28 @@ public class VehicleRepository : IVehicleRepository
             return new Dictionary<Guid, int>();
         }
 
+        // Free = marked LIVRE and not committed to an active trip.
         return await _dbContext.Vehicles
             .AsNoTracking()
-            .Where(v => ids.Contains(v.TransportadoraId) && v.Status == OperationalStatus.LIVRE)
+            .Where(v => ids.Contains(v.TransportadoraId)
+                && v.Status == OperationalStatus.LIVRE
+                && !_dbContext.Trips.Any(t => t.VehicleId == v.Id
+                    && (t.Status == TripStatus.AwaitingPickup || t.Status == TripStatus.InTransit)))
             .GroupBy(v => v.TransportadoraId)
             .Select(g => new { CarrierId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.CarrierId, x => x.Count, cancellationToken);
+    }
+
+    public async Task<IReadOnlySet<Guid>> GetIdsOnActiveTripsAsync(Guid transportadoraId, CancellationToken cancellationToken = default)
+    {
+        var ids = await _dbContext.Trips
+            .AsNoTracking()
+            .Where(t => t.CarrierId == transportadoraId
+                && (t.Status == TripStatus.AwaitingPickup || t.Status == TripStatus.InTransit))
+            .Select(t => t.VehicleId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return ids.ToHashSet();
     }
 }
