@@ -247,11 +247,16 @@ public record CarrierAnalysisRouteSummaryDto(
     string ShortItinerary,
     CarrierAnalysisSlaDto Sla);
 
-/// <summary>Competition snapshot: active bids, leader offer and auction ceiling.</summary>
+/// <summary>
+/// Competition snapshot: active bids, leader offer and auction ceiling. The leader offer and the
+/// ceiling are totals (freight + toll); <see cref="EstimatedToll"/> lets the workspace convert
+/// between the freight value the carrier types and those totals.
+/// </summary>
 public record CarrierAnalysisCompetitionDto(
     int ActiveBids,
     decimal? BestLeaderOffer,
-    decimal AuctionCeiling);
+    decimal AuctionCeiling,
+    decimal EstimatedToll);
 
 /// <summary>Consolidated physical/compliance requirements inherited from the cargo.</summary>
 public record CarrierAnalysisPhysicalRequirementsDto(

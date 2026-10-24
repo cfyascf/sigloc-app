@@ -874,6 +874,22 @@ public class AuctionServiceTests
     }
 
     [Fact]
+    public async Task PlaceBidAsync_freight_within_ceiling_but_total_with_toll_above_is_rejected()
+    {
+        // Segment toll defaults to 50: freight 1000 + toll 50 = 1050 > ceiling 1000.
+        var offer = AvailableOffer(ceiling: 1000m);
+        _auctionRepository.GetAvailableForCarrierAsync(offer.Auction.Id, _carrierId, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(offer);
+
+        var act = () => _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(1000m, Guid.NewGuid()));
+
+        var ex = (await act.Should().ThrowAsync<BidRejectedException>()).Which;
+        ex.Code.Should().Be(BidRejectionCode.AboveCeiling);
+        ex.Message.Should().Contain("R$").And.Contain("1.050,00");
+        await _bidRepository.DidNotReceive().AddAsync(Arg.Any<Bid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task PlaceBidAsync_vehicle_not_found_throws_KeyNotFound()
     {
         var offer = AvailableOffer();

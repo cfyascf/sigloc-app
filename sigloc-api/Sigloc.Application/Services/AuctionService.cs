@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
 using Sigloc.Application.Exceptions;
@@ -12,6 +13,8 @@ public class AuctionService : IAuctionService
     private const int DefaultPage = 1;
     private const int DefaultPageSize = 20;
     private const int MaxPageSize = 100;
+
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
 
     private readonly IRouteSegmentRepository _segmentRepository;
     private readonly IConsolidatedRouteRepository _routeRepository;
@@ -510,7 +513,8 @@ public class AuctionService : IAuctionService
             Competition: new CarrierAnalysisCompetitionDto(
                 ActiveBids: totalBids,
                 BestLeaderOffer: bestBid?.TotalValue,
-                AuctionCeiling: detail.Route.ConsolidatedCeiling),
+                AuctionCeiling: detail.Route.ConsolidatedCeiling,
+                EstimatedToll: detail.Segments.Sum(s => s.EstimatedTollCost)),
             PhysicalRequirements: physical,
             CarrierAvailableFleet: fleet
                 .Select(v => new CarrierAnalysisVehicleDto(
@@ -548,11 +552,17 @@ public class AuctionService : IAuctionService
                 "O valor oferecido deve ser maior que zero.");
         }
 
-        if (dto.ValorOferecido > route.ConsolidatedCeiling)
+        // The ceiling caps what the contractor pays, so it applies to the total (freight + toll),
+        // which is also what the contractor's ranking compares against the ceiling.
+        var tollValue = detail.Segments.Sum(s => s.EstimatedTollCost);
+        var totalValue = dto.ValorOferecido + tollValue;
+
+        if (totalValue > route.ConsolidatedCeiling)
         {
             throw new BidRejectedException(
                 BidRejectionCode.AboveCeiling,
-                $"Valor acima do teto do leilão ({route.ConsolidatedCeiling:C}).");
+                $"Valor acima do teto do leilão: frete {FormatBrl(dto.ValorOferecido)} + pedágio {FormatBrl(tollValue)} = "
+                + $"{FormatBrl(totalValue)}, acima do teto de {FormatBrl(route.ConsolidatedCeiling)}.");
         }
 
         // The vehicle must belong to the carrier placing the bid.
@@ -606,8 +616,6 @@ public class AuctionService : IAuctionService
         // --- All travas passed: upsert the bid ----------------------------------
         // A carrier holds a single bid per auction, so re-bidding overwrites the previous
         // one (value, vehicle, toll, total, timestamp) instead of stacking new rows.
-        var tollValue = detail.Segments.Sum(s => s.EstimatedTollCost);
-        var totalValue = dto.ValorOferecido + tollValue;
         var submittedAt = DateTimeOffset.UtcNow;
 
         var bid = await _bidRepository.GetTrackedByCarrierAndAuctionAsync(carrierId, auctionId, cancellationToken);
@@ -654,6 +662,8 @@ public class AuctionService : IAuctionService
             SubmittedAt: bid.SubmittedAt,
             Status: bid.Status.ToWire());
     }
+
+    private static string FormatBrl(decimal value) => value.ToString("C", PtBr);
 
     // True when the vehicle already has an active trip whose window overlaps the window of these
     // segments (first pickup deadline to last delivery deadline).

@@ -263,7 +263,7 @@ export default function AuctionBids() {
                                 </p>
                               ) : (
                                 <p className="text-[10px] font-bold text-rose-500 mt-0.5">
-                                  Sobrecusto de {formatCurrency(Math.abs(savings))} ({savingsPercent}%)
+                                  Sobrecusto de {formatCurrency(Math.abs(savings))} ({Math.abs(savingsPercent)}%)
                                 </p>
                               )}
                             </div>

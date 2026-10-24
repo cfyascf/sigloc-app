@@ -71,10 +71,12 @@ export default function BidAnalysis() {
 
   const ceiling = analysis?.competition?.auctionCeiling ?? 0
   const bestLeaderOffer = analysis?.competition?.bestLeaderOffer ?? null
+  // The leader offer and the ceiling are totals (freight + toll); the input is freight only.
+  const estimatedToll = analysis?.competition?.estimatedToll ?? 0
   const anttFloor = ceiling * 0.75
 
   const applyLeaderBid = () => {
-    if (bestLeaderOffer != null) setBidValue(Math.max(bestLeaderOffer - 50, 0))
+    if (bestLeaderOffer != null) setBidValue(Math.max(bestLeaderOffer - estimatedToll - 50, 0))
   }
   const applyFloorBid = () => setBidValue(Math.round(anttFloor))
 
@@ -135,7 +137,8 @@ export default function BidAnalysis() {
   }
 
   const { routeSummary, competition, physicalRequirements, carrierAvailableFleet, travelPlan, myBid } = analysis
-  const distanceToLeader = bestLeaderOffer != null ? Number(bidValue) - bestLeaderOffer : null
+  const bidTotal = Number(bidValue) + estimatedToll
+  const distanceToLeader = bestLeaderOffer != null ? bidTotal - bestLeaderOffer : null
 
   return (
     <AppShell title="Detalhes da Rota">
@@ -230,6 +233,11 @@ export default function BidAnalysis() {
                         />
                       </div>
                     </div>
+                    {Number(bidValue) > 0 && (
+                      <p className={`mt-1 text-[10px] font-semibold ${bidTotal > ceiling ? "text-rose-600" : "text-slate-500"}`}>
+                        Total com pedágio: {formatCurrency(bidTotal)} · teto {formatCurrency(ceiling)}
+                      </p>
+                    )}
                   </div>
 
                   {/* Botões de Ação Rápida */}
