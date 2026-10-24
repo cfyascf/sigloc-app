@@ -11,11 +11,13 @@ public class PartnerNetworkService : IPartnerNetworkService
 {
     private readonly IPartnerConnectionRepository _connections;
     private readonly IVehicleRepository _vehicles;
+    private readonly ITripRepository _trips;
 
-    public PartnerNetworkService(IPartnerConnectionRepository connections, IVehicleRepository vehicles)
+    public PartnerNetworkService(IPartnerConnectionRepository connections, IVehicleRepository vehicles, ITripRepository trips)
     {
         _connections = connections;
         _vehicles = vehicles;
+        _trips = trips;
     }
 
     public async Task<PartnerNetworkDto> GetNetworkAsync(Guid contractorId, CancellationToken cancellationToken = default)
@@ -27,9 +29,10 @@ public class PartnerNetworkService : IPartnerNetworkService
 
         var carrierIds = connections.Select(c => c.CarrierId).Distinct().ToList();
         var freeVehicleCounts = await _vehicles.CountFreeByCarrierIdsAsync(carrierIds, cancellationToken);
+        var activeTripCounts = await _trips.CountActiveByCarrierForContractorAsync(contractorId, carrierIds, cancellationToken);
 
         var partners = connections
-            .Select(connection => MontarDto(connection, freeVehicleCounts))
+            .Select(connection => MontarDto(connection, freeVehicleCounts, activeTripCounts))
             .ToList();
 
         return new PartnerNetworkDto(totalActive, totalPending, partners);
@@ -87,7 +90,10 @@ public class PartnerNetworkService : IPartnerNetworkService
             connection.UpdatedAt);
     }
 
-    private static PartnerDto MontarDto(PartnerConnection connection, Dictionary<Guid, int> freeVehicleCounts)
+    private static PartnerDto MontarDto(
+        PartnerConnection connection,
+        Dictionary<Guid, int> freeVehicleCounts,
+        Dictionary<Guid, int> activeTripCounts)
     {
         var carrier = connection.Carrier;
 
@@ -100,9 +106,9 @@ public class PartnerNetworkService : IPartnerNetworkService
 
         var freeVehicles = freeVehicleCounts.GetValueOrDefault(connection.CarrierId, 0);
 
-        // TODO: viagensAtivasConosco depende da entidade Viagem/Trip, que ainda não existe
-        // no domínio. Fixo em 0 até essa entidade existir.
-        var metrics = new OperationalMetricsDto(freeVehicles, 0, connection.UpdatedAt);
+        var activeTrips = activeTripCounts.GetValueOrDefault(connection.CarrierId, 0);
+
+        var metrics = new OperationalMetricsDto(freeVehicles, activeTrips, connection.UpdatedAt);
 
         return new PartnerDto(
             connection.Id,

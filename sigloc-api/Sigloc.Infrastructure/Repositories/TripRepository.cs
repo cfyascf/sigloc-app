@@ -41,4 +41,26 @@ public class TripRepository : ITripRepository
 
         return windows;
     }
+
+    public async Task<Dictionary<Guid, int>> CountActiveByCarrierForContractorAsync(
+        Guid contractorId,
+        IReadOnlyCollection<Guid> carrierIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (carrierIds.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        // The contractor owns the trip through its consolidated route.
+        return await (
+            from trip in _dbContext.Trips.AsNoTracking()
+            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
+            where route.ContractorId == contractorId
+                && carrierIds.Contains(trip.CarrierId)
+                && (trip.Status == TripStatus.AwaitingPickup || trip.Status == TripStatus.InTransit)
+            group trip by trip.CarrierId into g
+            select new { CarrierId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CarrierId, x => x.Count, cancellationToken);
+    }
 }

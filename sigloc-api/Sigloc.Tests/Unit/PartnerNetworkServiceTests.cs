@@ -11,15 +11,19 @@ public class PartnerNetworkServiceTests
 {
     private readonly IPartnerConnectionRepository _connections = Substitute.For<IPartnerConnectionRepository>();
     private readonly IVehicleRepository _vehicles = Substitute.For<IVehicleRepository>();
+    private readonly ITripRepository _trips = Substitute.For<ITripRepository>();
     private readonly PartnerNetworkService _service;
     private readonly Guid _contractorId = Guid.NewGuid();
     private readonly Guid _carrierId = Guid.NewGuid();
 
     public PartnerNetworkServiceTests()
     {
-        _service = new PartnerNetworkService(_connections, _vehicles);
+        _service = new PartnerNetworkService(_connections, _vehicles, _trips);
         _vehicles
             .CountFreeByCarrierIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int>());
+        _trips
+            .CountActiveByCarrierForContractorAsync(Arg.Any<Guid>(), Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, int>());
     }
 
@@ -69,6 +73,9 @@ public class PartnerNetworkServiceTests
         _vehicles
             .CountFreeByCarrierIdsAsync(Arg.Any<IEnumerable<Guid>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<Guid, int> { [_carrierId] = 7 });
+        _trips
+            .CountActiveByCarrierForContractorAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<Guid, int> { [_carrierId] = 2 });
 
         var result = await _service.GetNetworkAsync(_contractorId);
 
@@ -83,7 +90,7 @@ public class PartnerNetworkServiceTests
         mapped.Carrier.AverageRating.Should().Be(4.2);
         mapped.Carrier.HasActiveInsurancePolicy.Should().BeTrue();
         mapped.OperationalMetrics.FreeVehicles.Should().Be(7);
-        mapped.OperationalMetrics.ActiveTripsWithUs.Should().Be(0);
+        mapped.OperationalMetrics.ActiveTripsWithUs.Should().Be(2);
         mapped.OperationalMetrics.LastInteraction.Should().Be(active.UpdatedAt);
     }
 

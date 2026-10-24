@@ -116,7 +116,7 @@ function PartnerCard({ partner, isCarrierView, onRemove, removing }) {
               <p className="mt-1 text-lg font-black text-slate-900">{partner.freeVehicles}</p>
             </div>
             <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Viagens conosco</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Viagens ativas</p>
               <p className="mt-1 text-lg font-black text-slate-900">{partner.activeTripsWithUs}</p>
             </div>
           </div>

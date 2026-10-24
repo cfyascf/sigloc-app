@@ -19,4 +19,13 @@ public interface ITripRepository
     Task<IReadOnlyList<TripScheduleWindow>> GetActiveWindowsForVehicleAsync(
         Guid vehicleId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Number of trips awaiting pickup or in transit between the contractor and each of the
+    /// given carriers. Carriers without active trips are absent from the result.
+    /// </summary>
+    Task<Dictionary<Guid, int>> CountActiveByCarrierForContractorAsync(
+        Guid contractorId,
+        IReadOnlyCollection<Guid> carrierIds,
+        CancellationToken cancellationToken = default);
 }

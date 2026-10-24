@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Sigloc.Domain.Entities;
 using Sigloc.Domain.Enums;
 using Sigloc.Infrastructure.Contexts;
@@ -52,6 +53,28 @@ public class TripRepositoryTests : IDisposable
             AgreedValue = 1000m,
             Status = status,
         };
+    }
+
+    [Fact]
+    public async Task CountActiveByCarrierForContractorAsync_counts_only_active_trips_of_that_contractor()
+    {
+        var ctx = _db.CreateContext();
+        var active = await SeedTripAsync(ctx, TripStatus.InTransit);
+        var delivered = await SeedTripAsync(ctx, TripStatus.Delivered);
+        var otherContractors = await SeedTripAsync(ctx, TripStatus.AwaitingPickup);
+        ctx.Trips.AddRange(active, delivered, otherContractors);
+        await ctx.SaveChangesAsync();
+
+        // Each seeded trip has its own route; put the first two under the same contractor.
+        var contractorId = Guid.NewGuid();
+        await _db.CreateContext().ConsolidatedRoutes
+            .Where(r => r.Id == active.RouteId || r.Id == delivered.RouteId)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.ContractorId, contractorId));
+
+        var counts = await new TripRepository(_db.CreateContext()).CountActiveByCarrierForContractorAsync(
+            contractorId, new[] { active.CarrierId, delivered.CarrierId, otherContractors.CarrierId });
+
+        counts.Should().BeEquivalentTo(new Dictionary<Guid, int> { [active.CarrierId] = 1 });
     }
 
     [Fact]
