@@ -97,6 +97,28 @@ public class AuctionRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task GetTrackedByIdAsync_returns_a_tracked_entity_so_SaveChanges_persists_status()
+    {
+        var route = Route(_contractorId);
+        var auction = Auction(route.Id);
+
+        var seedCtx = _db.CreateContext();
+        seedCtx.ConsolidatedRoutes.Add(route);
+        seedCtx.Auctions.Add(auction);
+        await seedCtx.SaveChangesAsync();
+
+        // Mirrors AuctionService cancel/award: mutate the tracked entity and save through the
+        // context (unit of work) without calling the repository's UpdateAsync.
+        var ctx = _db.CreateContext();
+        var tracked = await new AuctionRepository(ctx).GetTrackedByIdAsync(auction.Id, _contractorId);
+        tracked!.Status = AuctionStatus.Cancelled;
+        await ctx.SaveChangesAsync();
+
+        var reloaded = await _db.CreateContext().Auctions.FindAsync(auction.Id);
+        reloaded!.Status.Should().Be(AuctionStatus.Cancelled);
+    }
+
+    [Fact]
     public async Task SearchAsync_filters_by_status_search_and_orders_by_expiry()
     {
         var routeEarly = Route(_contractorId);

@@ -114,13 +114,13 @@ public class AuctionRepository : IAuctionRepository
         Guid contractorId,
         CancellationToken cancellationToken = default)
     {
-        // Tracked query scoped to the contractor via the consolidated route.
-        return await (
-            from auction in _dbContext.Auctions
-            join route in _dbContext.ConsolidatedRoutes.AsNoTracking()
-                on auction.RouteId equals route.Id
-            where auction.Id == id && route.ContractorId == contractorId
-            select auction)
+        // Tracked query scoped to the contractor via the consolidated route. Ownership is checked
+        // with a subquery on purpose: an AsNoTracking() anywhere in the query turns tracking off
+        // for the whole query, and callers rely on SaveChanges persisting their status changes.
+        return await _dbContext.Auctions
+            .Where(auction => auction.Id == id
+                && _dbContext.ConsolidatedRoutes.Any(route =>
+                    route.Id == auction.RouteId && route.ContractorId == contractorId))
             .FirstOrDefaultAsync(cancellationToken);
     }
 
