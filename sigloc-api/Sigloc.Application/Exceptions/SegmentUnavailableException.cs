@@ -10,7 +10,7 @@ public sealed class SegmentUnavailableException : Exception
     public Guid SegmentId { get; }
 
     public SegmentUnavailableException(Guid segmentId)
-        : base($"Route segment {segmentId} is already linked to another route in progress.")
+        : base("Um dos trechos selecionados não está disponível: ele já faz parte de outra rota em leilão ou em andamento.")
     {
         SegmentId = segmentId;
     }

@@ -350,8 +350,10 @@ export default function RouteSegmentManagement() {
                         <input
                           type="checkbox"
                           checked={isChecked}
+                          disabled={!editable}
+                          title={editable ? undefined : "Somente trechos disponíveis podem entrar em uma nova rota."}
                           onChange={() => handleToggleSegment(segment.id)}
-                          className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-blue-600"
+                          className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
                         />
                       </div>
                     )}
