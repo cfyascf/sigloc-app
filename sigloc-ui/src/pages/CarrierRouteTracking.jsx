@@ -17,7 +17,7 @@ import { useAsyncAction } from "@/hooks/use-async-action"
 import { useCountdown } from "@/hooks/use-countdown"
 import { useTripRequest } from "@/hooks/use-trip-request"
 import {
-  UNKNOWN, formatCountdown, formatFileSize, formatTripDate, formatTripNumber, slaAlert, stopActionLabel, tripStatusLabel, tripStatusStyle,
+  UNKNOWN, formatCountdown, formatFileSize, formatRouteProgress, formatTripDate, formatTripNumber, slaAlert, stopActionLabel, tripStatusLabel, tripStatusStyle,
 } from "@/lib/trip-formatters"
 import { completeTripStop, downloadTripProof, getCarrierTripDetails, reportTripOccurrence } from "@/services/carrier-trip-service"
 
@@ -208,7 +208,7 @@ export default function CarrierRouteTracking() {
           <TripKpiCard
             icon={ArrowRightLeft}
             label="Progresso da Rota"
-            value={`${formatTripNumber(trip.traveled, " km")} / ${formatTripNumber(trip.totalDistance, " km")}`}
+            value={formatRouteProgress(trip)}
             hint={trip.progress != null ? `${formatTripNumber(trip.progress, "%")} percorrido` : undefined}
           />
           <TripKpiCard

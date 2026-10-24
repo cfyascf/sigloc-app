@@ -10,7 +10,7 @@ import { TripLocationCard } from "@/components/trips/trip-location-card"
 import { TripStopTimeline } from "@/components/trips/trip-stop-timeline"
 import { useTripRequest } from "@/hooks/use-trip-request"
 import { getTripDetails } from "@/services/trip-service"
-import { formatTripDate, formatTripNumber, slaAlert, tripStatusLabel } from "@/lib/trip-formatters"
+import { formatRouteProgress, formatTripDate, formatTripNumber, slaAlert, tripStatusLabel } from "@/lib/trip-formatters"
 
 export default function ActiveRouteTracking() {
   const { tripId } = useParams()
@@ -50,7 +50,7 @@ export default function ActiveRouteTracking() {
             {trip?.stale && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{trip.warning || "Dados de monitoramento desatualizados."}</p>}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-              <TripKpiCard icon={ArrowRightLeft} label="Progresso da Rota" value={`${formatTripNumber(trip?.traveled, " km")} / ${formatTripNumber(trip?.totalDistance, " km")}`} />
+              <TripKpiCard icon={ArrowRightLeft} label="Progresso da Rota" value={formatRouteProgress(trip)} />
               <TripKpiCard icon={Target} tone="indigo" alert={slaAlert(trip?.sla)} label="Conf. SLA" value={tripStatusLabel(trip?.sla)} />
               <TripKpiCard icon={Scale} tone="purple" label="Utilização Carga" value={formatTripNumber(trip?.utilization, "%")} />
               <TripKpiCard icon={Clock} tone="emerald" label="ETA Previsto" value={formatTripDate(trip?.eta)} />

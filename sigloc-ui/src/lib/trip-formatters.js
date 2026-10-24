@@ -40,6 +40,15 @@ const labels = {
   COLETA_E_ENTREGA: "Coleta e entrega",
 }
 
+/**
+ * "traveled / total" for the progress card. Distance traveled comes from GPS refreshes, so a
+ * trip delivered without them would stay "Não informado" forever; delivered means the whole route.
+ */
+export function formatRouteProgress(trip) {
+  const traveled = trip?.lifecycle === "ENTREGUE" && trip?.traveled == null ? trip?.totalDistance : trip?.traveled
+  return `${formatTripNumber(traveled, " km")} / ${formatTripNumber(trip?.totalDistance, " km")}`
+}
+
 export function tripStatusLabel(value) {
   return labels[value] ?? UNKNOWN
 }
