@@ -228,7 +228,9 @@ function ActiveInviteBlock({ invite, pending, error, onCopy, onGenerate, copied 
   if (!invite) {
     return (
       <div className="mt-4 space-y-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
-        <p className="text-xs text-slate-500">Nenhum convite ativo no momento.</p>
+        <p className="text-xs text-slate-500">
+          Nenhum convite ativo no momento. Cada convite vale para uma única transportadora.
+        </p>
         {error && (
           <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-rose-600">
             <AlertCircle size={13} /> {error.message}
@@ -254,6 +256,9 @@ function ActiveInviteBlock({ invite, pending, error, onCopy, onGenerate, copied 
         </span>
         <span>{formatExpiry(invite)}</span>
       </div>
+      <p className="text-[11px] text-slate-500">
+        Uso único: o link vale para uma transportadora. Depois de usado, gere um novo convite.
+      </p>
       <Button
         variant="outline"
         onClick={onCopy}
