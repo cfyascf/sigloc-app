@@ -50,5 +50,6 @@ public class VehicleMonitoringTests
         public Task DeleteAsync(Vehicle vehicle, CancellationToken cancellationToken = default) { Item = null; return Task.CompletedTask; }
         public Task<bool> ExistsByPlateAsync(string plate, CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<Dictionary<Guid, int>> CountFreeByCarrierIdsAsync(IEnumerable<Guid> carrierIds, CancellationToken cancellationToken = default) => Task.FromResult(new Dictionary<Guid, int>());
+        public Task LockForScheduleAsync(Guid vehicleId, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

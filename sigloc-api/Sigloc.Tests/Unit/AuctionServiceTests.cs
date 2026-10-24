@@ -673,6 +673,37 @@ public class AuctionServiceTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task AwardAsync_vehicle_already_booked_in_overlapping_window_is_rejected_without_changes()
+    {
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var delivery = DateTimeOffset.UtcNow.AddDays(2);
+        var route = Route();
+        var auction = Auction(routeId: route.Id);
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
+
+        var vehicleId = Guid.NewGuid();
+        var winner = new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = _carrierId, VehicleId = vehicleId, TotalValue = 500m, Status = BidStatus.Pending };
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[] { winner });
+
+        var detail = new AuctionWithRoute(auction, route, new[] { Segment(pickup: pickup, delivery: delivery, products: TestData.Product()) });
+        _auctionRepository.GetDetailAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(detail);
+
+        // The same vehicle won another auction after this bid was placed.
+        _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, Arg.Any<CancellationToken>())
+            .Returns(new[] { new TripScheduleWindow(pickup.AddHours(3), delivery.AddHours(3)) });
+
+        var act = () => _service.AwardAsync(_contractorId, auction.Id, new AwardAuctionRequestDto(winner.Id));
+
+        (await act.Should().ThrowAsync<BidRejectedException>()).Which.Code.Should().Be(BidRejectionCode.Overbooked);
+        await _vehicleRepository.Received(1).LockForScheduleAsync(vehicleId, Arg.Any<CancellationToken>());
+        winner.Status.Should().Be(BidStatus.Pending);
+        auction.Status.Should().Be(AuctionStatus.Open);
+        route.Status.Should().NotBe(RouteStatus.AwaitingPickup);
+        await _tripRepository.DidNotReceive().AddAsync(Arg.Any<Trip>(), Arg.Any<CancellationToken>());
+    }
+
     // =====================================================================
     // GetCarrierAnalysisAsync
     // =====================================================================

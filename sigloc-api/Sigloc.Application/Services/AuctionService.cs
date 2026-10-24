@@ -381,6 +381,21 @@ public class AuctionService : IAuctionService
 
         var trip = await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
+            // 0. Anti-overbooking: the bid-time check only saw trips that existed when the bid was
+            // placed. Re-check the winning vehicle now, holding a lock on it so two concurrent
+            // awards for the same vehicle cannot both pass.
+            await _vehicleRepository.LockForScheduleAsync(winner.VehicleId, ct);
+
+            var detail = await _auctionRepository.GetDetailAsync(auction.Id, contractorId, ct)
+                ?? throw new AuctionNotFoundException(auction.Id);
+
+            if (await OverlapsActiveTripAsync(winner.VehicleId, detail.Segments, ct))
+            {
+                throw new BidRejectedException(
+                    BidRejectionCode.Overbooked,
+                    "Overbooking: o veículo do lance vencedor já possui uma viagem ativa que se sobrepõe à janela desta rota. Escolha outro lance.");
+            }
+
             // 1 & 2. Elect the winner and mark every other bid as a loser.
             foreach (var bid in bids)
             {
@@ -406,8 +421,6 @@ public class AuctionService : IAuctionService
                 Status = TripStatus.AwaitingPickup
             };
 
-            var detail = await _auctionRepository.GetDetailAsync(auction.Id, contractorId, ct)
-                ?? throw new AuctionNotFoundException(auction.Id);
             newTrip.Stops = TripItineraryBuilder.Build(newTrip.Id, detail.Segments);
             await _tripRepository.AddAsync(newTrip, ct);
 
@@ -574,20 +587,12 @@ public class AuctionService : IAuctionService
         }
 
         // --- 5. Temporal trava: anti-overbooking --------------------------------
-        var newWindowStart = detail.Segments.Count > 0 ? detail.Segments.Min(s => s.PickupDeadline) : (DateTimeOffset?)null;
-        var newWindowEnd = detail.Segments.Count > 0 ? detail.Segments.Max(s => s.DeliveryDeadline) : (DateTimeOffset?)null;
-
-        if (newWindowStart is not null && newWindowEnd is not null)
+        if (await OverlapsActiveTripAsync(dto.VeiculoId, detail.Segments, cancellationToken))
         {
-            var occupiedWindows = await _tripRepository.GetActiveWindowsForVehicleAsync(dto.VeiculoId, cancellationToken);
-            var overlaps = occupiedWindows.Any(w => w.Start <= newWindowEnd.Value && newWindowStart.Value <= w.End);
-            if (overlaps)
-            {
-                await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Sla, cancellationToken);
-                throw new BidRejectedException(
-                    BidRejectionCode.Overbooked,
-                    "Overbooking: o veículo já possui uma viagem ativa que se sobrepõe à janela desta rota.");
-            }
+            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Sla, cancellationToken);
+            throw new BidRejectedException(
+                BidRejectionCode.Overbooked,
+                "Overbooking: o veículo já possui uma viagem ativa que se sobrepõe à janela desta rota.");
         }
 
         // --- All travas passed: upsert the bid ----------------------------------
@@ -640,6 +645,25 @@ public class AuctionService : IAuctionService
             TotalValue: bid.TotalValue,
             SubmittedAt: bid.SubmittedAt,
             Status: bid.Status.ToWire());
+    }
+
+    // True when the vehicle already has an active trip whose window overlaps the window of these
+    // segments (first pickup deadline to last delivery deadline).
+    private async Task<bool> OverlapsActiveTripAsync(
+        Guid vehicleId,
+        IReadOnlyCollection<RouteSegment> segments,
+        CancellationToken cancellationToken)
+    {
+        if (segments.Count == 0)
+        {
+            return false;
+        }
+
+        var windowStart = segments.Min(s => s.PickupDeadline);
+        var windowEnd = segments.Max(s => s.DeliveryDeadline);
+
+        var occupiedWindows = await _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, cancellationToken);
+        return occupiedWindows.Any(w => w.Start <= windowEnd && windowStart <= w.End);
     }
 
     private Task LogBlockedAttemptAsync(

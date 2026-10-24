@@ -54,6 +54,19 @@ public class VehicleRepository : IVehicleRepository
                 .AnyAsync(v => v.Plate == plate, cancellationToken);
         }
 
+    public async Task LockForScheduleAsync(Guid vehicleId, CancellationToken cancellationToken = default)
+    {
+        // Row locks are Postgres-only; SQLite (tests) already serialises writers.
+        if (!_dbContext.Database.IsNpgsql())
+        {
+            return;
+        }
+
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT 1 FROM \"Vehicle\" WHERE \"Id\" = {vehicleId} FOR UPDATE",
+            cancellationToken);
+    }
+
     public async Task<Dictionary<Guid, int>> CountFreeByCarrierIdsAsync(IEnumerable<Guid> carrierIds, CancellationToken cancellationToken = default)
     {
         var ids = carrierIds.ToList();
