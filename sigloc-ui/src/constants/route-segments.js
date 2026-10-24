@@ -23,6 +23,14 @@ export const SEGMENT_STATUS_OPTIONS = [
 ]
 
 /** Only `AVAILABLE` segments can be edited or deleted (enforced by the backend). */
+/**
+ * Short code shown for a segment. Segment ids are time-ordered (UUIDv7), so segments created
+ * close together share their first characters; the tail is random and stays distinct.
+ */
+export function segmentShortId(id) {
+  return String(id).slice(-8)
+}
+
 export function isSegmentEditable(status) {
   return status === SEGMENT_STATUS.AVAILABLE
 }

@@ -31,6 +31,7 @@ import {
 import { previewRoute } from "@/services/route-service"
 import {
   isSegmentEditable,
+  segmentShortId,
   segmentStatusLabel,
   SEGMENT_STATUS,
   mapRouteSegmentFieldErrors,
@@ -361,7 +362,7 @@ export default function RouteSegmentManagement() {
                     <div className="grid min-w-0 flex-1 grid-cols-[130px_1.3fr_250px] items-center gap-6">
                       <div>
                         <div className="mb-1 font-mono text-xs font-bold text-slate-500">
-                          {String(segment.id).slice(0, 8)}
+                          {segmentShortId(segment.id)}
                         </div>
                         <Badge
                           variant="secondary"
