@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { listAuctions, updateAuction, deleteAuction } from "@/services/auction-service"
-import { RISK } from "@/constants/risk"
+import { RISK, riskLabel } from "@/constants/risk"
 
 const SEARCH_DEBOUNCE_MS = 350
 const PAGE_SIZE = 50
@@ -33,14 +33,17 @@ const formatDeadline = (value) => {
   }).format(date)
 }
 
-/** Splits the itinerary summary ("A → B → C") into individual stops. */
+/**
+ * Splits the itinerary summary ("A → B → C") into individual stops. Commas are part of a stop
+ * ("Curitiba, PR"), so only the arrows separate them.
+ */
 const toStops = (summary) => {
   if (!summary) {
     return []
   }
 
   return summary
-    .split(/\s*(?:➔|→|->|,)\s*/)
+    .split(/\s*(?:➔|→|->)\s*/)
     .map((stop) => stop.trim())
     .filter(Boolean)
 }
@@ -96,7 +99,7 @@ const getRiskBadge = (risk) => {
     [RISK.WARNING]: "bg-amber-50 text-amber-700 border-amber-200",
     [RISK.CRITIC]: "border-red-700 bg-red-600 text-white",
   }
-  return <Badge variant="outline" className={`rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 ${styles[risk] || "bg-slate-50"}`}>{risk}</Badge>
+  return <Badge variant="outline" className={`rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 ${styles[risk] || "bg-slate-50"}`}>{riskLabel(risk)}</Badge>
 }
 
 export default function FreightsOfferedOverview() {

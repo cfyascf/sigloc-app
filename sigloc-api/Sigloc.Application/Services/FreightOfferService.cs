@@ -111,8 +111,8 @@ public class FreightOfferService : IFreightOfferService
             ? item.Segments.Max(s => s.DeliveryDeadline)
             : (DateTimeOffset?)null;
 
-        var risk = ToWireRisk(AuctionRiskCalculator.Evaluate(
-            earliestPickup, item.Auction.ExpiresAt, item.Auction.Status, totalBids, now));
+        var risk = AuctionRiskCalculator.Evaluate(
+            earliestPickup, item.Auction.ExpiresAt, item.Auction.Status, totalBids, now);
 
         var hoursLeft = Math.Max(0d, Math.Round((item.Auction.ExpiresAt - now).TotalHours, 1));
         var isExpiringSoon = hoursLeft <= 4d;
@@ -223,12 +223,6 @@ public class FreightOfferService : IFreightOfferService
 
     private static string FormatVolume(double volumeM3)
         => $"{volumeM3.ToString("0.##", PtBr)} m³";
-
-    /// <summary>Normalizes the internal CRITICAL indicator to the CRITIC value the UI uses.</summary>
-    private static string ToWireRisk(string risk)
-        => string.Equals(risk, AuctionRiskCalculator.Critical, StringComparison.OrdinalIgnoreCase)
-            ? "CRITIC"
-            : risk;
 
     private static string? NormalizeFilterValue(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();

@@ -10,7 +10,8 @@ internal static class AuctionRiskCalculator
 {
     public const string Normal = "NORMAL";
     public const string Warning = "WARNING";
-    public const string Critical = "CRITICAL";
+    // Same code the trip risk and the UI use (sigloc-ui/src/constants/risk.js).
+    public const string Critical = "CRITIC";
 
     /// <summary>
     /// Applies the business rules using the earliest pickup deadline of the route.

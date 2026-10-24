@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { listFreightOffers } from "@/services/freight-offer-service"
-import { RISK } from "@/constants/risk"
+import { RISK, riskLabel } from "@/constants/risk"
 
 const BOARD_STATUS = { OPEN: "OPEN", CLOSED: "CLOSED" }
 
@@ -23,7 +23,7 @@ const getRiskBadge = (risk) => {
     [RISK.WARNING]: "bg-amber-50 text-amber-700 border-amber-200",
     [RISK.CRITIC]: "bg-rose-50 text-rose-700 border-rose-200",
   }
-  return <Badge variant="outline" className={`rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 ${styles[risk] || "bg-slate-50"}`}>{risk}</Badge>
+  return <Badge variant="outline" className={`rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 ${styles[risk] || "bg-slate-50"}`}>{riskLabel(risk)}</Badge>
 }
 
 const getRequirementBadge = (req) => {

@@ -61,6 +61,8 @@ public class AuctionRiskCalculatorTests
             now: Now);
 
         result.Should().Be(AuctionRiskCalculator.Critical);
+        // Same code as trip risk and the UI badge map; "CRITICAL" rendered unstyled.
+        result.Should().Be("CRITIC");
     }
 
     [Fact]
