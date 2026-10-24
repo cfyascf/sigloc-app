@@ -244,13 +244,18 @@ public class DashboardRepository : IDashboardRepository
                     && (t.Status == TripStatus.AwaitingPickup || t.Status == TripStatus.InTransit)),
                 cancellationToken);
 
+        // Auctions the carrier is still competing in: same definition as the bid radar
+        // (one entry per auction, open and not expired), so the KPI matches the list below it.
+        var now = DateTimeOffset.UtcNow;
         var activeBids = await (
             from bid in db.Bids.AsNoTracking()
             join auction in db.Auctions.AsNoTracking() on bid.AuctionId equals auction.Id
             where bid.CarrierId == carrierId
                 && bid.Status != BidStatus.Withdrawn
                 && auction.Status == AuctionStatus.Open
-            select bid.Id)
+                && auction.ExpiresAt > now
+            select bid.AuctionId)
+            .Distinct()
             .CountAsync(cancellationToken);
 
         var inTransitTrips = await db.Trips
@@ -342,13 +347,16 @@ public class DashboardRepository : IDashboardRepository
     {
         await using var db = await _contextFactory.CreateDbContextAsync(cancellationToken);
 
-        // The carrier's active bids in open auctions (best/lowest bid per auction if several exist).
+        // The carrier's active bids in open, non-expired auctions (best/lowest bid per auction if
+        // several exist).
+        var now = DateTimeOffset.UtcNow;
         var myBids = await (
             from bid in db.Bids.AsNoTracking()
             join auction in db.Auctions.AsNoTracking() on bid.AuctionId equals auction.Id
             where bid.CarrierId == carrierId
                 && bid.Status != BidStatus.Withdrawn
                 && auction.Status == AuctionStatus.Open
+                && auction.ExpiresAt > now
             select new { bid.AuctionId, auction.RouteId, bid.TotalValue })
             .ToListAsync(cancellationToken);
 

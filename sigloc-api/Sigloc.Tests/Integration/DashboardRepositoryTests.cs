@@ -351,6 +351,33 @@ public class DashboardRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task Active_bids_KPI_counts_live_auctions_like_the_bid_radar()
+    {
+        var ctx = _db.CreateContext();
+        var liveRoute = Route(_contractorId);
+        var expiredRoute = Route(_contractorId);
+        var live = Auction(liveRoute.Id);
+        var expired = Auction(expiredRoute.Id);
+        expired.ExpiresAt = DateTimeOffset.UtcNow.AddHours(-1);
+        var vehicle = Vehicle(plate: "BID2B22");
+        ctx.ConsolidatedRoutes.AddRange(liveRoute, expiredRoute);
+        ctx.Auctions.AddRange(live, expired);
+        ctx.Vehicles.Add(vehicle);
+        // Two live bid rows on the same auction (legacy data) and one on an expired auction.
+        ctx.Bids.AddRange(
+            Bid(live.Id, _carrierId, vehicle.Id, 100),
+            Bid(live.Id, _carrierId, vehicle.Id, 90),
+            Bid(expired.Id, _carrierId, vehicle.Id, 80));
+        await ctx.SaveChangesAsync();
+
+        var kpis = await Repo().GetCarrierKpisAsync(_carrierId);
+        var radar = await Repo().GetActiveBidDisputesAsync(_carrierId);
+
+        kpis.ActiveBids.Should().Be(1);
+        radar.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task Carrier_fleet_figures_treat_a_LIVRE_vehicle_on_an_active_trip_as_busy()
     {
         var ctx = _db.CreateContext();
