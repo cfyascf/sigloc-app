@@ -172,6 +172,27 @@ public class VehicleServiceTests
         await _repository.Received(1).UpdateAsync(vehicle, Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(0, null, null, "axleCount")]
+    [InlineData(null, -500, null, "capacityWeight")]
+    [InlineData(null, null, 0, "capacityVolume")]
+    public async Task UpdateAsync_non_positive_capacity_throws_ValidationException_and_does_not_save(
+        int? axles, int? weight, int? volume, string field)
+    {
+        var vehicle = TestData.Vehicle(_carrierId);
+        _repository.GetByIdAsync(vehicle.Id, _carrierId, Arg.Any<CancellationToken>()).Returns(vehicle);
+
+        var dto = new UpdateVehicleDto(
+            Model: null, AxleCount: axles, CapacityWeight: weight, CapacityVolume: volume,
+            BodyType: null, RefrigerationLevel: null, HasMopp: null, HasCargoSecuring: null,
+            Driver: null, CurrentLocation: null, Status: null);
+        var act = () => _service.UpdateAsync(_carrierId, vehicle.Id, dto);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Should().ContainSingle(e => e.Field == field);
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task DeleteAsync_not_found_throws_KeyNotFound()
     {

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Sigloc.Domain.Enums;
 using Sigloc.Infrastructure.Repositories;
 using Sigloc.Tests.Common;
@@ -41,6 +42,25 @@ public class VehicleRepositoryTests : IDisposable
 
         all.Should().HaveCount(2);
         all.Should().OnlyContain(v => v.TransportadoraId == _carrierId);
+    }
+
+    [Fact]
+    public async Task Reads_still_work_when_a_stored_row_has_invalid_capacity()
+    {
+        var vehicle = TestData.Vehicle(_carrierId, plate: "BAD1B11");
+        await new VehicleRepository(_db.CreateContext()).AddAsync(vehicle);
+
+        // Simulate a row written before validation existed (or by hand), bypassing the entity.
+        await _db.CreateContext().Vehicles
+            .Where(v => v.Id == vehicle.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(v => v.CapacityWeight, -500m));
+
+        var repo = new VehicleRepository(_db.CreateContext());
+        var all = await repo.GetAllAsync(_carrierId);
+        var found = await repo.GetByIdAsync(vehicle.Id, _carrierId);
+
+        all.Should().ContainSingle(v => v.Id == vehicle.Id);
+        found!.CapacityWeight.Should().Be(-500m);
     }
 
     [Fact]

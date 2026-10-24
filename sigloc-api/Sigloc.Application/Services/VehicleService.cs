@@ -80,6 +80,7 @@ public class VehicleService : IVehicleService
             throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
         }
 
+        ValidateCapacity(dto);
         ValidateMonitoringFields(dto.TraccarDeviceId, dto.DriverPhone);
         if (dto.TraccarDeviceId.HasValue) vehicle.TraccarDeviceId = dto.TraccarDeviceId;
         if (dto.DriverPhone != null) vehicle.DriverPhone = NormalizePhone(dto.DriverPhone);
@@ -117,6 +118,17 @@ public class VehicleService : IVehicleService
 
     // Centraliza o mapeamento para evitar repetição de código
     private static string? NormalizePhone(string? phone) => string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+
+    // Same limits the Vehicle constructor enforces on create, reported per field instead of as a
+    // single exception so the edit form can show them.
+    private static void ValidateCapacity(UpdateVehicleDto dto)
+    {
+        var errors = new List<Sigloc.Application.Exceptions.ValidationError>();
+        if (dto.AxleCount is <= 0) errors.Add(new("axleCount", "A quantidade de eixos deve ser maior que zero."));
+        if (dto.CapacityWeight is <= 0) errors.Add(new("capacityWeight", "A capacidade de peso deve ser maior que zero."));
+        if (dto.CapacityVolume is <= 0) errors.Add(new("capacityVolume", "A capacidade de volume deve ser maior que zero."));
+        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Não foi possível atualizar o veículo.");
+    }
 
     private static void ValidateMonitoringFields(long? deviceId, string? phone)
     {

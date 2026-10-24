@@ -23,6 +23,18 @@ const getStatusDotStyle = (status) => {
   return "bg-slate-300"
 }
 
+// Mirrors the API limits so an invalid edit never reaches the server.
+const validateEdit = (form) => {
+  const errors = {}
+  if (!form.model?.trim()) errors.model = "Informe a marca/modelo."
+  if (!(Number(form.weightKg) > 0)) errors.weightKg = "A capacidade de peso deve ser maior que zero."
+  if (!(Number(form.volumeM3) > 0)) errors.volumeM3 = "A capacidade de volume deve ser maior que zero."
+  return errors
+}
+
+const FieldError = ({ message }) =>
+  message ? <p className="text-[10px] font-semibold text-rose-600">{message}</p> : null
+
 const getStatusTextStyle = (status) => {
   if (status === "Livre") return "text-emerald-600 font-bold"
   if (status === "Em Trânsito") return "text-blue-600 font-bold"
@@ -38,6 +50,7 @@ export default function FleetManagement() {
   const [loadError, setLoadError] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
+  const [editErrors, setEditErrors] = useState({})
   const [deletingId, setDeletingId] = useState(null)
 
   const saveAction = useAsyncAction(vehicleService.updateVehicle)
@@ -73,6 +86,7 @@ export default function FleetManagement() {
   const startEditing = (vehicle) => {
     setEditingId(vehicle.id)
     setEditForm({ ...vehicle })
+    setEditErrors({})
     setDeletingId(null)
     saveAction.reset()
   }
@@ -80,10 +94,15 @@ export default function FleetManagement() {
   const cancelEditing = () => {
     setEditingId(null)
     setEditForm(null)
+    setEditErrors({})
     saveAction.reset()
   }
 
   const saveEdit = async () => {
+    const errors = validateEdit(editForm)
+    setEditErrors(errors)
+    if (Object.keys(errors).length > 0) return
+
     const result = await saveAction.run(editingId, editForm)
     if (!result.ok) return
 
@@ -259,7 +278,8 @@ export default function FleetManagement() {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marca / Modelo</label>
-                        <Input value={editForm.model} onChange={(e) => setEditForm({...editForm, model: e.target.value})} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                        <Input value={editForm.model} onChange={(e) => setEditForm({...editForm, model: e.target.value})} aria-invalid={Boolean(editErrors.model)} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                        <FieldError message={editErrors.model} />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Motorista Atribuído</label>
@@ -274,18 +294,20 @@ export default function FleetManagement() {
                           <Scale size={12} className="text-slate-400" /> Capacidade (Peso)
                         </label>
                         <div className="relative">
-                          <Input type="number" value={editForm.weightKg} onChange={(e) => setEditForm({...editForm, weightKg: Number(e.target.value)})} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                          <Input type="number" min="0.001" step="any" value={editForm.weightKg} onChange={(e) => setEditForm({...editForm, weightKg: Number(e.target.value)})} aria-invalid={Boolean(editErrors.weightKg || saveAction.fieldErrors.capacityWeight)} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
                           <span className="absolute right-2.5 top-2.5 text-[10px] font-semibold text-slate-400">kg</span>
                         </div>
+                        <FieldError message={editErrors.weightKg ?? saveAction.fieldErrors.capacityWeight} />
                       </div>
                       <div className="space-y-1.5">
                         <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                           <Box size={12} className="text-slate-400" /> Cubagem (Volume)
                         </label>
                         <div className="relative">
-                          <Input type="number" value={editForm.volumeM3} onChange={(e) => setEditForm({...editForm, volumeM3: Number(e.target.value)})} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                          <Input type="number" min="0.001" step="any" value={editForm.volumeM3} onChange={(e) => setEditForm({...editForm, volumeM3: Number(e.target.value)})} aria-invalid={Boolean(editErrors.volumeM3 || saveAction.fieldErrors.capacityVolume)} className="h-9 border-slate-200 pr-8 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
                           <span className="absolute right-2.5 top-2.5 text-[10px] font-semibold text-slate-400">m³</span>
                         </div>
+                        <FieldError message={editErrors.volumeM3 ?? saveAction.fieldErrors.capacityVolume} />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tipo de Carroceria</label>
