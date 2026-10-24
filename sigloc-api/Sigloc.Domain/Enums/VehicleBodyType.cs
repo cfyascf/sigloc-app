@@ -10,7 +10,7 @@ namespace Sigloc.Domain.Enums;
         [Description("Baú Sider (Abertura Lateral)")]
         Sider = 2,
         
-        [Description("Baú Frigirífico")]
+        [Description("Grade Baixa")]
         GradeBaixa = 3,
         
         [Description("Baú Refrigerado")]

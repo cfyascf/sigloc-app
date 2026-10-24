@@ -143,3 +143,19 @@ public class AuctionRiskCalculatorTests
         result.Should().Be(AuctionRiskCalculator.Normal);
     }
 }
+
+public class VehicleBodyTypeDescriptionTests
+{
+    [Theory]
+    [InlineData(VehicleBodyType.GradeBaixa, "Grade Baixa")]
+    [InlineData(VehicleBodyType.Frigorifico, "Baú Refrigerado")]
+    public void Description_matches_the_body_type(VehicleBodyType bodyType, string expected)
+    {
+        var description = typeof(VehicleBodyType).GetField(bodyType.ToString())!
+            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .Cast<System.ComponentModel.DescriptionAttribute>()
+            .Single();
+
+        description.Description.Should().Be(expected);
+    }
+}
