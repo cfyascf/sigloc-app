@@ -1,12 +1,10 @@
-import { ArrowLeft, MapPinned, Truck, Scale, Box, Gavel, Layers, Activity, CalendarClock, PackageOpen, Snowflake, AlertTriangle, CheckCircle2, Lock, Loader2 } from "lucide-react"
+import { ArrowLeft, MapPinned, Truck, Scale, Box, Gavel, Layers, Activity, CalendarClock, PackageOpen, Snowflake, AlertTriangle, Loader2 } from "lucide-react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useCallback, useEffect, useState } from "react"
 
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/toast"
 import { auctionService } from "@/services/auction-service"
 import { ApiError } from "@/lib/api-client"
 
@@ -32,15 +30,10 @@ function getStopBadgeClass(index, totalStops) {
 export default function BidAnalysis() {
   const navigate = useNavigate()
   const { auctionId } = useParams()
-  const toast = useToast()
 
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
-
-  const [bidValue, setBidValue] = useState("")
-  const [selectedVehicleId, setSelectedVehicleId] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
 
   const loadAnalysis = useCallback(
     async (signal) => {
@@ -50,9 +43,6 @@ export default function BidAnalysis() {
         const data = await auctionService.getCarrierAnalysis(auctionId, { signal })
         if (signal?.aborted) return
         setAnalysis(data)
-        // Pre-fill with the carrier's own active bid when present, otherwise the ceiling.
-        setBidValue(data?.myBid?.netFreightValue ?? data?.competition?.auctionCeiling ?? "")
-        setSelectedVehicleId(data?.myBid?.vehicleId ?? null)
       } catch (error) {
         if (error?.name === "AbortError") return
         setLoadError(error instanceof ApiError ? error.message : "Não foi possível carregar a análise da rota.")
@@ -71,45 +61,6 @@ export default function BidAnalysis() {
 
   const ceiling = analysis?.competition?.auctionCeiling ?? 0
   const bestLeaderOffer = analysis?.competition?.bestLeaderOffer ?? null
-  // The leader offer and the ceiling are totals (freight + toll); the input is freight only.
-  const estimatedToll = analysis?.competition?.estimatedToll ?? 0
-  const anttFloor = ceiling * 0.75
-
-  const applyLeaderBid = () => {
-    if (bestLeaderOffer != null) setBidValue(Math.max(bestLeaderOffer - estimatedToll - 50, 0))
-  }
-  const applyFloorBid = () => setBidValue(Math.round(anttFloor))
-
-  const selectedVehicle = (analysis?.carrierAvailableFleet ?? []).find((v) => v.vehicleId === selectedVehicleId) ?? null
-
-  const handleSubmit = async () => {
-    const value = Number(bidValue)
-    if (!selectedVehicleId) {
-      toast.error("Selecione um veículo", "Escolha um veículo da sua frota para prosseguir com o lance.")
-      return
-    }
-    if (!Number.isFinite(value) || value <= 0) {
-      toast.error("Valor inválido", "Informe um valor de proposta maior que zero.")
-      return
-    }
-
-    const isUpdate = Boolean(analysis?.myBid)
-    setSubmitting(true)
-    try {
-      const result = await auctionService.placeBid(auctionId, { valorOferecido: value, veiculoId: selectedVehicleId })
-      toast.success(
-        isUpdate ? "Lance atualizado com sucesso!" : "Lance enviado com sucesso!",
-        `Valor total ${formatCurrency(result?.totalValue)} (frete ${formatCurrency(result?.netFreightValue)} + pedágio ${formatCurrency(result?.tollValue)}).`
-      )
-      await loadAnalysis()
-    } catch (error) {
-      // Constraint Engine rejections (400) carry the exact motive in error.message.
-      const message = error instanceof ApiError ? error.message : "Não foi possível registrar o lance. Tente novamente."
-      toast.error("Lance recusado", message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -137,8 +88,8 @@ export default function BidAnalysis() {
   }
 
   const { routeSummary, competition, physicalRequirements, carrierAvailableFleet, travelPlan, myBid } = analysis
-  const bidTotal = Number(bidValue) + estimatedToll
-  const distanceToLeader = bestLeaderOffer != null ? bidTotal - bestLeaderOffer : null
+  // The leader offer is a total (freight + toll), so it is compared against the bid's total.
+  const myBidDistanceToLeader = myBid && bestLeaderOffer != null ? myBid.totalValue - bestLeaderOffer : null
 
   return (
     <AppShell title="Detalhes da Rota">
@@ -156,13 +107,18 @@ export default function BidAnalysis() {
 
             {/* CABEÇALHO E SLA CRÍTICO */}
             <div className="flex flex-col gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Layers size={14} className="text-blue-500" />
-                  <span className="font-mono text-xs font-bold text-slate-500">{routeSummary.referenceCode}</span>
-                  <Badge className="bg-slate-800 text-white text-[9px] uppercase font-bold border-none hover:bg-slate-800">Em Leilão</Badge>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Layers size={14} className="text-blue-500" />
+                    <span className="font-mono text-xs font-bold text-slate-500">{routeSummary.referenceCode}</span>
+                    <Badge className="bg-slate-800 text-white text-[9px] uppercase font-bold border-none hover:bg-slate-800">Em Leilão</Badge>
+                  </div>
+                  <h1 className="text-xl font-black text-slate-900">{routeSummary.shortItinerary}</h1>
                 </div>
-                <h1 className="text-xl font-black text-slate-900">{routeSummary.shortItinerary}</h1>
+                <Button onClick={() => navigate(`/bid-analysis/${auctionId}/place-bid`)} className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 text-xs">
+                  <Gavel size={14} className="mr-1.5" /> {myBid ? "Atualizar Lance" : "Dar Lance"}
+                </Button>
               </div>
 
               {/* BANNER DE SLA */}
@@ -188,178 +144,42 @@ export default function BidAnalysis() {
               </div>
             </div>
 
-            {/* PAINEL DE AÇÃO (LANCE) E ESTRATÉGIA */}
-            <div className="grid grid-cols-1 gap-4">
+            {/* MERCADO & CONCORRÊNCIA */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2 text-xs">
+                <Activity size={14} className="text-slate-500" /> Mercado & Concorrência
+              </h3>
 
-              {/* 1. LANCE E SELEÇÃO DE VEÍCULO */}
-              <div className="rounded-xl border border-blue-200 bg-blue-50/30 p-4 flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-bold text-slate-900 flex items-center gap-2 text-xs">
-                    <Gavel size={14} className="text-blue-600" /> Formulário de Lance
-                  </h3>
-                  <div className="flex items-center gap-1.5">
-                    {myBid && (
-                      <Badge className="bg-blue-600 text-white text-[9px] font-bold border-none uppercase hover:bg-blue-600">Lance Ativo</Badge>
-                    )}
-                    <Badge variant="outline" className="border-blue-200 bg-white text-blue-700 text-[9px]">Teto: {formatCurrency(ceiling)}</Badge>
-                  </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Teto do Leilão</p>
+                  <p className="text-lg font-black text-slate-800">{formatCurrency(ceiling)}</p>
                 </div>
-
-                {myBid && (
-                  <div className="mb-3 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 size={16} className="text-blue-600" />
-                      <div>
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-blue-700/70">Seu lance atual</p>
-                        <p className="font-mono text-sm font-black text-blue-800">{formatCurrency(myBid.netFreightValue)}</p>
-                      </div>
-                    </div>
-                    <p className="text-[9px] font-medium text-blue-700/70">Enviado em {formatDateTime(myBid.submittedAt)}</p>
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  {/* Input de Valor */}
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">{myBid ? "Atualizar Valor da Proposta" : "Valor da Proposta"}</p>
-                    <div className="bg-white border border-slate-300 rounded-lg p-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
-                      <div className="flex items-center px-2">
-                        <span className="text-xs font-bold text-slate-400">R$</span>
-                        <Input
-                          type="number"
-                          value={bidValue}
-                          onChange={(e) => setBidValue(e.target.value)}
-                          className="border-0 shadow-none focus-visible:ring-0 text-xl font-black font-mono text-slate-800 h-10"
-                        />
-                      </div>
-                    </div>
-                    {Number(bidValue) > 0 && (
-                      <p className={`mt-1 text-[10px] font-semibold ${bidTotal > ceiling ? "text-rose-600" : "text-slate-500"}`}>
-                        Total com pedágio: {formatCurrency(bidTotal)} · teto {formatCurrency(ceiling)}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Botões de Ação Rápida */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" onClick={applyLeaderBid} disabled={bestLeaderOffer == null} className="text-[10px] font-bold border-slate-200 bg-white text-slate-600 h-7">
-                      Cobrir Líder
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={applyFloorBid} className="text-[10px] font-bold border-slate-200 bg-white text-slate-600 h-7">
-                      Piso ANTT
-                    </Button>
-                  </div>
-
-                  {/* SELETOR DE VEÍCULO */}
-                  <div className="border-t border-slate-200/50 pt-4">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
-                      <Truck size={12} className="text-blue-600" /> Veículo Alocado para Esta Rota
-                    </p>
-                    <p className="text-[9px] text-slate-500 mb-3">
-                      Toda a frota é exibida. A compatibilidade (peso, volume, equipamento e agenda) é auditada ao confirmar o lance.
-                    </p>
-
-                    <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
-                      {carrierAvailableFleet.length === 0 ? (
-                        <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-center">
-                          <Lock size={16} className="text-rose-500 mx-auto mb-1" />
-                          <p className="text-[10px] font-bold text-rose-700">Nenhum veículo cadastrado na sua frota</p>
-                        </div>
-                      ) : (
-                        carrierAvailableFleet.map((vehicle) => {
-                          const isSelected = selectedVehicleId === vehicle.vehicleId
-                          return (
-                            <button
-                              key={vehicle.vehicleId}
-                              type="button"
-                              onClick={() => setSelectedVehicleId(vehicle.vehicleId)}
-                              className={`w-full text-left border rounded-lg p-3 transition-all ${
-                                isSelected
-                                  ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
-                                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                              }`}
-                            >
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${isSelected ? "bg-blue-600" : "bg-slate-100"}`}>
-                                    {isSelected ? <CheckCircle2 size={16} className="text-white" /> : <Truck size={14} className="text-slate-400" />}
-                                  </div>
-                                  <div>
-                                    <p className="font-mono text-sm font-black text-slate-900">{vehicle.plate}</p>
-                                    <p className="text-[9px] font-semibold text-slate-500">{vehicle.model}</p>
-                                  </div>
-                                </div>
-                                <span className="font-mono text-[10px] font-bold text-slate-600">{formatWeight(vehicle.capacityWeightKg)}</span>
-                              </div>
-
-                              {vehicle.specifications.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {vehicle.specifications.map((spec) => (
-                                    <Badge key={spec} variant="outline" className="border-slate-200 bg-slate-50 text-slate-600 text-[8px] font-semibold">
-                                      {spec}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </button>
-                          )
-                        })
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Lances Ativos</p>
+                  <p className="text-lg font-black text-blue-600">{competition.activeBids}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Melhor Oferta (Líder)</p>
+                  <p className="text-lg font-black font-mono text-emerald-600">
+                    {bestLeaderOffer != null ? formatCurrency(bestLeaderOffer) : "Sem lances"}
+                  </p>
+                </div>
+                <div className={`p-3 rounded-lg border ${myBid ? "border-blue-200 bg-blue-50" : "border-slate-100 bg-slate-50"}`}>
+                  <p className={`text-[9px] font-bold uppercase mb-0.5 ${myBid ? "text-blue-700/70" : "text-slate-400"}`}>Seu Lance</p>
+                  {myBid ? (
+                    <>
+                      <p className="text-lg font-black font-mono text-blue-800">{formatCurrency(myBid.totalValue)}</p>
+                      {myBidDistanceToLeader != null && (
+                        <p className={`text-[9px] font-bold ${myBidDistanceToLeader > 0 ? "text-rose-500" : "text-emerald-600"}`}>
+                          {myBidDistanceToLeader > 0 ? `${formatCurrency(myBidDistanceToLeader)} acima do líder` : "Você lidera o leilão"}
+                        </p>
                       )}
-                    </div>
-
-                    {!selectedVehicleId && carrierAvailableFleet.length > 0 && (
-                      <p className="text-[9px] font-semibold text-amber-600 mt-2 flex items-center gap-1">
-                        <AlertTriangle size={10} /> Selecione um veículo para prosseguir
-                      </p>
-                    )}
-                  </div>
-
-                  <Button
-                    disabled={!selectedVehicleId || submitting}
-                    onClick={handleSubmit}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submitting ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {myBid ? "Atualizando lance..." : "Enviando lance..."}</>
-                    ) : selectedVehicle ? (
-                      `${myBid ? "Atualizar" : "Confirmar"} Lance com ${selectedVehicle.plate}`
-                    ) : (
-                      "Selecione um Veículo para Confirmar"
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* 2. ESTRATÉGIA E RANKING */}
-              <div className="rounded-xl border border-slate-200 bg-white p-4 flex flex-col justify-between">
-                <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2 text-xs">
-                  <Activity size={14} className="text-slate-500" /> Mercado & Concorrência
-                </h3>
-
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col items-center justify-center">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Teto do Leilão</p>
-                    <p className="text-xl font-black text-slate-800">{formatCurrency(ceiling)}</p>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col items-center justify-center">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Lances Ativos</p>
-                    <p className="text-xl font-black text-blue-600">{competition.activeBids}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">Melhor Oferta (Líder)</p>
-                    <p className="text-xs font-black font-mono text-emerald-600">
-                      {bestLeaderOffer != null ? formatCurrency(bestLeaderOffer) : "Sem lances"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">Distância P/ Líder</p>
-                    <p className={`text-xs font-bold font-mono ${distanceToLeader != null && distanceToLeader > 0 ? "text-rose-500" : "text-emerald-600"}`}>
-                      {distanceToLeader != null ? formatCurrency(distanceToLeader) : "—"}
-                    </p>
-                  </div>
+                      <p className="text-[9px] font-medium text-blue-700/70">Enviado em {formatDateTime(myBid.submittedAt)}</p>
+                    </>
+                  ) : (
+                    <p className="text-lg font-black text-slate-400">Nenhum lance</p>
+                  )}
                 </div>
               </div>
             </div>
