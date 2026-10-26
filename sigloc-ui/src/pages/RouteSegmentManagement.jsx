@@ -13,6 +13,7 @@ import {
   CalendarClock,
   DollarSign,
   Loader2,
+  Archive,
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 
@@ -20,6 +21,7 @@ import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FormAlert } from "@/components/auth/FormAlert"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import {
@@ -39,6 +41,16 @@ import {
 } from "@/constants/route-segments"
 
 const SEARCH_DEBOUNCE_MS = 350
+const PAGE_SIZE = 50
+
+/** Segments shown in the "Disponíveis" tab (editable and available for new routes). */
+const ACTIVE_STATUSES = [SEGMENT_STATUS.AVAILABLE]
+/** Segments shown in the "Histórico" tab: in a route, in transit, or completed. */
+const HISTORY_STATUSES = [
+  SEGMENT_STATUS.ROUTED,
+  SEGMENT_STATUS.IN_TRANSIT,
+  SEGMENT_STATUS.COMPLETED,
+]
 
 const numberFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 })
 const formatWeight = (value) => `${numberFormat.format(value ?? 0)} kg`
@@ -72,6 +84,7 @@ export default function RouteSegmentManagement() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [selectedTab, setSelectedTab] = useState("active")
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedSegmentIds, setSelectedSegmentIds] = useState([])
 
@@ -80,7 +93,27 @@ export default function RouteSegmentManagement() {
   const [editForm, setEditForm] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
 
-  const listAction = useAsyncAction((query) => listRouteSegments(query))
+  const listAction = useAsyncAction(async ({ origin, statuses }) => {
+    const responses = await Promise.all(
+      statuses.map((status) =>
+        listRouteSegments({ origin, status, page: 1, pageSize: PAGE_SIZE })
+      )
+    )
+
+    if (statuses.length === 1) {
+      return { items: responses[0].items }
+    }
+
+    // Merge the per-status pages (history tab), newest first.
+    return {
+      items: responses
+        .flatMap((response) => response.items)
+        .sort(
+          (first, second) =>
+            new Date(second.createdAt ?? 0) - new Date(first.createdAt ?? 0)
+        ),
+    }
+  })
   const saveAction = useAsyncAction(({ id, payload }) =>
     updateRouteSegment(id, payload)
   )
@@ -103,20 +136,33 @@ export default function RouteSegmentManagement() {
   }, [searchTerm])
 
   const loadList = useCallback(async () => {
+    const statuses =
+      selectedTab === "history" ? HISTORY_STATUSES : ACTIVE_STATUSES
     const result = await listAction.run({
       origin: debouncedSearch || undefined,
-      page: 1,
-      pageSize: 50,
+      statuses,
     })
     if (result.ok) {
       setSegments(result.data.items)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch])
+  }, [debouncedSearch, selectedTab])
 
   useEffect(() => {
     loadList()
   }, [loadList])
+
+  const handleTabChange = (value) => {
+    setSelectedTab(value)
+    setEditingId(null)
+    setEditForm(null)
+    setDeletingId(null)
+    setIsSelectionMode(false)
+    setSelectedSegmentIds([])
+    saveAction.reset()
+    deleteAction.reset()
+    previewAction.reset()
+  }
 
   const handleToggleSegment = (segmentId) => {
     setSelectedSegmentIds((prev) =>
@@ -192,7 +238,7 @@ export default function RouteSegmentManagement() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Trechos Disponíveis
+              {selectedTab === "history" ? "Histórico de Trechos" : "Trechos Disponíveis"}
             </h1>
           </div>
 
@@ -207,20 +253,22 @@ export default function RouteSegmentManagement() {
               />
             </div>
 
-            <Button
-              variant={isSelectionMode ? "secondary" : "outline"}
-              className={
-                isSelectionMode
-                  ? "h-9 border-blue-200 bg-blue-50 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                  : "h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-              }
-              onClick={() =>
-                isSelectionMode ? handleCancelSelection() : setIsSelectionMode(true)
-              }
-            >
-              <Layers size={14} className="mr-1.5" />{" "}
-              {isSelectionMode ? "Cancelar" : "Criar Rota"}
-            </Button>
+            {selectedTab === "active" && (
+              <Button
+                variant={isSelectionMode ? "secondary" : "outline"}
+                className={
+                  isSelectionMode
+                    ? "h-9 border-blue-200 bg-blue-50 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                    : "h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                }
+                onClick={() =>
+                  isSelectionMode ? handleCancelSelection() : setIsSelectionMode(true)
+                }
+              >
+                <Layers size={14} className="mr-1.5" />{" "}
+                {isSelectionMode ? "Cancelar" : "Criar Rota"}
+              </Button>
+            )}
 
             <Button
               asChild
@@ -232,6 +280,18 @@ export default function RouteSegmentManagement() {
             </Button>
           </div>
         </div>
+
+        {/* ABAS: DISPONÍVEIS / HISTÓRICO */}
+        <Tabs value={selectedTab} onValueChange={handleTabChange}>
+          <TabsList className="bg-slate-100">
+            <TabsTrigger value="active" className="text-xs font-semibold">
+              Disponíveis
+            </TabsTrigger>
+            <TabsTrigger value="history" className="text-xs font-semibold">
+              <Archive size={13} className="mr-1.5" /> Histórico
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* BANNER CONTEXTUAL */}
         {isSelectionMode && selectedSegmentIds.length > 0 && (
@@ -286,7 +346,9 @@ export default function RouteSegmentManagement() {
           </div>
         ) : segments.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-            Nenhum trecho encontrado.
+            {selectedTab === "history"
+              ? "Nenhum trecho no histórico encontrado."
+              : "Nenhum trecho disponível encontrado."}
           </div>
         ) : (
           <div className="space-y-2">
@@ -360,7 +422,7 @@ export default function RouteSegmentManagement() {
                       </div>
                     )}
 
-                    <div className="grid min-w-0 flex-1 grid-cols-[130px_1.3fr_250px] items-center gap-6">
+                    <div className="grid min-w-0 flex-1 grid-cols-[130px_1.3fr_1fr_250px] items-center gap-6">
                       <div>
                         <div className="mb-1 font-mono text-xs font-bold text-slate-500">
                           {segmentShortId(segment.id)}
@@ -389,15 +451,16 @@ export default function RouteSegmentManagement() {
                           {segment.items.length === 1 ? "produto" : "produtos"} ·
                           ~{numberFormat.format(segment.estimatedTimeHours)}h
                         </span>
-                        <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] font-medium text-slate-400">
-                          <span className="flex items-center gap-1">
-                            <CalendarClock size={11} className="text-slate-400" />
-                            Coleta até {formatDeadline(segment.pickupDeadline)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <CalendarClock size={11} className="text-slate-400" />
-                            Entrega até {formatDeadline(segment.deliveryDeadline)}
-                          </span>
+                      </div>
+
+                      <div className="min-w-0 flex flex-col gap-0.5 text-[11px] font-medium text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <CalendarClock size={11} className="text-slate-400" />
+                          Coleta até {formatDeadline(segment.pickupDeadline)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <CalendarClock size={11} className="text-slate-400" />
+                          Entrega até {formatDeadline(segment.deliveryDeadline)}
                         </span>
                       </div>
 
