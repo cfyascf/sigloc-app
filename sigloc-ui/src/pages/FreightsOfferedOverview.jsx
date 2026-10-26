@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncAction } from "@/hooks/use-async-action"
+import { useInfiniteList } from "@/hooks/use-infinite-list"
+import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel"
 import { listAuctions, updateAuction, deleteAuction } from "@/services/auction-service"
 import { RISK, RISK_OPTIONS, riskLabel } from "@/constants/risk"
 import { ListFilters, activeFilterCount, filtersLabel } from "@/components/list-filters"
 
 const SEARCH_DEBOUNCE_MS = 350
-const PAGE_SIZE = 50
+const PAGE_SIZE = 20
 const FILTER_FIELDS = [
   { key: "risk", label: "Filtrar por risco", allLabel: "Todos os riscos", options: RISK_OPTIONS },
   { key: "bids", label: "Filtrar por lances", allLabel: "Com e sem lances", options: [{ value: "with", label: "Com lances" }, { value: "without", label: "Sem lances" }] },
@@ -79,7 +81,7 @@ const getHistoryBadge = (status) => {
 
   return (
     <Badge variant="outline" className="rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 border-slate-200 bg-slate-50 text-slate-600">
-      Não excluído
+      Encerrado
     </Badge>
   )
 }
@@ -109,7 +111,6 @@ const getRiskBadge = (risk) => {
 }
 
 export default function FreightsOfferedOverview() {
-  const [leiloes, setLeiloes] = useState([])
   const [deletingId, setDeletingId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
@@ -119,22 +120,8 @@ export default function FreightsOfferedOverview() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [filters, setFilters] = useState(NO_FILTERS)
 
-  const listAction = useAsyncAction(async ({ search, statuses }) => {
-    const responses = await Promise.all(
-      statuses.map((status) => listAuctions({ search, status, page: 1, pageSize: PAGE_SIZE }))
-    )
-
-    return {
-      items: statuses.length === 1
-        ? responses[0].items
-        : responses
-            .flatMap((response) => response.items)
-            .sort((first, second) => new Date(second.expiresAt) - new Date(first.expiresAt)),
-    }
-  })
   const updateAction = useAsyncAction(({ id, changes }) => updateAuction(id, changes))
   const deleteAction = useAsyncAction((id) => deleteAuction(id))
-  const listPending = listAction.pending
 
   useEffect(() => {
     const timer = setTimeout(
@@ -144,21 +131,30 @@ export default function FreightsOfferedOverview() {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
-  const loadList = useCallback(async () => {
-    const statuses = selectedTab === "active" ? ["OPEN"] : ["CLOSED", "CANCELLED"]
-    const result = await listAction.run({
-      search: debouncedSearch || undefined,
-      statuses,
-    })
-    if (result.ok) {
-      setLeiloes(result.data.items.map(toCardModel))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, selectedTab])
-
-  useEffect(() => {
-    loadList()
-  }, [loadList])
+  // Infinite scroll: a page loads the OPEN auctions (active tab) or merges the CLOSED + CANCELLED
+  // pages (history tab). The filter signature resets the list when the tab or search changes.
+  const filterKey = `${selectedTab}:${debouncedSearch}`
+  const loadPage = useCallback(
+    async (page, options) => {
+      const search = debouncedSearch || undefined
+      const statuses = selectedTab === "active" ? ["OPEN"] : ["CLOSED", "CANCELLED"]
+      const responses = await Promise.all(
+        statuses.map((status) => listAuctions({ search, status, page, pageSize: PAGE_SIZE }, options))
+      )
+      const items = (statuses.length === 1
+        ? responses[0].items
+        : responses
+            .flatMap((response) => response.items)
+            .sort((first, second) => new Date(second.expiresAt) - new Date(first.expiresAt)))
+        .map(toCardModel)
+      const totalPages = Math.max(1, ...responses.map((response) => response.totalPages || 1))
+      return { items, totalPages }
+    },
+    [debouncedSearch, selectedTab]
+  )
+  const { items: leiloes, pending: listPending, error: listError, hasMore, loadMore, reload } =
+    useInfiniteList(loadPage, filterKey)
+  const loadingMore = listPending && leiloes.length > 0
 
   const handleTabChange = (value) => {
     setSelectedTab(value)
@@ -171,8 +167,8 @@ export default function FreightsOfferedOverview() {
   const handleDelete = async (id) => {
     const result = await deleteAction.run(id)
     if (result.ok) {
-      setLeiloes(prev => prev.filter(l => l.id !== id))
       setDeletingId(null)
+      reload()
     }
   }
 
@@ -202,7 +198,7 @@ export default function FreightsOfferedOverview() {
       setEditingId(null)
       setEditForm(null)
       // Refetch so the card reflects the normalized deadline.
-      await loadList()
+      reload()
     }
   }
 
@@ -255,19 +251,19 @@ export default function FreightsOfferedOverview() {
         <div className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto pr-2 pb-6">
 
-            {listPending ? (
+            {listPending && leiloes.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-slate-500">
                 <Loader2 size={20} className="animate-spin text-slate-400" />
                 <p>{selectedTab === "active" ? "Carregando leilões em andamento..." : "Carregando histórico de leilões..."}</p>
               </div>
-            ) : listAction.error ? (
+            ) : listError && leiloes.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-slate-500">
                 <AlertCircle size={20} className="text-rose-500" />
-                <p>{listAction.error.message}</p>
+                <p>{listError.message}</p>
                 <Button
                   variant="outline"
                   className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700"
-                  onClick={loadList}
+                  onClick={reload}
                 >
                   Tentar novamente
                 </Button>
@@ -386,6 +382,17 @@ export default function FreightsOfferedOverview() {
                 )
               })}
             </div>
+            )}
+
+            {leiloes.length > 0 && (
+              <InfiniteScrollSentinel
+                hasMore={hasMore}
+                loadingMore={loadingMore}
+                onLoadMore={loadMore}
+                count={leiloes.length}
+                singular="leilão"
+                plural="leilões"
+              />
             )}
           </div>
         </div>

@@ -14,6 +14,7 @@ import {
   DollarSign,
   Loader2,
   Archive,
+  SlidersHorizontal,
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 
@@ -24,6 +25,10 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FormAlert } from "@/components/auth/FormAlert"
 import { useAsyncAction } from "@/hooks/use-async-action"
+import { useInfiniteList } from "@/hooks/use-infinite-list"
+import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel"
+import { ListFilters, activeFilterCount, filtersLabel } from "@/components/list-filters"
+import { RISK, RISK_OPTIONS } from "@/constants/risk"
 import {
   listRouteSegments,
   updateRouteSegment,
@@ -41,7 +46,7 @@ import {
 } from "@/constants/route-segments"
 
 const SEARCH_DEBOUNCE_MS = 350
-const PAGE_SIZE = 50
+const PAGE_SIZE = 20
 
 /** Segments shown in the "Disponíveis" tab (editable and available for new routes). */
 const ACTIVE_STATUSES = [SEGMENT_STATUS.AVAILABLE]
@@ -80,6 +85,40 @@ function statusBadgeClass(status) {
   }
 }
 
+/** Filter config for the risk dropdown (reuses the shared ListFilters component). */
+const FILTER_FIELDS = [
+  { key: "risk", label: "Filtrar por risco", allLabel: "Todos os riscos", options: RISK_OPTIONS },
+]
+const NO_FILTERS = { risk: "" }
+
+/** Dot color + hover message per risk level. Risk comes from pickup-deadline proximity. */
+const RISK_DOT = {
+  [RISK.CRITIC]: {
+    dot: "bg-red-500",
+    message: "Risco crítico: o prazo de coleta está muito próximo (ou já passou) e o trecho ainda não foi ofertado em leilão.",
+  },
+  [RISK.WARNING]: {
+    dot: "bg-amber-400",
+    message: "Risco de atenção: o prazo de coleta está se aproximando e o trecho ainda não foi ofertado em leilão.",
+  },
+  [RISK.NORMAL]: {
+    dot: "bg-slate-300",
+    message: "Sem risco: o prazo de coleta está confortável ou o trecho já foi roteirizado.",
+  },
+}
+
+function RiskDot({ risk }) {
+  const config = RISK_DOT[risk] ?? RISK_DOT[RISK.NORMAL]
+  return (
+    <span
+      role="img"
+      aria-label={config.message}
+      title={config.message}
+      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${config.dot}`}
+    />
+  )
+}
+
 export default function RouteSegmentManagement() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
@@ -87,40 +126,18 @@ export default function RouteSegmentManagement() {
   const [selectedTab, setSelectedTab] = useState("active")
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedSegmentIds, setSelectedSegmentIds] = useState([])
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filters, setFilters] = useState(NO_FILTERS)
 
-  const [segments, setSegments] = useState([])
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
 
-  const listAction = useAsyncAction(async ({ origin, statuses }) => {
-    const responses = await Promise.all(
-      statuses.map((status) =>
-        listRouteSegments({ origin, status, page: 1, pageSize: PAGE_SIZE })
-      )
-    )
-
-    if (statuses.length === 1) {
-      return { items: responses[0].items }
-    }
-
-    // Merge the per-status pages (history tab), newest first.
-    return {
-      items: responses
-        .flatMap((response) => response.items)
-        .sort(
-          (first, second) =>
-            new Date(second.createdAt ?? 0) - new Date(first.createdAt ?? 0)
-        ),
-    }
-  })
   const saveAction = useAsyncAction(({ id, payload }) =>
     updateRouteSegment(id, payload)
   )
   const deleteAction = useAsyncAction((id) => deleteRouteSegment(id))
   const previewAction = useAsyncAction((segmentIds) => previewRoute(segmentIds))
-
-  const listPending = listAction.pending
 
   const mappedFieldErrors = useMemo(
     () => mapRouteSegmentFieldErrors(saveAction.fieldErrors),
@@ -135,22 +152,49 @@ export default function RouteSegmentManagement() {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
-  const loadList = useCallback(async () => {
-    const statuses =
-      selectedTab === "history" ? HISTORY_STATUSES : ACTIVE_STATUSES
-    const result = await listAction.run({
-      origin: debouncedSearch || undefined,
-      statuses,
-    })
-    if (result.ok) {
-      setSegments(result.data.items)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, selectedTab])
+  // Infinite scroll: a page loads the AVAILABLE segments (active tab) or merges the three history
+  // statuses for that page. The filter signature resets the list when the tab or search changes.
+  const filterKey = `${selectedTab}:${debouncedSearch}`
+  const loadPage = useCallback(
+    async (page, options) => {
+      const origin = debouncedSearch || undefined
+      const statuses =
+        selectedTab === "history" ? HISTORY_STATUSES : ACTIVE_STATUSES
+      const responses = await Promise.all(
+        statuses.map((status) =>
+          listRouteSegments({ origin, status, page, pageSize: PAGE_SIZE }, options)
+        )
+      )
+      const items =
+        statuses.length === 1
+          ? responses[0].items
+          : responses
+              .flatMap((response) => response.items)
+              .sort(
+                (first, second) =>
+                  new Date(second.createdAt ?? 0) - new Date(first.createdAt ?? 0)
+              )
+      const totalPages = Math.max(1, ...responses.map((response) => response.totalPages || 1))
+      return { items, totalPages }
+    },
+    [debouncedSearch, selectedTab]
+  )
+  const {
+    items: segments,
+    pending: listPending,
+    error: listError,
+    hasMore,
+    loadMore,
+    reload,
+  } = useInfiniteList(loadPage, filterKey)
+  const loadingMore = listPending && segments.length > 0
 
-  useEffect(() => {
-    loadList()
-  }, [loadList])
+  // Risk is computed server-side but not a filterable column, so filter the loaded page client-side
+  // (mirrors how the auctions panel filters risk).
+  const visibleSegments = useMemo(
+    () => (filters.risk ? segments.filter((segment) => segment.risk === filters.risk) : segments),
+    [segments, filters.risk]
+  )
 
   const handleTabChange = (value) => {
     setSelectedTab(value)
@@ -159,6 +203,8 @@ export default function RouteSegmentManagement() {
     setDeletingId(null)
     setIsSelectionMode(false)
     setSelectedSegmentIds([])
+    setFilters(NO_FILTERS)
+    setFiltersOpen(false)
     saveAction.reset()
     deleteAction.reset()
     previewAction.reset()
@@ -214,20 +260,18 @@ export default function RouteSegmentManagement() {
   const saveEdit = async () => {
     const result = await saveAction.run({ id: editingId, payload: editForm })
     if (result.ok) {
-      setSegments((prev) =>
-        prev.map((s) => (s.id === result.data.id ? result.data : s))
-      )
       setEditingId(null)
       setEditForm(null)
+      reload()
     }
   }
 
   const confirmDelete = async (id) => {
     const result = await deleteAction.run(id)
     if (result.ok) {
-      setSegments((prev) => prev.filter((s) => s.id !== id))
       setSelectedSegmentIds((prev) => prev.filter((selectedId) => selectedId !== id))
       setDeletingId(null)
+      reload()
     }
   }
 
@@ -252,6 +296,15 @@ export default function RouteSegmentManagement() {
                 className="h-9 border-slate-200 bg-white pl-9 text-xs"
               />
             </div>
+
+            <Button
+              variant="outline"
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((open) => !open)}
+              className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <SlidersHorizontal size={14} className="mr-1.5 text-slate-500" /> {filtersLabel(filters)}
+            </Button>
 
             {selectedTab === "active" && (
               <Button
@@ -280,6 +333,10 @@ export default function RouteSegmentManagement() {
             </Button>
           </div>
         </div>
+
+        {filtersOpen && (
+          <ListFilters filters={filters} fields={FILTER_FIELDS} onChange={setFilters} />
+        )}
 
         {/* ABAS: DISPONÍVEIS / HISTÓRICO */}
         <Tabs value={selectedTab} onValueChange={handleTabChange}>
@@ -328,31 +385,33 @@ export default function RouteSegmentManagement() {
         ) : null}
 
         {/* LISTAGEM */}
-        {listPending ? (
+        {listPending && segments.length === 0 ? (
           <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-10 text-sm text-slate-500">
             <Loader2 size={16} className="animate-spin" /> Carregando trechos...
           </div>
-        ) : listAction.error ? (
+        ) : listError && segments.length === 0 ? (
           <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-6">
-            <FormAlert message={listAction.error.message} />
+            <FormAlert message={listError.message} />
             <Button
               variant="outline"
               size="sm"
-              onClick={loadList}
+              onClick={reload}
               className="h-8 text-xs font-semibold"
             >
               Tentar novamente
             </Button>
           </div>
-        ) : segments.length === 0 ? (
+        ) : visibleSegments.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-            {selectedTab === "history"
-              ? "Nenhum trecho no histórico encontrado."
-              : "Nenhum trecho disponível encontrado."}
+            {activeFilterCount(filters)
+              ? "Nenhum trecho encontrado para os filtros selecionados."
+              : selectedTab === "history"
+                ? "Nenhum trecho no histórico encontrado."
+                : "Nenhum trecho disponível encontrado."}
           </div>
         ) : (
           <div className="space-y-2">
-            {segments.map((segment) => {
+            {visibleSegments.map((segment) => {
               const isChecked = selectedSegmentIds.includes(segment.id)
               const isEditingThis = editingId === segment.id
               const isDeletingThis = deletingId === segment.id
@@ -422,19 +481,22 @@ export default function RouteSegmentManagement() {
                       </div>
                     )}
 
-                    <div className="grid min-w-0 flex-1 grid-cols-[130px_1.3fr_1fr_250px] items-center gap-6">
+                    <div className="grid min-w-0 flex-1 grid-cols-[120px_1.2fr_1.5fr_230px] items-center gap-5">
                       <div>
                         <div className="mb-1 font-mono text-xs font-bold text-slate-500">
                           {segmentShortId(segment.id)}
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className={`text-[10px] font-bold uppercase tracking-wide border-none px-1.5 py-0 ${statusBadgeClass(
-                            segment.status
-                          )}`}
-                        >
-                          {segmentStatusLabel(segment.status)}
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          <RiskDot risk={segment.risk} />
+                          <Badge
+                            variant="secondary"
+                            className={`text-[10px] font-bold uppercase tracking-wide border-none px-1.5 py-0 ${statusBadgeClass(
+                              segment.status
+                            )}`}
+                          >
+                            {segmentStatusLabel(segment.status)}
+                          </Badge>
+                        </div>
                       </div>
 
                       <div className="min-w-0">
@@ -453,15 +515,23 @@ export default function RouteSegmentManagement() {
                         </span>
                       </div>
 
-                      <div className="min-w-0 flex flex-col gap-0.5 text-[11px] font-medium text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <CalendarClock size={11} className="text-slate-400" />
-                          Coleta até {formatDeadline(segment.pickupDeadline)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <CalendarClock size={11} className="text-slate-400" />
-                          Entrega até {formatDeadline(segment.deliveryDeadline)}
-                        </span>
+                      <div className="min-w-0 grid grid-cols-2 gap-2">
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                          <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                            <CalendarClock size={10} /> Coleta
+                          </div>
+                          <div className="mt-0.5 truncate text-xs font-bold text-slate-700">
+                            {formatDeadline(segment.pickupDeadline)}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                          <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                            <CalendarClock size={10} /> Entrega
+                          </div>
+                          <div className="mt-0.5 truncate text-xs font-bold text-slate-700">
+                            {formatDeadline(segment.deliveryDeadline)}
+                          </div>
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-end gap-3 text-xs font-bold whitespace-nowrap">
@@ -758,6 +828,15 @@ export default function RouteSegmentManagement() {
                 </div>
               )
             })}
+
+            <InfiniteScrollSentinel
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+              onLoadMore={loadMore}
+              count={visibleSegments.length}
+              singular="trecho"
+              plural="trechos"
+            />
           </div>
         )}
       </div>
