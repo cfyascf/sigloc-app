@@ -113,8 +113,13 @@ export function listActiveTrips(filters, options) {
   return listTripsAt(BASE, filters, options)
 }
 
-/** Paged active-trip list; shippers and carriers share the query and response shape under different bases. */
-export async function listTripsAt(base, { search = "", status = "", risk = "", page = 1, pageSize = 20 } = {}, options) {
+/** Paged history list (finished trips: delivered/cancelled). Status/risk filters do not apply server-side. */
+export function listTripHistory(filters, options) {
+  return listTripsAt(BASE, filters, options, "historico")
+}
+
+/** Paged trip list; shippers and carriers share the query and response shape under different bases/endpoints. */
+export async function listTripsAt(base, { search = "", status = "", risk = "", page = 1, pageSize = 20 } = {}, options, endpoint = "ativas") {
   const query = new URLSearchParams({
     page: String(Math.max(1, Math.trunc(page) || 1)),
     pageSize: String(Math.max(1, Math.min(100, Math.trunc(pageSize) || 20))),
@@ -122,7 +127,7 @@ export async function listTripsAt(base, { search = "", status = "", risk = "", p
   if (search.trim()) query.set("search", search.trim())
   if (status) query.set("status", status)
   if (risk) query.set("risk", risk)
-  const payload = await apiClient.get(`${base}/ativas?${query}`, options)
+  const payload = await apiClient.get(`${base}/${endpoint}?${query}`, options)
   if (!payload || !Array.isArray(payload.viagens)) {
     throw new ApiError("Resposta de viagens inválida.", { code: "INVALID_RESPONSE" })
   }

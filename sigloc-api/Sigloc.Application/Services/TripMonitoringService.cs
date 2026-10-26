@@ -36,6 +36,18 @@ public sealed class TripMonitoringService(
         return store.SearchAsync(scope, query with { Page = page, PageSize = size, Search = query.Search?.Trim(), Status = status, Risk = risk }, ct);
     }
 
+    public Task<PagedTripsDto> SearchHistoryAsync(Guid contractorId, TripQueryDto query, CancellationToken ct = default) =>
+        SearchHistoryAsync(TripScope.ForShipper(contractorId), query, ct);
+
+    public Task<PagedTripsDto> SearchHistoryAsync(TripScope scope, TripQueryDto query, CancellationToken ct = default)
+    {
+        // History only paginates and searches; the status/risk filters apply to in-progress trips only.
+        var size = query.PageSize < 1 ? 20 : Math.Min(query.PageSize, 100);
+        var page = Math.Max(query.Page, 1);
+        if ((long)(page - 1) * size > int.MaxValue) Invalid("page");
+        return store.SearchHistoryAsync(scope, query with { Page = page, PageSize = size, Search = query.Search?.Trim(), Status = null, Risk = null }, ct);
+    }
+
     public async Task<T> GetDetailAsync<T>(TripScope scope, Guid tripId, bool refresh,
         Func<TripState, TripDetailDto, T> project, CancellationToken ct = default)
     {

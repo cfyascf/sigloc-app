@@ -211,6 +211,17 @@ public class TripMonitoringServiceTests
     }
 
     [Fact]
+    public async Task History_bounds_paging_and_ignores_status_and_risk_filters()
+    {
+        var h = new Harness();
+        await h.Service.SearchHistoryAsync(h.CompanyId, new TripQueryDto(-1, 1000, Status: "EM_TRANSITO", Risk: "CRITIC"));
+        Assert.Equal(1, h.Store.LastHistoryQuery!.Page); Assert.Equal(100, h.Store.LastHistoryQuery.PageSize);
+        Assert.Null(h.Store.LastHistoryQuery.Status); Assert.Null(h.Store.LastHistoryQuery.Risk);
+        Assert.Equal(TripParty.Shipper, h.Store.LastHistoryScope!.Value.Party);
+        Assert.Equal(0, h.Store.RefreshCalls); Assert.Equal(0, h.Tracking.Calls); Assert.Equal(0, h.Routing.Calls);
+    }
+
+    [Fact]
     public async Task Persistence_retry_reuses_provider_results_and_writes_one_observation()
     {
         var h = new Harness(); h.Store.Retry = true;
@@ -310,8 +321,12 @@ public class TripMonitoringServiceTests
         public Action<TripState>? BeforeRefresh { get; set; }
         public TripQueryDto? LastQuery { get; private set; }
         public TripScope? LastScope { get; private set; }
+        public TripQueryDto? LastHistoryQuery { get; private set; }
+        public TripScope? LastHistoryScope { get; private set; }
         public Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct)
         { LastScope = scope; LastQuery = query; return Task.FromResult(new PagedTripsDto([], query.Page, query.PageSize, 0, 0)); }
+        public Task<PagedTripsDto> SearchHistoryAsync(TripScope scope, TripQueryDto query, CancellationToken ct)
+        { LastHistoryScope = scope; LastHistoryQuery = query; return Task.FromResult(new PagedTripsDto([], query.Page, query.PageSize, 0, 0)); }
         public Task<TripState?> ReadAsync(TripScope scope, Guid tripId, CancellationToken ct)
         { ct.ThrowIfCancellationRequested(); return Task.FromResult(InScope(scope, tripId) ? State : null); }
         public async Task<T> UpdateAsync<T>(TripScope scope, Guid tripId, Func<TripState, CancellationToken, Task<T>> mutate, CancellationToken ct)

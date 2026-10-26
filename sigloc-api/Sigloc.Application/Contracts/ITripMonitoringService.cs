@@ -3,9 +3,16 @@ namespace Sigloc.Application.Contracts;
 public interface ITripMonitoringService
 {
     Task<PagedTripsDto> SearchAsync(Guid contractorId, TripQueryDto query, CancellationToken ct = default);
+
+    /// <summary>Paged list of the contractor's finished trips (delivered / cancelled) for the history tab.</summary>
+    Task<PagedTripsDto> SearchHistoryAsync(Guid contractorId, TripQueryDto query, CancellationToken ct = default);
+
     Task<TripDetailDto> GetDetailAsync(Guid contractorId, Guid tripId, bool refresh = false, CancellationToken ct = default);
 
     Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct = default);
+
+    /// <summary>Paged list of finished trips (delivered / cancelled) for any party.</summary>
+    Task<PagedTripsDto> SearchHistoryAsync(TripScope scope, TripQueryDto query, CancellationToken ct = default);
 
     /// <summary>
     /// Same read/refresh pipeline as the shipper detail, scoped to any party. <paramref name="project"/>

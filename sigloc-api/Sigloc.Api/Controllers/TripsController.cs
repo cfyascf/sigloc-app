@@ -16,6 +16,11 @@ public sealed class TripsController(ITripMonitoringService service, ITripProofSe
     public async Task<IActionResult> Search([FromQuery] TripQueryDto query, CancellationToken ct) =>
         Ok(await service.SearchAsync(User.GetCompanyId(), query, ct));
 
+    /// <summary>History of finished trips (delivered / cancelled) for the contractor.</summary>
+    [HttpGet("historico")]
+    public async Task<IActionResult> History([FromQuery] TripQueryDto query, CancellationToken ct) =>
+        Ok(await service.SearchHistoryAsync(User.GetCompanyId(), query, ct));
+
     [HttpGet("{id:guid}/detalhes")]
     public async Task<IActionResult> Detail(Guid id, [FromQuery] bool refresh, CancellationToken ct)
     {

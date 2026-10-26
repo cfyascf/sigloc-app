@@ -38,6 +38,23 @@ public class TripHttpTests
         }
     }
 
+    [Theory]
+    [InlineData(null, 401)] [InlineData("Carrier", 403)] [InlineData("Shipper", 200)]
+    public async Task History_endpoint_enforces_authentication_and_shipper_policy(string? role, int status)
+    {
+        var h = new TripMonitoringServiceTests.Harness();
+        using var server = Server(h);
+        using var client = Client(server, h.CompanyId, role);
+        var response = await client.GetAsync("/api/viagens/historico");
+        Assert.Equal(status, (int)response.StatusCode);
+        if (status == 200)
+        {
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.True(json.RootElement.TryGetProperty("viagens", out _));
+            Assert.Equal(20, json.RootElement.GetProperty("pageSize").GetInt32());
+        }
+    }
+
     [Fact]
     public async Task Detail_without_refresh_never_contacts_tracking_provider()
     {
