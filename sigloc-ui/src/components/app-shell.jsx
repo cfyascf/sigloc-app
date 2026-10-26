@@ -2,8 +2,7 @@
 import { useEffect, useState } from "react"
 import {
   Check,
-  ChevronLeft,
-  ChevronRight,
+  Menu,
   LogOut,
   Shield,
   User,
@@ -87,34 +86,61 @@ export default function AppShell({ title, children, contentClassName, innerClass
         <div
           className={cn(
             "flex h-16 shrink-0 items-center border-b transition-colors duration-500",
-            isSidebarCollapsed ? "justify-center px-3" : "px-6",
+            isSidebarCollapsed ? "justify-center px-3" : "justify-between px-6",
             brand.sidebarBorder
           )}
         >
-          <div
-            className={cn(
-              "mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-500",
-              brand.brandBg,
-              brand.brandIcon
-            )}
-          >
-            <Shield size={18} strokeWidth={2.5} />
+          <div className="flex items-center">
+            <div
+              className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-500",
+                showSidebarText ? "mr-3" : "mr-0",
+                brand.brandBg,
+                brand.brandIcon
+              )}
+            >
+              <Shield size={18} strokeWidth={2.5} />
+            </div>
+            {showSidebarText ? (
+              <span
+                className={cn("text-xl font-black tracking-tight", brand.textMain)}
+              >
+                Sig
+                <span
+                  className={cn("transition-colors duration-500", brand.accent)}
+                >
+                  loc
+                </span>
+              </span>
+            ) : null}
           </div>
           {showSidebarText ? (
-            <span
-              className={cn("text-xl font-black tracking-tight", brand.textMain)}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarCollapsed((current) => !current)}
+              title="Recolher menu"
+              className={cn("h-8 w-8 hover:bg-black/5", brand.textMuted)}
             >
-              Sig
-              <span
-                className={cn("transition-colors duration-500", brand.accent)}
-              >
-                loc
-              </span>
-            </span>
+              <Menu size={18} />
+            </Button>
           ) : null}
         </div>
 
         <nav className={cn("flex-1 space-y-1.5 overflow-y-auto text-xs", isSidebarCollapsed ? "p-3" : "p-4")}>
+          {isSidebarCollapsed ? (
+            <div className="mb-2 flex justify-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsSidebarCollapsed((current) => !current)}
+                title="Expandir menu"
+                className={cn("h-8 w-8 hover:bg-black/5", brand.textMuted)}
+              >
+                <Menu size={18} />
+              </Button>
+            </div>
+          ) : null}
           {showSidebarText ? (
             <p
               className={cn(
@@ -244,16 +270,6 @@ export default function AppShell({ title, children, contentClassName, innerClass
           <h1 className="text-xl font-bold tracking-tight">{title}</h1>
 
           <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSidebarCollapsed((current) => !current)}
-              title={isSidebarCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
-              className={cn("hover:bg-black/5", brand.textMuted)}
-            >
-              {isSidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-            </Button>
-
             {!isAdmin && <NotificationBell className={brand.textMuted} />}
 
             {/* Menu de Configurações (Engrenagem) */}
