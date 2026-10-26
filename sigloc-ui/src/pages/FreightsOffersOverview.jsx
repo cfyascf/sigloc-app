@@ -10,6 +10,7 @@ import { useAsyncAction } from "@/hooks/use-async-action"
 import { listFreightOffers } from "@/services/freight-offer-service"
 import { RISK, RISK_OPTIONS, riskLabel } from "@/constants/risk"
 import { ListFilters, activeFilterCount, filtersLabel } from "@/components/list-filters"
+import { shortId } from "@/lib/utils"
 
 const BOARD_STATUS = { OPEN: "OPEN", CLOSED: "CLOSED" }
 
@@ -176,7 +177,7 @@ export default function FreightsOffersOverview() {
                     {/* CABEÇALHO */}
                     <div className="bg-slate-50/50 px-4 py-2.5 border-b border-slate-100">
                       <div className="flex justify-between items-center mb-1">
-                          <p className="text-[9px] font-bold uppercase text-slate-400 tracking-wider truncate">{o.contractor}</p>
+                          <p className="font-mono text-[10px] font-semibold uppercase text-slate-400 tracking-wider truncate">#{shortId(o.id)}</p>
                           <div className="flex gap-1.5 items-center">
                              {getRiskBadge(o.risk)}
                              {isHistory ? (

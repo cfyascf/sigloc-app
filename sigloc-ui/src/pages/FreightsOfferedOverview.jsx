@@ -12,6 +12,7 @@ import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel"
 import { listAuctions, updateAuction, deleteAuction, undoAuction } from "@/services/auction-service"
 import { RISK, RISK_OPTIONS, riskLabel } from "@/constants/risk"
 import { ListFilters, activeFilterCount, filtersLabel } from "@/components/list-filters"
+import { shortId } from "@/lib/utils"
 
 const SEARCH_DEBOUNCE_MS = 350
 const PAGE_SIZE = 20
@@ -325,9 +326,12 @@ export default function FreightsOfferedOverview() {
                     {/* CABEÇALHO DO CARD - Azulado no Edit Mode */}
                     <div className={`flex items-center justify-between border-b px-4 py-3 min-h-[44px] ${isEditing ? "border-blue-100 bg-blue-50/50" : "border-slate-100 bg-slate-50/50"}`}>
                       
-                      <div className="relative h-5 w-full">
+                      <div className="relative flex h-5 w-full items-center">
+                        <span className={`font-mono text-[11px] font-semibold tracking-wider text-slate-400 ${isHistory || isConfirming ? "" : "group-hover:opacity-0"}`}>
+                          #{shortId(l.id)}
+                        </span>
                         {isHistory || isConfirming ? null : (
-                          <div className="absolute inset-0 hidden items-center gap-1 group-hover:flex">
+                          <div className="absolute inset-0 hidden items-center gap-1 bg-inherit group-hover:flex">
                             <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-600 hover:bg-blue-100" title="Editar" onClick={() => startEditing(l)}>
                               <Pencil size={12} />
                             </Button>

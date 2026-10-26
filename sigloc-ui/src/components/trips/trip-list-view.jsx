@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel"
 import { useInfiniteList } from "@/hooks/use-infinite-list"
 import { formatTripDate, tripStatusLabel } from "@/lib/trip-formatters"
+import { shortId } from "@/lib/utils"
 
 /** Badge colour per trip status: late is rose, finished states are neutral, everything else emerald. */
 function statusBadgeClass(status) {
@@ -111,7 +112,7 @@ export function TripListView({ title, heading, historyHeading, searchPlaceholder
             >
               {/* ID + STATUS */}
               <div className="flex w-[140px] shrink-0 flex-col items-start gap-1 text-left">
-                <span className="font-mono text-sm font-black text-slate-900">{rota.reference || "Viagem"}</span>
+                <span className="font-mono text-sm font-black text-slate-900">#{shortId(rota.id) || "Viagem"}</span>
                 <Badge variant="outline" className={`text-[10px] font-bold uppercase border-none px-1.5 py-0 ${statusBadgeClass(rota.status)}`}>
                     {tripStatusLabel(rota.status)}
                 </Badge>

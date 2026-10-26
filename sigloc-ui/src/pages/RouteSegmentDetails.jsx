@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { getAuctionById } from "@/services/auction-service"
 import { RISK } from "@/constants/risk"
+import { shortId } from "@/lib/utils"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`
@@ -250,6 +251,7 @@ export default function SegmentDetails() {
                   <div key={seg.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors">
                     <div className="flex items-center gap-4">
                       <div>
+                        <p className="font-mono text-[10px] font-semibold tracking-wider text-slate-400">#{shortId(seg.id)}</p>
                         <p className="text-xs font-bold text-slate-800">{seg.load}</p>
                         <p className="text-[10px] font-medium text-slate-500">{seg.from} ➔ {seg.to}</p>
                       </div>

@@ -70,10 +70,12 @@ export function toTripDetails(dto) {
     dataHoraRealizada: stop.concluidaEm,
     deadlineSla: (stop.acoes ?? []).find((action) => !action.concluidaEm)?.prazo,
   }))
+  const base = toActiveTrip(dto)
   return {
-    ...toActiveTrip(dto),
-    carrier: (typeof dto.motorista === "object" ? dto.motorista?.transportadora : null) ?? toActiveTrip(dto).carrier,
-    plate: (typeof dto.motorista === "object" ? dto.motorista?.placa : null) ?? toActiveTrip(dto).plate,
+    ...base,
+    carrier: (typeof dto.motorista === "object" ? dto.motorista?.transportadora : null) ?? base.carrier,
+    plate: (typeof dto.motorista === "object" ? dto.motorista?.placa : null) ?? base.plate,
+    eta: health.novoEta ?? health.ultimoEtaCalculado ?? base.eta,
     traveled: numberOrNull(health.distanciaPercorridaKm ?? dto.distanciaPercorridaKm),
     totalDistance: numberOrNull(health.distanciaTotalKm ?? dto.distanciaTotalKm),
     remaining: numberOrNull(dto.distanciaRestanteKm),
@@ -105,6 +107,7 @@ export function toTripDetails(dto) {
       id: event.id ?? `${event.ocorridoEm ?? event.hora}-${event.descricao}`,
       timestamp: event.ocorridoEm,
       message: event.descricao,
+      kind: event.tipo ?? null,
     })),
   }
 }

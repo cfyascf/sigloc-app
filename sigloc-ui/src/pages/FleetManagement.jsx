@@ -12,6 +12,7 @@ import { vehicleService } from "@/services/vehicle-service"
 import { BODY_TYPE_OPTIONS, REFRIGERATION_BY_VALUE, STATUS_OPTIONS } from "@/constants/vehicles"
 import { ListFilters, filtersLabel } from "@/components/list-filters"
 import { validateVehicle } from "@/lib/vehicle-validation"
+import { shortId } from "@/lib/utils"
 import VehicleForm from "@/pages/VehicleForm"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
@@ -228,14 +229,15 @@ export default function FleetManagement() {
                 <div className="flex items-center w-full p-3.5 text-left">
 
                   <div className="grid min-w-0 flex-1 grid-cols-[120px_1.1fr_1.3fr_250px] items-center gap-6 pl-2">
-                    {/* Col 1: Status e Tipo */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`h-2 w-2 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
+                    {/* Col 1: Status, ID e Tipo */}
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <span className="font-mono text-[11px] font-semibold tracking-wider text-slate-400">#{shortId(vehicle.id)}</span>
+                        <Badge variant="secondary" className="w-fit text-[10px] bg-slate-100 text-slate-600 font-bold uppercase tracking-wide border-none px-1.5 py-0">
+                          {vehicle.bodyType}
+                        </Badge>
                       </div>
-                      <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600 font-bold uppercase tracking-wide border-none px-1.5 py-0">
-                        {vehicle.bodyType}
-                      </Badge>
                     </div>
 
                     {/* Col 2: Placa e Modelo */}

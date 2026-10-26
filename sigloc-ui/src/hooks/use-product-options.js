@@ -6,7 +6,9 @@ import { categoryLabel, environmentLabel } from "@/constants/products"
 /**
  * Maps an API list item into the option shape consumed by the product pickers
  * ({ id, value, sku, name, details }). `value` is the product id so selections
- * carry the real identifier used by downstream requests.
+ * carry the real identifier used by downstream requests. The raw catalog fields
+ * (category, environment, hazard flags, weight) are passed through so richer
+ * pickers can render the same badges as the product catalog screen.
  */
 function toOption(item) {
   return {
@@ -17,6 +19,11 @@ function toOption(item) {
     details: `${categoryLabel(item.category)} • ${environmentLabel(
       item.transportEnvironment
     )}`,
+    category: item.category,
+    transportEnvironment: item.transportEnvironment,
+    dangerous: Boolean(item.dangerous),
+    fragile: Boolean(item.fragile),
+    defaultWeight: item.defaultWeight,
   }
 }
 
