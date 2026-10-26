@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { Search, Box, Clock, TrendingDown, ArrowRight, SlidersHorizontal, Pencil, Trash2, X, AlertCircle, Loader2, Archive } from "lucide-react"
+import { Search, Box, Clock, TrendingDown, ArrowRight, SlidersHorizontal, Pencil, Trash2, Undo2, AlertCircle, Loader2, Archive } from "lucide-react"
 import { Link } from "react-router-dom"
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { useInfiniteList } from "@/hooks/use-infinite-list"
 import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel"
-import { listAuctions, updateAuction, deleteAuction } from "@/services/auction-service"
+import { listAuctions, updateAuction, deleteAuction, undoAuction } from "@/services/auction-service"
 import { RISK, RISK_OPTIONS, riskLabel } from "@/constants/risk"
 import { ListFilters, activeFilterCount, filtersLabel } from "@/components/list-filters"
 
@@ -79,6 +79,14 @@ const getHistoryBadge = (status) => {
     )
   }
 
+  if (status === "UNDONE") {
+    return (
+      <Badge variant="outline" className="rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 border-amber-200 bg-amber-50 text-amber-700">
+        Desfeito
+      </Badge>
+    )
+  }
+
   return (
     <Badge variant="outline" className="rounded-full text-[10px] uppercase font-bold tracking-wider px-2 py-0 border-slate-200 bg-slate-50 text-slate-600">
       Encerrado
@@ -112,6 +120,7 @@ const getRiskBadge = (risk) => {
 
 export default function FreightsOfferedOverview() {
   const [deletingId, setDeletingId] = useState(null)
+  const [undoingId, setUndoingId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -122,6 +131,7 @@ export default function FreightsOfferedOverview() {
 
   const updateAction = useAsyncAction(({ id, changes }) => updateAuction(id, changes))
   const deleteAction = useAsyncAction((id) => deleteAuction(id))
+  const undoAction = useAsyncAction((id) => undoAuction(id))
 
   useEffect(() => {
     const timer = setTimeout(
@@ -137,7 +147,7 @@ export default function FreightsOfferedOverview() {
   const loadPage = useCallback(
     async (page, options) => {
       const search = debouncedSearch || undefined
-      const statuses = selectedTab === "active" ? ["OPEN"] : ["CLOSED", "CANCELLED"]
+      const statuses = selectedTab === "active" ? ["OPEN"] : ["CLOSED", "CANCELLED", "UNDONE"]
       const responses = await Promise.all(
         statuses.map((status) => listAuctions({ search, status, page, pageSize: PAGE_SIZE }, options))
       )
@@ -159,9 +169,34 @@ export default function FreightsOfferedOverview() {
   const handleTabChange = (value) => {
     setSelectedTab(value)
     setDeletingId(null)
+    setUndoingId(null)
     setEditingId(null)
     setEditForm(null)
     updateAction.reset()
+  }
+
+  const startDeleting = (id) => {
+    deleteAction.reset()
+    setUndoingId(null)
+    setEditingId(null)
+    setEditForm(null)
+    setDeletingId(id)
+  }
+
+  const startUndoing = (id) => {
+    undoAction.reset()
+    setDeletingId(null)
+    setEditingId(null)
+    setEditForm(null)
+    setUndoingId(id)
+  }
+
+  const handleUndo = async (id) => {
+    const result = await undoAction.run(id)
+    if (result.ok) {
+      setUndoingId(null)
+      reload()
+    }
   }
 
   const handleDelete = async (id) => {
@@ -174,6 +209,8 @@ export default function FreightsOfferedOverview() {
 
   const startEditing = (l) => {
     updateAction.reset()
+    setDeletingId(null)
+    setUndoingId(null)
     setEditingId(l.id)
     setEditForm({ deadline: toDateTimeLocal(l.expiresAt) })
   }
@@ -279,6 +316,8 @@ export default function FreightsOfferedOverview() {
                 const isHistory = selectedTab === "history"
                 const isEditing = editingId === l.id
                 const isDeleting = deletingId === l.id
+                const isUndoing = undoingId === l.id
+                const isConfirming = isDeleting || isUndoing
 
                 return (
                   <div key={l.id} className={`group relative flex flex-col rounded-xl border border-slate-200 bg-white transition-all overflow-hidden ${isHistory ? "opacity-80" : ""}`}>
@@ -287,20 +326,15 @@ export default function FreightsOfferedOverview() {
                     <div className={`flex items-center justify-between border-b px-4 py-3 min-h-[44px] ${isEditing ? "border-blue-100 bg-blue-50/50" : "border-slate-100 bg-slate-50/50"}`}>
                       
                       <div className="relative h-5 w-full">
-                        {isHistory ? null : isDeleting ? (
-                          <div className="absolute inset-0 flex items-center gap-2 animate-in fade-in">
-                            <span className="text-[10px] font-bold text-rose-600">Excluir?</span>
-                            <button onClick={() => setDeletingId(null)} disabled={deleteAction.pending} className="text-slate-400 hover:text-slate-600 disabled:opacity-50"><X size={14}/></button>
-                            <button onClick={() => handleDelete(l.id)} disabled={deleteAction.pending} className="flex items-center text-rose-600 hover:text-rose-700 font-bold text-[10px] disabled:opacity-50">
-                              {deleteAction.pending ? <Loader2 size={12} className="animate-spin" /> : "Sim"}
-                            </button>
-                          </div>
-                        ) : (
+                        {isHistory || isConfirming ? null : (
                           <div className="absolute inset-0 hidden items-center gap-1 group-hover:flex">
-                            <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-600 hover:bg-blue-100" onClick={() => startEditing(l)}>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-blue-600 hover:bg-blue-100" title="Editar" onClick={() => startEditing(l)}>
                               <Pencil size={12} />
                             </Button>
-                            <Button size="icon" variant="ghost" className="h-6 w-6 text-rose-600 hover:bg-rose-100" onClick={() => setDeletingId(l.id)}>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-amber-600 hover:bg-amber-100" title="Desfazer oferta" onClick={() => startUndoing(l.id)}>
+                              <Undo2 size={12} />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-rose-600 hover:bg-rose-100" title="Excluir leilão" onClick={() => startDeleting(l.id)}>
                               <Trash2 size={12} />
                             </Button>
                           </div>
@@ -313,14 +347,46 @@ export default function FreightsOfferedOverview() {
                     {/* CORPO DO CARD - Altura mínima fixa para estabilidade */}
                     <div className="flex-1 min-h-[220px] flex flex-col">
                       {isDeleting ? (
-                        <div className="flex-1 p-6 flex flex-col items-center justify-center gap-2 text-rose-500 bg-rose-50/30 text-center">
-                          <AlertCircle size={32} />
-                          <p className="text-[11px] font-medium text-rose-600">
+                        <div className="flex-1 p-6 flex flex-col items-center justify-center gap-3 bg-rose-50/40 text-center">
+                          <AlertCircle size={32} className="text-rose-500" />
+                          <p className="text-sm font-bold text-slate-800">
+                            Você tem certeza que deseja excluir o leilão?
+                          </p>
+                          <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
                             O leilão será encerrado sem escolher vencedor e ficará disponível no histórico como excluído.
                           </p>
-                          {deletingId === l.id && deleteAction.error && (
+                          {deleteAction.error && (
                             <p className="text-[10px] font-semibold text-rose-600">{deleteAction.error.message}</p>
                           )}
+                          <div className="flex items-center justify-center gap-2 pt-1">
+                            <Button size="sm" variant="outline" onClick={() => setDeletingId(null)} disabled={deleteAction.pending} className="h-9 min-w-[72px] text-xs font-bold border-slate-200 text-slate-600 hover:bg-slate-50">
+                              Não
+                            </Button>
+                            <Button size="sm" onClick={() => handleDelete(l.id)} disabled={deleteAction.pending} className="h-9 min-w-[72px] text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white">
+                              {deleteAction.pending ? <Loader2 size={14} className="animate-spin" /> : "Sim"}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : isUndoing ? (
+                        <div className="flex-1 p-6 flex flex-col items-center justify-center gap-3 bg-amber-50/40 text-center">
+                          <Undo2 size={32} className="text-amber-500" />
+                          <p className="text-sm font-bold text-slate-800">
+                            Você tem certeza que deseja desfazer a oferta?
+                          </p>
+                          <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                            A oferta será desfeita e os trechos que a compõem voltarão a ficar disponíveis na gestão de trechos.
+                          </p>
+                          {undoAction.error && (
+                            <p className="text-[10px] font-semibold text-rose-600">{undoAction.error.message}</p>
+                          )}
+                          <div className="flex items-center justify-center gap-2 pt-1">
+                            <Button size="sm" variant="outline" onClick={() => setUndoingId(null)} disabled={undoAction.pending} className="h-9 min-w-[72px] text-xs font-bold border-slate-200 text-slate-600 hover:bg-slate-50">
+                              Não
+                            </Button>
+                            <Button size="sm" onClick={() => handleUndo(l.id)} disabled={undoAction.pending} className="h-9 min-w-[72px] text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white">
+                              {undoAction.pending ? <Loader2 size={14} className="animate-spin" /> : "Sim"}
+                            </Button>
+                          </div>
                         </div>
                       ) : isEditing ? (
                         <div className="p-4 space-y-3 bg-white animate-in fade-in duration-200 h-full flex flex-col">

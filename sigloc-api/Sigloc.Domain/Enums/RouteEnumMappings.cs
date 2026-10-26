@@ -20,7 +20,8 @@ public static class RouteEnumMappings
     {
         [AuctionStatus.Open] = "OPEN",
         [AuctionStatus.Closed] = "CLOSED",
-        [AuctionStatus.Cancelled] = "CANCELLED"
+        [AuctionStatus.Cancelled] = "CANCELLED",
+        [AuctionStatus.Undone] = "UNDONE"
     };
 
     private static readonly Dictionary<BidStatus, string> BidStatusToWire = new()

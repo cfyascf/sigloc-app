@@ -97,6 +97,20 @@ public class AuctionsControllerTests
     }
 
     [Fact]
+    public async Task Undo_returns_no_content_and_passes_identity()
+    {
+        var id = Guid.NewGuid();
+        var service = Substitute.For<IAuctionService>();
+        using var server = ControllerTestHost.Server(service);
+        using var client = ControllerTestHost.Client(server, CompanyId, Roles.Shipper);
+
+        var response = await client.PostAsync($"/api/auctions/{id}/undo", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        await service.Received(1).UndoAsync(CompanyId, id, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GetBidRanking_returns_ok_and_passes_identity()
     {
         var id = Guid.NewGuid();

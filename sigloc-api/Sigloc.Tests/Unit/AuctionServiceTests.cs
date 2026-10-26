@@ -468,7 +468,7 @@ public class AuctionServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_soft_cancels_and_releases_route_when_found()
+    public async Task DeleteAsync_soft_cancels_but_keeps_segments_consumed_when_found()
     {
         var route = Route();
         var auction = Auction(route.Id);
@@ -490,15 +490,16 @@ public class AuctionServiceTests
 
         await _service.DeleteAsync(_contractorId, auction.Id);
 
-        // Only carriers with a live bid are told; the label is taken before the segment is released.
+        // Only carriers with a live bid are told.
         await _notifier.Received(1).AuctionCancelledAsync(
             Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { bidder })),
             $"{segment.OriginAddress} → {segment.DestinationAddress}", Arg.Any<CancellationToken>());
         auction.Status.Should().Be(AuctionStatus.Cancelled);
-        route.Status.Should().Be(RouteStatus.Planned);
-        segment.Status.Should().Be(SegmentStatus.Available);
-        segment.RouteId.Should().BeNull();
-        segment.RouteSequence.Should().BeNull();
+        // Delete keeps the route and segments consumed; they are NOT released.
+        route.Status.Should().Be(RouteStatus.InAuction);
+        segment.Status.Should().Be(SegmentStatus.Routed);
+        segment.RouteId.Should().Be(route.Id);
+        segment.RouteSequence.Should().Be(1);
         await _auctionRepository.DidNotReceive().DeleteAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
     }
 
@@ -509,6 +510,68 @@ public class AuctionServiceTests
         _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
 
         var act = () => _service.DeleteAsync(_contractorId, auction.Id);
+
+        await act.Should().ThrowAsync<AuctionNotOpenException>();
+    }
+
+    // =====================================================================
+    // UndoAsync
+    // =====================================================================
+
+    [Fact]
+    public async Task UndoAsync_not_found_throws()
+    {
+        var id = Guid.NewGuid();
+        _auctionRepository.GetTrackedByIdAsync(id, _contractorId, Arg.Any<CancellationToken>()).Returns((Auction?)null);
+
+        var act = () => _service.UndoAsync(_contractorId, id);
+
+        await act.Should().ThrowAsync<AuctionNotFoundException>();
+    }
+
+    [Fact]
+    public async Task UndoAsync_soft_undoes_and_releases_route_when_found()
+    {
+        var route = Route();
+        var auction = Auction(route.Id);
+        var segment = Segment();
+        segment.Status = SegmentStatus.Routed;
+        segment.RouteId = route.Id;
+        segment.RouteSequence = 1;
+
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
+        _segmentRepository.GetTrackedByRouteAsync(route.Id, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { segment });
+        var bidder = Guid.NewGuid();
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[]
+        {
+            new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = bidder, Status = BidStatus.Pending },
+            new Bid { Id = Guid.NewGuid(), AuctionId = auction.Id, CarrierId = Guid.NewGuid(), Status = BidStatus.Withdrawn },
+        });
+
+        await _service.UndoAsync(_contractorId, auction.Id);
+
+        // Only carriers with a live bid are told; the label is taken before the segment is released.
+        await _notifier.Received(1).AuctionCancelledAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.SequenceEqual(new[] { bidder })),
+            $"{segment.OriginAddress} → {segment.DestinationAddress}", Arg.Any<CancellationToken>());
+        auction.Status.Should().Be(AuctionStatus.Undone);
+        // Undo releases the route and its segments so they become available again.
+        route.Status.Should().Be(RouteStatus.Planned);
+        segment.Status.Should().Be(SegmentStatus.Available);
+        segment.RouteId.Should().BeNull();
+        segment.RouteSequence.Should().BeNull();
+        await _auctionRepository.DidNotReceive().DeleteAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UndoAsync_throws_when_auction_not_open()
+    {
+        var auction = Auction(status: AuctionStatus.Closed);
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+
+        var act = () => _service.UndoAsync(_contractorId, auction.Id);
 
         await act.Should().ThrowAsync<AuctionNotOpenException>();
     }
