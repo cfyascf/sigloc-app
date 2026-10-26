@@ -11,7 +11,18 @@ namespace Sigloc.Infrastructure.Repositories;
 
 public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> factory) : ITripMonitoringStore
 {
-    public async Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct)
+    public Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct) =>
+        SearchAsync(scope, query, history: false, ct);
+
+    public Task<PagedTripsDto> SearchHistoryAsync(TripScope scope, TripQueryDto query, CancellationToken ct) =>
+        SearchAsync(scope, query, history: true, ct);
+
+    /// <summary>
+    /// Shared paged search for the trip list screens. When <paramref name="history"/> is false it returns
+    /// in-progress trips (awaiting pickup / in transit) with risk-based status filtering; when true it
+    /// returns finished trips (delivered / cancelled) ordered newest first, ignoring the risk/status filter.
+    /// </summary>
+    private async Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, bool history, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         var rows = from t in db.Trips.AsNoTracking()
@@ -20,7 +31,9 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
                    join v in db.Vehicles.AsNoTracking() on t.VehicleId equals v.Id
                    join m in db.TripMonitorings.AsNoTracking() on t.Id equals m.TripId into cache
                    from m in cache.DefaultIfEmpty()
-                   where t.Status != TripStatus.Delivered && t.Status != TripStatus.Cancelled
+                   where history
+                       ? (t.Status == TripStatus.Delivered || t.Status == TripStatus.Cancelled)
+                       : (t.Status != TripStatus.Delivered && t.Status != TripStatus.Cancelled)
                    select new { Trip = t, Route = r, Carrier = c, Vehicle = v, Monitoring = m };
         var companyId = scope.CompanyId;
         rows = scope.Party == TripParty.Carrier
@@ -44,18 +57,24 @@ public sealed class TripMonitoringStore(IDbContextFactory<SiglocDbContext> facto
                 || (x.Carrier.TradeName != null && x.Carrier.TradeName.ToUpper().Contains(normalized))
                 || x.Vehicle.Plate.ToUpper().Contains(normalized));
         }
-        if (query.Risk is { } risk) scoped = scoped.Where(x => x.Risk == risk);
-        if (query.Status == "ATRASADO") scoped = scoped.Where(x => x.Risk == "CRITIC");
-        else if (query.Status is { } status)
+        if (!history)
         {
-            var lifecycle = status == "EM_TRANSITO" ? TripStatus.InTransit : TripStatus.AwaitingPickup;
-            scoped = scoped.Where(x => x.Trip.Status == lifecycle && x.Risk != "CRITIC");
+            if (query.Risk is { } risk) scoped = scoped.Where(x => x.Risk == risk);
+            if (query.Status == "ATRASADO") scoped = scoped.Where(x => x.Risk == "CRITIC");
+            else if (query.Status is { } status)
+            {
+                var lifecycle = status == "EM_TRANSITO" ? TripStatus.InTransit : TripStatus.AwaitingPickup;
+                scoped = scoped.Where(x => x.Trip.Status == lifecycle && x.Risk != "CRITIC");
+            }
         }
         var total = await scoped.CountAsync(ct);
         var items = await scoped.OrderByDescending(x => x.Trip.CreatedAt).ThenBy(x => x.Trip.Id)
             .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
             .Select(x => new ActiveTripDto(x.Trip.Id, x.Trip.RouteId, "TRP-" + x.Trip.Id.ToString().Replace("-", "").Substring(0, 6).ToUpper(),
-                x.Risk == "CRITIC" ? "ATRASADO" : x.Trip.Status == TripStatus.InTransit ? "EM_TRANSITO" : "AGUARDANDO_COLETA",
+                x.Trip.Status == TripStatus.Delivered ? "ENTREGUE"
+                    : x.Trip.Status == TripStatus.Cancelled ? "CANCELADA"
+                    : x.Risk == "CRITIC" ? "ATRASADO"
+                    : x.Trip.Status == TripStatus.InTransit ? "EM_TRANSITO" : "AGUARDANDO_COLETA",
                 x.Risk,
                 x.Carrier.TradeName ?? x.Carrier.CompanyName, x.Vehicle.Plate,
                 db.TripStops.Where(s => s.TripId == x.Trip.Id).OrderBy(s => s.Sequence).Select(s => s.Address).FirstOrDefault()

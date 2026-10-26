@@ -513,6 +513,93 @@ public static class DatabaseSeeder
         await dbContext.Set<TripMonitoring>().AddAsync(transitMonitoring, cancellationToken);
         await dbContext.Set<BlockedBidAttempt>().AddAsync(blockedAttempt, cancellationToken);
 
+        // --- Finished trips (delivered / cancelled) so the "Histórico" tab on the active-routes
+        //     screen is non-empty end-to-end. Each gets its own route + leg so the itinerary shows. ---
+        async Task SeedFinishedTripAsync(TripStatus status, string origin, string destination,
+            string originCoordinate, string destinationCoordinate, double distanceKm, int daysAgo)
+        {
+            var route = new ConsolidatedRoute
+            {
+                Id = Guid.NewGuid(),
+                ContractorId = contractor.Id,
+                Status = RouteStatus.Completed,
+                TotalDistanceKm = distanceKm,
+                EstimatedTimeHours = distanceKm / 70.0,
+                ConsolidatedCeiling = 3000.00m,
+                EstimatedAnttFloor = 2800.00m,
+                TotalWeightKg = 18000,
+                TotalVolumeM3 = 55
+            };
+            var segment = new RouteSegment
+            {
+                Id = Guid.NewGuid(),
+                ContractorId = contractor.Id,
+                RouteId = route.Id,
+                OriginAddress = origin,
+                DestinationAddress = destination,
+                OriginCoordinate = originCoordinate,
+                DestinationCoordinate = destinationCoordinate,
+                DistanceKm = distanceKm,
+                EstimatedTimeHours = distanceKm / 70.0,
+                BudgetCeiling = 3000.00m,
+                EstimatedTollCost = 150.00m,
+                PickupDeadline = now.AddDays(-daysAgo).AddHours(2),
+                DeliveryDeadline = now.AddDays(-daysAgo).AddHours(10),
+                Status = SegmentStatus.Completed,
+                RouteSequence = 1,
+                Items =
+                {
+                    new ProductRouteSegment { Id = Guid.NewGuid(), ProductId = palletized.Id, Quantity = 10 }
+                }
+            };
+            var finishedAuction = new Auction
+            {
+                Id = Guid.NewGuid(),
+                RouteId = route.Id,
+                OpenedAt = now.AddDays(-daysAgo - 2),
+                ExpiresAt = now.AddDays(-daysAgo - 1),
+                AutomaticAward = true,
+                Status = AuctionStatus.Closed
+            };
+            var finishedBid = new Bid
+            {
+                Id = Guid.NewGuid(),
+                AuctionId = finishedAuction.Id,
+                CarrierId = carrierFrio.Id,
+                VehicleId = vehicleFrio.Id,
+                NetFreightValue = 2600.00m,
+                TollValue = 150.00m,
+                TotalValue = 2750.00m,
+                SubmittedAt = now.AddDays(-daysAgo - 2).AddHours(1),
+                Status = BidStatus.Winner
+            };
+            var finishedTrip = new Trip
+            {
+                Id = Guid.NewGuid(),
+                RouteId = route.Id,
+                AuctionId = finishedAuction.Id,
+                CarrierId = carrierFrio.Id,
+                VehicleId = vehicleFrio.Id,
+                BidId = finishedBid.Id,
+                AgreedValue = finishedBid.TotalValue,
+                StartedAt = now.AddDays(-daysAgo).AddHours(2),
+                FinishedAt = now.AddDays(-daysAgo).AddHours(10),
+                Status = status
+            };
+            finishedTrip.Stops = Sigloc.Application.Services.TripItineraryBuilder.Build(finishedTrip.Id, new[] { segment });
+
+            await dbContext.Set<ConsolidatedRoute>().AddAsync(route, cancellationToken);
+            await dbContext.Set<RouteSegment>().AddAsync(segment, cancellationToken);
+            await dbContext.Set<Auction>().AddAsync(finishedAuction, cancellationToken);
+            await dbContext.Set<Bid>().AddAsync(finishedBid, cancellationToken);
+            await dbContext.Set<Trip>().AddAsync(finishedTrip, cancellationToken);
+        }
+
+        await SeedFinishedTripAsync(TripStatus.Delivered, "Curitiba, PR", "Florianópolis, SC",
+            "-49.273252,-25.429595", "-48.548050,-27.594870", 300.0, daysAgo: 5);
+        await SeedFinishedTripAsync(TripStatus.Cancelled, "São Paulo, SP", "Rio de Janeiro, RJ",
+            "-46.633308,-23.550520", "-43.172897,-22.906847", 430.0, daysAgo: 8);
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

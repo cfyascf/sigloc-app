@@ -18,6 +18,10 @@ public record TripState(Trip Trip, ConsolidatedRoute Route, Vehicle Vehicle, Car
 public interface ITripMonitoringStore
 {
     Task<PagedTripsDto> SearchAsync(TripScope scope, TripQueryDto query, CancellationToken ct);
+
+    /// <summary>Paged list of finished trips (delivered / cancelled) for the history screens.</summary>
+    Task<PagedTripsDto> SearchHistoryAsync(TripScope scope, TripQueryDto query, CancellationToken ct);
+
     Task<TripState?> ReadAsync(TripScope scope, Guid tripId, CancellationToken ct);
 
     /// <summary>
