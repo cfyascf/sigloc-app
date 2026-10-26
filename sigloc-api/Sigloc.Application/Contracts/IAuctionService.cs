@@ -29,11 +29,19 @@ public interface IAuctionService
     Task<UpdateAuctionResponseDto> UpdateAsync(Guid contractorId, Guid id, UpdateAuctionRequestDto dto, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Cancels (soft inactivates) an open auction for the owning contractor without
+    /// Deletes (soft inactivates) an open auction for the owning contractor without
     /// selecting a winner: the auction is kept with status <c>Cancelled</c> so it remains
-    /// visible in the history, and its consolidated route and segments are released for reuse.
+    /// visible in the history as "Excluído". Its route and segments remain consumed.
     /// </summary>
     Task DeleteAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Undoes an open freight offer for the owning contractor without selecting a winner:
+    /// the auction is kept with status <c>Undone</c> so it remains visible in the history as
+    /// "Desfeito", and its consolidated route and segments are released back to
+    /// <c>Available</c> for reuse.
+    /// </summary>
+    Task UndoAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns the ranked list of active bids for the auction (menor valor primeiro; empate

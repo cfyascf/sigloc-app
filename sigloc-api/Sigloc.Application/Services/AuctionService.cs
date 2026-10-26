@@ -273,6 +273,40 @@ public class AuctionService : IAuctionService
             throw new AuctionNotOpenException(id);
         }
 
+        var segments = await _segmentRepository.GetTrackedByRouteAsync(auction.RouteId, cancellationToken);
+        var routeLabel = NotificationCatalog.RouteLabel(segments);
+        var bidders = (await _bidRepository.GetTrackedByAuctionAsync(id, cancellationToken) ?? [])
+            .Where(b => b.Status != BidStatus.Withdrawn)
+            .Select(b => b.CarrierId)
+            .Distinct()
+            .ToList();
+
+        await _unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            // Soft inactivate: keep the record so it still surfaces in the history tab as
+            // "Excluído". The route and its segments remain consumed and are NOT released;
+            // use UndoAsync to make the segments available again.
+            auction.Status = AuctionStatus.Cancelled;
+
+            await _unitOfWork.SaveChangesAsync(ct);
+            return true;
+        }, cancellationToken);
+
+        await _notifier.AuctionCancelledAsync(bidders, routeLabel, cancellationToken);
+    }
+
+    public async Task UndoAsync(Guid contractorId, Guid id, CancellationToken cancellationToken = default)
+    {
+        var auction = await _auctionRepository.GetTrackedByIdAsync(id, contractorId, cancellationToken)
+            ?? throw new AuctionNotFoundException(id);
+
+        // Only an open auction (no winner selected yet) can be undone. A closed, cancelled
+        // or already-undone auction is immutable.
+        if (auction.Status != AuctionStatus.Open)
+        {
+            throw new AuctionNotOpenException(id);
+        }
+
         var route = await _routeRepository.GetTrackedByIdAsync(auction.RouteId, cancellationToken);
         var segments = await _segmentRepository.GetTrackedByRouteAsync(auction.RouteId, cancellationToken);
         // Captured before the segments are released from the route below.
@@ -285,10 +319,12 @@ public class AuctionService : IAuctionService
 
         await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            // Soft inactivate: keep the record so it still surfaces in the history tab.
-            auction.Status = AuctionStatus.Cancelled;
+            // Soft inactivate: keep the record so it still surfaces in the history tab as
+            // "Desfeito".
+            auction.Status = AuctionStatus.Undone;
 
-            // Release the consolidated route and its segments so they can be reused.
+            // Release the consolidated route and its segments so they can be reused and
+            // reappear in the route-segment management screen.
             if (route is not null)
             {
                 route.Status = RouteStatus.Planned;
@@ -435,6 +471,15 @@ public class AuctionService : IAuctionService
 
             // 4. Move the consolidated route to awaiting pickup.
             route.Status = RouteStatus.AwaitingPickup;
+
+            // 4b. The auction ended and the route becomes an active trip, so its segments move
+            // from "Routed" (Em leilão) to "InExecution" (Em execução). They stay in execution
+            // until delivery marks them Completed.
+            var awardedSegments = await _segmentRepository.GetTrackedByRouteAsync(route.Id, ct);
+            foreach (var segment in awardedSegments)
+            {
+                segment.Status = SegmentStatus.InExecution;
+            }
 
             // 5. Create the trip (Viagem) that starts the physical operation.
             var newTrip = new Trip
@@ -835,6 +880,7 @@ public class AuctionService : IAuctionService
             "OPEN" => AuctionStatus.Open,
             "CLOSED" => AuctionStatus.Closed,
             "CANCELLED" => AuctionStatus.Cancelled,
+            "UNDONE" => AuctionStatus.Undone,
             _ => AuctionStatus.Open
         };
     }

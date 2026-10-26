@@ -65,6 +65,14 @@ public class AuctionsController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:guid}/undo")]
+    [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> Undo(Guid id, CancellationToken cancellationToken)
+    {
+        await _auctionService.UndoAsync(GetContractorId(), id, cancellationToken);
+        return NoContent();
+    }
+
     /// <summary>Ranked list of active bids (Motor de Ranking) for the auction.</summary>
     [HttpGet("{id:guid}/bids")]
     [Authorize(Policy = Policies.RequireShipperAccess)]

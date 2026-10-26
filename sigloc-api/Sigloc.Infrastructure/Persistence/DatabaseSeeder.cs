@@ -416,7 +416,7 @@ public static class DatabaseSeeder
             EstimatedTollCost = 180.00m,
             PickupDeadline = now.AddMinutes(45),   // imminent COLETA → critical SLA milestone
             DeliveryDeadline = now.AddHours(9),
-            Status = SegmentStatus.Routed,
+            Status = SegmentStatus.InExecution,
             Items =
             {
                 new ProductRouteSegment { Id = Guid.NewGuid(), ProductId = palletized.Id, Quantity = 14 }
@@ -438,7 +438,7 @@ public static class DatabaseSeeder
             EstimatedTollCost = 62.00m,
             PickupDeadline = now.AddHours(3),
             DeliveryDeadline = now.AddHours(11),
-            Status = SegmentStatus.Routed,
+            Status = SegmentStatus.InExecution,
             Items =
             {
                 new ProductRouteSegment { Id = Guid.NewGuid(), ProductId = frozen.Id, Quantity = 6 }

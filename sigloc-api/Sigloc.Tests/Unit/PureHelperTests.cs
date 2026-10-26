@@ -220,7 +220,7 @@ public class RouteSegmentRiskCalculatorTests
 
     [Theory]
     [InlineData(SegmentStatus.Routed)]
-    [InlineData(SegmentStatus.InTransit)]
+    [InlineData(SegmentStatus.InExecution)]
     [InlineData(SegmentStatus.Completed)]
     public void Normal_when_not_available_even_if_pickup_imminent(SegmentStatus status)
     {

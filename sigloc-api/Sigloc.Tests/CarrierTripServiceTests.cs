@@ -23,7 +23,7 @@ public class CarrierTripServiceTests
         Assert.Equal("DRIVER_CONFIRMED", state.Trip.Stops[0].Actions[0].CompletionSource);
         Assert.Equal(TripStatus.InTransit, state.Trip.Status);
         Assert.Equal(Now, state.Trip.StartedAt);
-        Assert.Equal(SegmentStatus.InTransit, state.Segments[0].Status);
+        Assert.Equal(SegmentStatus.InExecution, state.Segments[0].Status);
         Assert.Single(state.Events, e => e.Kind == "PARADA_CONFIRMADA");
         Assert.Equal("EM_TRANSITO", result.Trip.Status);
         Assert.Equal(c.Stops[1].Id, result.CurrentAction!.StopId);

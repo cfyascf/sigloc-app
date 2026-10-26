@@ -178,8 +178,8 @@ public class DashboardRepositoryTests : IDisposable
         ctx.Vehicles.Add(vehicle);
         ctx.Trips.Add(Trip(route.Id, auction.Id, _carrierId, vehicle.Id, TripStatus.InTransit));
         ctx.RouteSegments.AddRange(
-            Segment(_contractorId, route.Id, SegmentStatus.InTransit),
-            Segment(_contractorId, route.Id, SegmentStatus.InTransit));
+            Segment(_contractorId, route.Id, SegmentStatus.InExecution),
+            Segment(_contractorId, route.Id, SegmentStatus.InExecution));
         await ctx.SaveChangesAsync();
 
         var result = await Repo().GetInTransitOccupationsAsync(_contractorId);
@@ -292,7 +292,7 @@ public class DashboardRepositoryTests : IDisposable
         ctx.Auctions.Add(auction);
         ctx.Vehicles.Add(vehicle);
         ctx.Trips.Add(trip);
-        ctx.RouteSegments.Add(Segment(_contractorId, route.Id, SegmentStatus.InTransit));
+        ctx.RouteSegments.Add(Segment(_contractorId, route.Id, SegmentStatus.InExecution));
         ctx.TripMonitorings.Add(new TripMonitoring
         {
             Id = Guid.NewGuid(),
@@ -466,7 +466,7 @@ public class DashboardRepositoryTests : IDisposable
         ctx.Auctions.Add(auction);
         ctx.Vehicles.Add(vehicle);
         ctx.Trips.Add(Trip(route.Id, auction.Id, _carrierId, vehicle.Id, TripStatus.InTransit));
-        ctx.RouteSegments.Add(Segment(_contractorId, route.Id, SegmentStatus.InTransit));
+        ctx.RouteSegments.Add(Segment(_contractorId, route.Id, SegmentStatus.InExecution));
         await ctx.SaveChangesAsync();
 
         var result = await Repo().GetInTransitOccupationsByCarrierAsync(_carrierId);

@@ -69,7 +69,7 @@ public class TripItineraryTests
     [Fact]
     public void Legacy_completion_does_not_invent_actual_timestamps()
     {
-        var segment = TripMonitoringServiceTests.Segment(); segment.Status = SegmentStatus.InTransit;
+        var segment = TripMonitoringServiceTests.Segment(); segment.Status = SegmentStatus.InExecution;
         var stops = TripItineraryBuilder.Build(Guid.NewGuid(), new[] { segment });
         Assert.True(stops[0].IsCompleted); Assert.Null(stops[0].CompletedAt);
         Assert.Equal("LEGACY_STATE", stops[0].CompletionSource); Assert.False(stops[1].IsCompleted);

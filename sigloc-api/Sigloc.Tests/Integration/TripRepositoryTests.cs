@@ -90,7 +90,7 @@ public class TripRepositoryTests : IDisposable
             OriginAddress = origin, DestinationAddress = destination,
             OriginCoordinate = "-49.27,-25.42", DestinationCoordinate = "-46.63,-23.55",
             PickupDeadline = DateTimeOffset.UtcNow.AddDays(1), DeliveryDeadline = DateTimeOffset.UtcNow.AddDays(2),
-            Status = SegmentStatus.InTransit,
+            Status = SegmentStatus.InExecution,
         };
         // Same lane twice (different case) plus a second lane.
         ctx.RouteSegments.AddRange(

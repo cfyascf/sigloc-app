@@ -35,7 +35,8 @@ public class AuctionMonitoringTests
         });
         var vehicles = Stub<IVehicleRepository>.New((name, _) => { Assert.Equal("LockForScheduleAsync", name); Assert.True(unit.InTransaction); return Task.CompletedTask; });
         var notifier = Stub<IAuctionNotifier>.New((_, _) => Task.CompletedTask);
-        var service = new AuctionService(null!, routes, auctions, bids, trips, vehicles, null!, null!, notifier, unit);
+        var segments = Stub<IRouteSegmentRepository>.New((name, _) => name == "GetTrackedByRouteAsync" ? Task.FromResult<IReadOnlyList<RouteSegment>>(new[] { first, second }) : throw new NotSupportedException(name));
+        var service = new AuctionService(segments, routes, auctions, bids, trips, vehicles, null!, null!, notifier, unit);
         await service.AwardAsync(companyId, auction.Id, new AwardAuctionRequestDto(bid.Id));
         Assert.NotNull(staged); Assert.Equal(second.Id, staged.Stops[0].Actions[0].SegmentId);
         Assert.Equal(TripStatus.AwaitingPickup, staged.Status); Assert.Equal(RouteStatus.AwaitingPickup, route.Status);

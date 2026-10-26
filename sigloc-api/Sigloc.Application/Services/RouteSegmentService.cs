@@ -94,7 +94,7 @@ public class RouteSegmentService : IRouteSegmentService
             if (!SegmentEnumMappings.TryParseStatus(query.Status, out var parsed))
             {
                 throw new ValidationException(
-                    new[] { new ValidationError("status", "Valor inválido. Use 'AVAILABLE', 'ROUTED', 'IN_TRANSIT' ou 'COMPLETED'.") },
+                    new[] { new ValidationError("status", "Valor inválido. Use 'AVAILABLE', 'ROUTED', 'IN_EXECUTION' ou 'COMPLETED'.") },
                     "Não foi possível listar os trechos.");
             }
 

@@ -201,9 +201,15 @@ export async function updateAuction(id, { expiresAt } = {}, options) {
     : null
 }
 
-/** Deletes an auction by id. */
+/** Deletes an auction by id. The linked route segments remain consumed. */
 export async function deleteAuction(id, options) {
   await apiClient.delete(`${BASE}/${id}`, options)
+  return { id }
+}
+
+/** Undoes a freight offer by id. The linked route segments become available again. */
+export async function undoAuction(id, options) {
+  await apiClient.post(`${BASE}/${id}/undo`, undefined, options)
   return { id }
 }
 

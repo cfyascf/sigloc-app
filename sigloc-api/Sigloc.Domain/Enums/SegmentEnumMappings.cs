@@ -11,7 +11,7 @@ public static class SegmentEnumMappings
     {
         [SegmentStatus.Available] = "AVAILABLE",
         [SegmentStatus.Routed] = "ROUTED",
-        [SegmentStatus.InTransit] = "IN_TRANSIT",
+        [SegmentStatus.InExecution] = "IN_EXECUTION",
         [SegmentStatus.Completed] = "COMPLETED"
     };
 

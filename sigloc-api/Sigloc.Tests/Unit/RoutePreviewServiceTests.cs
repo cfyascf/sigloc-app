@@ -66,7 +66,7 @@ public class RoutePreviewServiceTests
 
     [Theory]
     [InlineData(SegmentStatus.Routed)]
-    [InlineData(SegmentStatus.InTransit)]
+    [InlineData(SegmentStatus.InExecution)]
     public async Task PreviewAsync_unavailable_segment_throws_SegmentUnavailable(SegmentStatus status)
     {
         var product = TestData.Product(contractorId: _contractorId);

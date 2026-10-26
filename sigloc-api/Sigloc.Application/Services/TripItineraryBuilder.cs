@@ -40,7 +40,7 @@ public static class TripItineraryBuilder
                 stops.Add(stop);
             }
             var complete = segment.Status == SegmentStatus.Completed
-                || (kind == StopActionKind.Pickup && segment.Status == SegmentStatus.InTransit);
+                || (kind == StopActionKind.Pickup && segment.Status == SegmentStatus.InExecution);
             var items = segment.Items.Count == 0 ? new ProductRouteSegment?[] { null } : segment.Items.Cast<ProductRouteSegment?>();
             foreach (var item in items)
                 stop.Actions.Add(new TripStopAction { Id = Guid.NewGuid(), TripStopId = stop.Id, SegmentId = segment.Id,

@@ -211,7 +211,7 @@ public class DashboardRepository : IDashboardRepository
             var itinerary = $"{origin}{Arrow}{destination}";
 
             // The next open leg drives the milestone: not yet picked up → COLETA, else ENTREGA.
-            var nextPickup = ordered.FirstOrDefault(s => s.Status == SegmentStatus.Routed || s.Status == SegmentStatus.InTransit);
+            var nextPickup = ordered.FirstOrDefault(s => s.Status == SegmentStatus.Routed || s.Status == SegmentStatus.InExecution);
             var isPickup = nextPickup != null && nextPickup.Status == SegmentStatus.Routed;
             var deadline = isPickup
                 ? nextPickup!.PickupDeadline
@@ -461,7 +461,7 @@ public class DashboardRepository : IDashboardRepository
             var ordered = routeSegments.OrderBy(s => s.PickupDeadline).ToList();
 
             // The next open leg drives the milestone: not yet picked up → COLETA, else ENTREGA.
-            var nextPickup = ordered.FirstOrDefault(s => s.Status == SegmentStatus.Routed || s.Status == SegmentStatus.InTransit);
+            var nextPickup = ordered.FirstOrDefault(s => s.Status == SegmentStatus.Routed || s.Status == SegmentStatus.InExecution);
             var isPickup = nextPickup != null && nextPickup.Status == SegmentStatus.Routed;
             var deadline = isPickup
                 ? nextPickup!.PickupDeadline
