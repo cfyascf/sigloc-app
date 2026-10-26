@@ -65,6 +65,7 @@ public record RouteSegmentResponseDto(
     CalculatedTotalsDto CalculatedTotals,
     ConsolidatedVehicleRequirementDto ConsolidatedVehicleRequirement,
     DateTimeOffset CreatedAt,
+    string RiskIndicator,
     string? OriginCity = null,
     string? DestinationCity = null);
 

@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Search, Filter, Truck, ChevronRight, RefreshCw, Loader2, Archive } from "lucide-react"
+import { Search, SlidersHorizontal, Truck, ChevronRight, RefreshCw, Loader2, Archive } from "lucide-react"
 
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useTripRequest } from "@/hooks/use-trip-request"
+import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel"
+import { useInfiniteList } from "@/hooks/use-infinite-list"
 import { formatTripDate, tripStatusLabel } from "@/lib/trip-formatters"
 
 /** Badge colour per trip status: late is rose, finished states are neutral, everything else emerald. */
@@ -29,23 +30,35 @@ export function TripListView({ title, heading, historyHeading, searchPlaceholder
   const [selectedTab, setSelectedTab] = useState("active")
   const [search, setSearch] = useState("")
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [query, setQuery] = useState({ search: "", status: "", risk: "", page: 1, pageSize: 20 })
+  const [query, setQuery] = useState({ search: "", status: "", risk: "", pageSize: 20 })
   const hasHistory = typeof historyLoadTrips === "function"
   const isHistory = hasHistory && selectedTab === "history"
   useEffect(() => {
-    const timeout = setTimeout(() => setQuery((current) => ({ ...current, search: search.trim(), page: 1 })), 300)
+    const timeout = setTimeout(() => setQuery((current) => ({ ...current, search: search.trim() })), 300)
     return () => clearTimeout(timeout)
   }, [search])
   const handleTabChange = (value) => {
     setSelectedTab(value)
     setSearch("")
     setFiltersOpen(false)
-    setQuery({ search: "", status: "", risk: "", page: 1, pageSize: 20 })
+    setQuery({ search: "", status: "", risk: "", pageSize: 20 })
   }
+
+  // Infinite scroll: the hook accumulates pages per filter signature and exposes loadMore/hasMore.
   const activeLoader = isHistory ? historyLoadTrips : loadTrips
-  const load = useCallback((options) => activeLoader(query, options), [activeLoader, query])
-  const { data, pending, error, reload } = useTripRequest(load, `${selectedTab}:${JSON.stringify(query)}`)
-  const rotas = data?.trips ?? []
+  const filterKey = useMemo(
+    () => `${selectedTab}:${query.search}:${query.status}:${query.risk}`,
+    [selectedTab, query.search, query.status, query.risk]
+  )
+  const loadPage = useCallback(
+    async (page, options) => {
+      const data = await activeLoader({ ...query, page }, options)
+      return { items: data.trips, totalPages: data.totalPages }
+    },
+    [activeLoader, query]
+  )
+  const { items: rotas, pending, error, hasMore, loadMore, reload } = useInfiniteList(loadPage, filterKey)
+  const loadingMore = pending && rotas.length > 0
 
   return (
     <AppShell title={title}>
@@ -63,8 +76,8 @@ export function TripListView({ title, heading, historyHeading, searchPlaceholder
               <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} className="h-9 border-slate-200 bg-white pl-9 text-xs" />
             </div>
             {!isHistory && (
-              <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)} className="h-9 border-slate-200 text-xs font-semibold bg-white">
-                 <Filter size={14} className="mr-2" /> Filtros
+              <Button variant="outline" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((open) => !open)} className="h-9 border-slate-200 text-xs font-semibold bg-white">
+                 <SlidersHorizontal size={14} className="mr-1.5 text-slate-500" /> Filtros
               </Button>
             )}
           </div>
@@ -82,14 +95,14 @@ export function TripListView({ title, heading, historyHeading, searchPlaceholder
         )}
 
         {!isHistory && filtersOpen && <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs">
-          <select aria-label="Filtrar por status" value={query.status} onChange={(event) => setQuery((current) => ({ ...current, status: event.target.value, page: 1 }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os status</option><option value="AGUARDANDO_COLETA">Aguardando coleta</option><option value="EM_TRANSITO">Em trânsito</option><option value="ATRASADO">Atrasado</option></select>
-          <select aria-label="Filtrar por risco" value={query.risk} onChange={(event) => setQuery((current) => ({ ...current, risk: event.target.value, page: 1 }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os riscos</option><option value="NORMAL">Normal</option><option value="WARNING">Atenção</option><option value="CRITIC">Crítico</option><option value="NAO_MONITORADO">Sem monitoramento</option></select>
+          <select aria-label="Filtrar por status" value={query.status} onChange={(event) => setQuery((current) => ({ ...current, status: event.target.value }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os status</option><option value="AGUARDANDO_COLETA">Aguardando coleta</option><option value="EM_TRANSITO">Em trânsito</option><option value="ATRASADO">Atrasado</option></select>
+          <select aria-label="Filtrar por risco" value={query.risk} onChange={(event) => setQuery((current) => ({ ...current, risk: event.target.value }))} className="h-9 rounded-md border border-slate-200 px-2"><option value="">Todos os riscos</option><option value="NORMAL">Normal</option><option value="WARNING">Atenção</option><option value="CRITIC">Crítico</option><option value="NAO_MONITORADO">Sem monitoramento</option></select>
           <Button variant="outline" className="h-9 text-xs" onClick={reload} disabled={pending}>Atualizar</Button>
         </div>}
 
         {/* LISTAGEM EM CARDS */}
         <div className="space-y-3" aria-live="polite">
-          {pending ? <p className="flex items-center gap-2 p-4 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Carregando viagens…</p> : error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error.message || "Não foi possível carregar as viagens."}</div> : !rotas.length ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">{isHistory ? "Nenhuma viagem no histórico." : "Nenhuma viagem ativa encontrada."}</p> : rotas.map((rota) => (
+          {pending && !rotas.length ? <p className="flex items-center gap-2 p-4 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Carregando viagens…</p> : error && !rotas.length ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error.message || "Não foi possível carregar as viagens."}</div> : !rotas.length ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">{isHistory ? "Nenhuma viagem no histórico." : "Nenhuma viagem ativa encontrada."}</p> : rotas.map((rota) => (
             <button
               key={rota.id}
               type="button"
@@ -145,10 +158,15 @@ export function TripListView({ title, heading, historyHeading, searchPlaceholder
               </div>
             </button>
           ))}
-        </div>
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span>Página {data?.page ?? query.page} de {Math.max(1, data?.totalPages ?? 1)} • {data?.total ?? 0} viagens</span>
-          <div className="flex gap-2"><Button variant="outline" size="sm" disabled={pending || query.page <= 1} onClick={() => setQuery((current) => ({ ...current, page: current.page - 1 }))}>Anterior</Button><Button variant="outline" size="sm" disabled={pending || !data || query.page >= data.totalPages} onClick={() => setQuery((current) => ({ ...current, page: current.page + 1 }))}>Próxima</Button></div>
+
+          <InfiniteScrollSentinel
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
+            count={rotas.length}
+            singular="viagem"
+            plural="viagens"
+          />
         </div>
       </div>
     </AppShell>

@@ -337,6 +337,9 @@ public class RouteSegmentService : IRouteSegmentService
 
         var requirement = ConsolidatedVehicleRequirement.From(carriedProducts);
 
+        var risk = RouteSegmentRiskCalculator.Evaluate(
+            segment.PickupDeadline, segment.Status, DateTimeOffset.UtcNow);
+
         return new RouteSegmentResponseDto(
             segment.Id,
             segment.ContractorId,
@@ -358,6 +361,7 @@ public class RouteSegmentService : IRouteSegmentService
                 requirement.RequiresMopp,
                 requirement.RequiresCargoFixing),
             segment.CreatedAt,
+            risk,
             segment.OriginCity,
             segment.DestinationCity);
     }

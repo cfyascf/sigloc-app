@@ -159,7 +159,8 @@ internal static class ControllerDtoFactory
         Items: Array.Empty<RouteSegmentItemDto>(),
         CalculatedTotals: new CalculatedTotalsDto(0, 0),
         ConsolidatedVehicleRequirement: new ConsolidatedVehicleRequirementDto("Bau", "Nenhuma", false, false),
-        CreatedAt: DateTimeOffset.UtcNow);
+        CreatedAt: DateTimeOffset.UtcNow,
+        RiskIndicator: "NORMAL");
 
     public static CreateAuctionResponseDto Auction(Guid? id = null) => new(
         Auction: new AuctionDto(

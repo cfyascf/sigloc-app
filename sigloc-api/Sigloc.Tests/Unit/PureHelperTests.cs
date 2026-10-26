@@ -144,6 +144,95 @@ public class AuctionRiskCalculatorTests
     }
 }
 
+public class RouteSegmentRiskCalculatorTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void Critical_when_available_and_pickup_imminent()
+    {
+        var result = RouteSegmentRiskCalculator.Evaluate(
+            pickupDeadline: Now.AddHours(3),
+            status: SegmentStatus.Available,
+            now: Now);
+
+        result.Should().Be(RouteSegmentRiskCalculator.Critical);
+        // Same code as the auction/trip risk and the UI badge map.
+        result.Should().Be("CRITIC");
+    }
+
+    [Fact]
+    public void Critical_when_available_and_pickup_already_past()
+    {
+        var result = RouteSegmentRiskCalculator.Evaluate(
+            pickupDeadline: Now.AddHours(-2),
+            status: SegmentStatus.Available,
+            now: Now);
+
+        result.Should().Be(RouteSegmentRiskCalculator.Critical);
+    }
+
+    [Fact]
+    public void Warning_at_the_six_hour_boundary()
+    {
+        // Exactly 6h out is no longer critical (strict "< 6h") but still within the 12h warning window.
+        var result = RouteSegmentRiskCalculator.Evaluate(
+            pickupDeadline: Now.AddHours(6),
+            status: SegmentStatus.Available,
+            now: Now);
+
+        result.Should().Be(RouteSegmentRiskCalculator.Warning);
+    }
+
+    [Fact]
+    public void Warning_when_available_and_pickup_soon()
+    {
+        var result = RouteSegmentRiskCalculator.Evaluate(
+            pickupDeadline: Now.AddHours(10),
+            status: SegmentStatus.Available,
+            now: Now);
+
+        result.Should().Be(RouteSegmentRiskCalculator.Warning);
+    }
+
+    [Fact]
+    public void Normal_at_the_twelve_hour_boundary()
+    {
+        // Exactly 12h out falls outside the strict "< 12h" warning window.
+        var result = RouteSegmentRiskCalculator.Evaluate(
+            pickupDeadline: Now.AddHours(12),
+            status: SegmentStatus.Available,
+            now: Now);
+
+        result.Should().Be(RouteSegmentRiskCalculator.Normal);
+    }
+
+    [Fact]
+    public void Normal_when_available_and_pickup_far_out()
+    {
+        var result = RouteSegmentRiskCalculator.Evaluate(
+            pickupDeadline: Now.AddDays(3),
+            status: SegmentStatus.Available,
+            now: Now);
+
+        result.Should().Be(RouteSegmentRiskCalculator.Normal);
+    }
+
+    [Theory]
+    [InlineData(SegmentStatus.Routed)]
+    [InlineData(SegmentStatus.InTransit)]
+    [InlineData(SegmentStatus.Completed)]
+    public void Normal_when_not_available_even_if_pickup_imminent(SegmentStatus status)
+    {
+        var result = RouteSegmentRiskCalculator.Evaluate(
+            pickupDeadline: Now.AddHours(1),
+            status: status,
+            now: Now);
+
+        result.Should().Be(RouteSegmentRiskCalculator.Normal);
+    }
+}
+
 public class BrasiliaTimeTests
 {
     [Fact]

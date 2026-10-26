@@ -113,6 +113,8 @@ export function toRouteSegment(dto) {
     pickupDeadline: dto.pickupDeadline ?? null,
     deliveryDeadline: dto.deliveryDeadline ?? null,
     status: dto.status ?? null,
+    // Computed server-side from pickup-deadline proximity (NORMAL/WARNING/CRITIC).
+    risk: dto.riskIndicator ?? "NORMAL",
     items: (dto.items ?? []).map(toItem),
     calculatedTotals: {
       totalWeightKg: totals.totalWeightKg ?? 0,
