@@ -11,14 +11,14 @@
 export const SEGMENT_STATUS = {
   AVAILABLE: "AVAILABLE",
   ROUTED: "ROUTED",
-  IN_TRANSIT: "IN_TRANSIT",
+  IN_EXECUTION: "IN_EXECUTION",
   COMPLETED: "COMPLETED",
 }
 
 export const SEGMENT_STATUS_OPTIONS = [
   { value: SEGMENT_STATUS.AVAILABLE, label: "Disponível" },
-  { value: SEGMENT_STATUS.ROUTED, label: "Roteirizado" },
-  { value: SEGMENT_STATUS.IN_TRANSIT, label: "Em Trânsito" },
+  { value: SEGMENT_STATUS.ROUTED, label: "Em leilão" },
+  { value: SEGMENT_STATUS.IN_EXECUTION, label: "Em execução" },
   { value: SEGMENT_STATUS.COMPLETED, label: "Concluído" },
 ]
 

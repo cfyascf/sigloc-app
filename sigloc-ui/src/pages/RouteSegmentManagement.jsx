@@ -53,7 +53,7 @@ const ACTIVE_STATUSES = [SEGMENT_STATUS.AVAILABLE]
 /** Segments shown in the "Histórico" tab: in a route, in transit, or completed. */
 const HISTORY_STATUSES = [
   SEGMENT_STATUS.ROUTED,
-  SEGMENT_STATUS.IN_TRANSIT,
+  SEGMENT_STATUS.IN_EXECUTION,
   SEGMENT_STATUS.COMPLETED,
 ]
 
@@ -76,7 +76,7 @@ function statusBadgeClass(status) {
       return "bg-emerald-50 text-emerald-700"
     case SEGMENT_STATUS.ROUTED:
       return "bg-blue-50 text-blue-700"
-    case SEGMENT_STATUS.IN_TRANSIT:
+    case SEGMENT_STATUS.IN_EXECUTION:
       return "bg-amber-50 text-amber-700"
     case SEGMENT_STATUS.COMPLETED:
       return "bg-slate-100 text-slate-600"
@@ -103,7 +103,7 @@ const RISK_DOT = {
   },
   [RISK.NORMAL]: {
     dot: "bg-slate-300",
-    message: "Sem risco: o prazo de coleta está confortável ou o trecho já foi roteirizado.",
+    message: "Sem risco: o prazo de coleta está confortável ou o trecho já foi ofertado em leilão.",
   },
 }
 

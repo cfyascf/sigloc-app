@@ -472,6 +472,15 @@ public class AuctionService : IAuctionService
             // 4. Move the consolidated route to awaiting pickup.
             route.Status = RouteStatus.AwaitingPickup;
 
+            // 4b. The auction ended and the route becomes an active trip, so its segments move
+            // from "Routed" (Em leilão) to "InExecution" (Em execução). They stay in execution
+            // until delivery marks them Completed.
+            var awardedSegments = await _segmentRepository.GetTrackedByRouteAsync(route.Id, ct);
+            foreach (var segment in awardedSegments)
+            {
+                segment.Status = SegmentStatus.InExecution;
+            }
+
             // 5. Create the trip (Viagem) that starts the physical operation.
             var newTrip = new Trip
             {

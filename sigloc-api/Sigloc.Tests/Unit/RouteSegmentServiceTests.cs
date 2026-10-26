@@ -345,13 +345,13 @@ public class RouteSegmentServiceTests
     public async Task SearchAsync_parses_status_filter()
     {
         _repository
-            .SearchAsync(_contractorId, null, null, SegmentStatus.InTransit, 1, 20, Arg.Any<CancellationToken>())
+            .SearchAsync(_contractorId, null, null, SegmentStatus.InExecution, 1, 20, Arg.Any<CancellationToken>())
             .Returns((new List<RouteSegment>(), 0));
 
-        await _service.SearchAsync(_contractorId, new RouteSegmentQueryDto(null, null, "IN_TRANSIT"));
+        await _service.SearchAsync(_contractorId, new RouteSegmentQueryDto(null, null, "IN_EXECUTION"));
 
         await _repository.Received(1).SearchAsync(
-            _contractorId, null, null, SegmentStatus.InTransit, 1, 20, Arg.Any<CancellationToken>());
+            _contractorId, null, null, SegmentStatus.InExecution, 1, 20, Arg.Any<CancellationToken>());
     }
 
     [Fact]

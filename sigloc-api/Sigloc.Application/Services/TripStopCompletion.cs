@@ -35,7 +35,7 @@ public static class TripStopCompletion
         {
             action.IsCompleted = true; action.CompletedAt = at; action.CompletionSource = sourceFor(action.Kind);
             var segment = state.Segments.Single(s => s.Id == action.SegmentId);
-            segment.Status = action.Kind == StopActionKind.Delivery ? SegmentStatus.Completed : SegmentStatus.InTransit;
+            segment.Status = action.Kind == StopActionKind.Delivery ? SegmentStatus.Completed : SegmentStatus.InExecution;
         }
         stop.IsCompleted = true; stop.CompletedAt = at;
         stop.CompletionSource = sourceFor(pendingActions.Any(a => a.Kind == StopActionKind.Delivery) ? StopActionKind.Delivery : StopActionKind.Pickup);

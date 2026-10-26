@@ -68,7 +68,7 @@ public class TripMonitoringServiceTests
         var result = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id, refresh: true);
         Assert.Equal("EM_TRANSITO", result.Status);
         Assert.Equal("CONCLUIDA", result.Stops[0].Status);
-        Assert.Equal(SegmentStatus.InTransit, h.Store.State!.Segments[0].Status);
+        Assert.Equal(SegmentStatus.InExecution, h.Store.State!.Segments[0].Status);
         Assert.Equal(RouteStatus.InTransit, h.Store.State.Route.Status);
         Assert.Equal(Now, h.Store.State.Trip.StartedAt);
         h.Clock.Now = Now.AddMinutes(16);
