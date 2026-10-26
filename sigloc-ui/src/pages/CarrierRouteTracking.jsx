@@ -182,7 +182,6 @@ export default function CarrierRouteTracking() {
     }
 
     const { cargo, shipper } = trip
-    const openOccurrences = trip.occurrences.filter((occurrence) => occurrence.open).length
 
     return (
       <>
@@ -193,7 +192,7 @@ export default function CarrierRouteTracking() {
           </p>
         )}
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="grid shrink-0 grid-cols-1 gap-4 md:grid-cols-4">
           <TripKpiCard
             icon={ArrowRightLeft}
             label="Progresso da Rota"
@@ -212,62 +211,51 @@ export default function CarrierRouteTracking() {
           <TripKpiCard icon={Clock} tone="emerald" label="ETA Previsto" value={formatTripDate(trip.eta)} hint={!trip.eta && isActive ? "Recalculado no próximo ping" : undefined} />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="space-y-4 lg:col-span-8">
-            <TripStopTimeline stops={trip.stops} renderStopActions={renderStopActions} />
+        <div className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:items-stretch">
+          <div className="flex min-h-0 flex-col gap-4 lg:col-span-8">
+            <div className="shrink-0">
+              <TripStopTimeline stops={trip.stops} renderStopActions={renderStopActions} />
+            </div>
 
-            <TripCard
-              icon={AlertTriangle}
-              iconClassName="text-amber-600"
-              title={openOccurrences ? `Ocorrências (${openOccurrences} em aberto)` : "Ocorrências"}
+            <TripEventLog
+              events={trip.events}
+              className="min-h-[220px] flex-1"
+              bodyClassName="min-h-0 flex-1 overflow-hidden p-4"
               aside={isActive && (
                 <Button size="sm" variant="outline" className="border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => openDialog("occurrence")} disabled={busy}>
-                  Reportar Ocorrência
+                  <AlertTriangle size={14} className="mr-1.5" /> Reportar Ocorrência
                 </Button>
               )}
-            >
-              {!trip.occurrences.length ? (
-                <p className="text-sm text-slate-500">Nenhuma ocorrência reportada.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {trip.occurrences.map((occurrence) => (
-                    <li key={occurrence.id} className={`rounded-lg border p-3 ${occurrence.open ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50"}`}>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-slate-800">{occurrence.label}</span>
-                          <Flag className={occurrence.open ? tripStatusStyle(occurrence.severity) : "bg-slate-100 text-slate-500"}>
-                            {occurrence.open ? tripStatusLabel(occurrence.severity) : "Encerrada"}
-                          </Flag>
-                        </div>
-                        <span className="font-mono text-[11px] text-slate-500">{formatTripDate(occurrence.reportedAt)}</span>
-                      </div>
-                      {occurrence.note && <p className="mt-1 text-xs text-slate-600">{occurrence.note}</p>}
-                      <p className="mt-1 text-[11px] text-slate-400">
-                        {occurrence.open ? "Encerra automaticamente ao confirmar a próxima parada." : `Encerrada em ${formatTripDate(occurrence.resolvedAt)}`}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </TripCard>
+            />
 
-            <TripEventLog events={trip.events} />
+            <div className="grid shrink-0 grid-cols-1 gap-4 md:grid-cols-2">
+              <TripCard icon={Building2} iconClassName="text-slate-600" title="Contato do Embarcador" bodyClassName="space-y-3 p-4">
+                <div>
+                  <p className="text-sm font-bold text-slate-800">{shipper?.tradeName || shipper?.companyName || UNKNOWN}</p>
+                  {shipper?.tradeName && shipper?.companyName && <p className="text-[11px] text-slate-500">{shipper.companyName}</p>}
+                </div>
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <ContactRow icon={User} value={shipper?.contactName} />
+                  <ContactRow icon={Phone} value={shipper?.phone} href={shipper?.phoneHref} mono />
+                  <ContactRow icon={Mail} value={shipper?.email} href={shipper?.emailHref} />
+                </div>
+              </TripCard>
 
-            <TripCard icon={Building2} iconClassName="text-slate-600" title="Contato do Embarcador" bodyClassName="space-y-3 p-4">
-              <div>
-                <p className="text-sm font-bold text-slate-800">{shipper?.tradeName || shipper?.companyName || UNKNOWN}</p>
-                {shipper?.tradeName && shipper?.companyName && <p className="text-[11px] text-slate-500">{shipper.companyName}</p>}
-              </div>
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <ContactRow icon={User} value={shipper?.contactName} />
-                <ContactRow icon={Phone} value={shipper?.phone} href={shipper?.phoneHref} mono />
-                <ContactRow icon={Mail} value={shipper?.email} href={shipper?.emailHref} />
-              </div>
-            </TripCard>
+              <TripCard icon={Truck} iconClassName="text-emerald-600" title="Veículo e Motorista" bodyClassName="space-y-3 p-4">
+                <div>
+                  <p className="text-sm font-bold text-slate-800">{trip.driver?.name || UNKNOWN}</p>
+                  <p className="text-[11px] text-slate-500">Motorista</p>
+                </div>
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <ContactRow icon={Truck} value={trip.plate} mono />
+                  <ContactRow icon={Phone} value={trip.driver?.phone} mono />
+                </div>
+              </TripCard>
+            </div>
           </div>
 
-          <div className="space-y-4 lg:col-span-4">
-            <TripLocationCard trip={trip}>
+          <div className="flex min-h-0 flex-col gap-4 lg:col-span-4">
+            <TripLocationCard trip={trip} className="flex min-h-[140px] flex-1 flex-col overflow-hidden" mapClassName="min-h-0 flex-1">
               <Button className="w-full bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700" onClick={handlePing} disabled={!isActive || busy}>
                 <RefreshCw className={pingAction.pending ? "animate-spin" : ""} />
                 {pingAction.pending ? "Transmitindo..." : "Transmitir Posição GPS (Ping)"}
@@ -279,18 +267,7 @@ export default function CarrierRouteTracking() {
               {pingOutcome?.renewed && <p className="text-xs text-emerald-700">Posição atualizada em <span className="font-mono">{formatTripDate(trip.lastPing)}</span>.</p>}
             </TripLocationCard>
 
-            <TripCard icon={Truck} iconClassName="text-emerald-600" title="Veículo e Motorista" bodyClassName="space-y-3 p-4">
-              <div>
-                <p className="text-sm font-bold text-slate-800">{trip.driver?.name || UNKNOWN}</p>
-                <p className="text-[11px] text-slate-500">Motorista</p>
-              </div>
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <ContactRow icon={Truck} value={trip.plate} mono />
-                <ContactRow icon={Phone} value={trip.driver?.phone} mono />
-              </div>
-            </TripCard>
-
-            <TripCard icon={Package} iconClassName="text-blue-600" title="Especificação da Carga" bodyClassName="space-y-4 p-4">
+            <TripCard icon={Package} iconClassName="text-blue-600" title="Especificação da Carga" className="shrink-0" bodyClassName="space-y-4 p-4">
               {(cargo.refrigerated || cargo.palletized || cargo.dangerous || cargo.fragile) && (
                 <div className="flex flex-wrap gap-1.5">
                   {cargo.refrigerated && <Flag className="bg-blue-50 text-blue-700"><Snowflake size={10} /> Refrigerada</Flag>}
@@ -331,6 +308,11 @@ export default function CarrierRouteTracking() {
     <AppShell title="Rota em Trânsito">
       <div className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden">
         <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 pt-1">
+          <Link to={BASE_PATH}>
+            <Button variant="ghost" className="h-auto p-0 text-sm font-medium text-slate-500 hover:bg-transparent">
+              <ArrowLeft size={16} className="mr-2" /> Voltar para Rotas em Trânsito
+            </Button>
+          </Link>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <Navigation size={18} className="shrink-0 text-blue-600" />
@@ -338,15 +320,10 @@ export default function CarrierRouteTracking() {
               {trip && <Flag className={tripStatusStyle(trip.status)}>{tripStatusLabel(trip.status)}</Flag>}
             </div>
           </div>
-          <Link to={BASE_PATH}>
-            <Button variant="ghost" className="h-auto p-0 text-sm font-medium text-slate-500 hover:bg-transparent">
-              <ArrowLeft size={16} className="mr-2" /> Voltar para Rotas em Trânsito
-            </Button>
-          </Link>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <div className="h-full space-y-4 overflow-y-auto pb-6 pr-2">{renderBody()}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto pb-6 pr-2 lg:flex lg:flex-col lg:overflow-hidden">
+          <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">{renderBody()}</div>
         </div>
       </div>
 

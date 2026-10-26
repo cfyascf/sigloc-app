@@ -95,3 +95,27 @@ export function formatCountdown(ms) {
   const seconds = String(Math.floor(ms / 1000) % 60).padStart(2, "0")
   return `${minutes}:${seconds}`
 }
+
+/**
+ * Criticality of a monitoring log event, derived from its `kind` (and the SLA description, since
+ * the backend reuses the "SLA" kind for both escalations and recovery). Returns a label + badge
+ * style used by the event log so occurrence severity shows up inline.
+ */
+export function eventSeverity(event) {
+  const kind = event?.kind
+  const message = (event?.message ?? "").toLowerCase()
+  if (kind === "OCORRENCIA") {
+    const critical = /crític|extrapolar|avaria|falta de doc|acidente|roubo|sinistro/.test(message)
+    return critical
+      ? { level: "CRITIC", label: "Crítico", style: "bg-rose-100 text-rose-700" }
+      : { level: "WARNING", label: "Atenção", style: "bg-amber-100 text-amber-700" }
+  }
+  if (kind === "SLA") {
+    if (/crític|excede|atras/.test(message)) return { level: "CRITIC", label: "Crítico", style: "bg-rose-100 text-rose-700" }
+    if (/atenç|requer/.test(message)) return { level: "WARNING", label: "Atenção", style: "bg-amber-100 text-amber-700" }
+    return { level: "NORMAL", label: "SLA", style: "bg-emerald-100 text-emerald-700" }
+  }
+  if (kind === "OCORRENCIA_ENCERRADA") return { level: "RESOLVED", label: "Encerrada", style: "bg-emerald-100 text-emerald-700" }
+  if (kind === "PARADA_CONFIRMADA") return { level: "INFO", label: "Parada", style: "bg-blue-100 text-blue-700" }
+  return { level: "INFO", label: "Info", style: "bg-slate-100 text-slate-600" }
+}
