@@ -102,8 +102,8 @@ const RISK_DOT = {
     message: "Risco de atenção: o prazo de coleta está se aproximando e o trecho ainda não foi ofertado em leilão.",
   },
   [RISK.NORMAL]: {
-    dot: "bg-slate-300",
-    message: "Sem risco: o prazo de coleta está confortável ou o trecho já foi ofertado em leilão.",
+    dot: "bg-emerald-500",
+    message: "Sem risco: o prazo de coleta está confortável ou o trecho já foi roteirizado.",
   },
 }
 
