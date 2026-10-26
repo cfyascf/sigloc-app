@@ -44,6 +44,7 @@ import RegisterProduct from "@/pages/RegisterProduct"
 import AuctionBids from "@/pages/AuctionBids"
 import FreightsOfferedOverview from "@/pages/FreightsOfferedOverview"
 import BidAnalysis from "@/pages/BidAnalysis"
+import PlaceBid from "@/pages/PlaceBid"
 import ProductManagement from "@/pages/ProductManagement"
 import FleetManagement from "@/pages/FleetManagement"
 import PartnerNetwork from "@/pages/PartnerNetwork"
@@ -144,6 +145,7 @@ export const ROUTES = [
     nav: true,
   },
   { path: "/bid-analysis/:auctionId", element: <BidAnalysis />, access: [ROLES.CARRIER], nav: false },
+  { path: "/bid-analysis/:auctionId/place-bid", element: <PlaceBid />, access: [ROLES.CARRIER], nav: false },
   { path: "/register-vehicle", element: <RegisterVehicle />, access: [ROLES.CARRIER], nav: false },
   {
     path: "/carrier-route-tracking",
