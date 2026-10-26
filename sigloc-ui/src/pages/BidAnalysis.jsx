@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { useCallback, useEffect, useState } from "react"
 
 import AppShell from "@/components/app-shell"
+import TravelPlan from "@/components/travel-plan"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { auctionService } from "@/services/auction-service"
@@ -19,12 +20,6 @@ const formatDateTime = (value) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "—"
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date)
-}
-
-function getStopBadgeClass(index, totalStops) {
-  if (index === 0) return "bg-slate-800"
-  if (index === totalStops - 1) return "bg-emerald-500"
-  return "bg-blue-500"
 }
 
 export default function BidAnalysis() {
@@ -87,7 +82,7 @@ export default function BidAnalysis() {
     )
   }
 
-  const { routeSummary, competition, physicalRequirements, carrierAvailableFleet, travelPlan, myBid } = analysis
+  const { routeSummary, competition, physicalRequirements, travelPlan, myBid } = analysis
   // The leader offer is a total (freight + toll), so it is compared against the bid's total.
   const myBidDistanceToLeader = myBid && bestLeaderOffer != null ? myBid.totalValue - bestLeaderOffer : null
 
@@ -240,25 +235,7 @@ export default function BidAnalysis() {
             </div>
 
             {/* ITINERÁRIO */}
-            <div className="rounded-xl border border-slate-200 bg-white">
-              <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-                <MapPinned size={14} className="text-slate-600" />
-                <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Plano de Viagem (Milking Run)</h2>
-              </div>
-              <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-                {travelPlan.map((stop, index) => (
-                  <div key={`${stop.order}-${stop.city}`} className="flex md:flex-col gap-3 md:gap-0 items-center text-center">
-                    <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-black text-white ${getStopBadgeClass(index, travelPlan.length)}`}>
-                      {stop.order}
-                    </div>
-                    <div className="md:mt-2 text-left md:text-center">
-                      <p className="text-xs font-bold text-slate-900">{stop.city}</p>
-                      <p className="text-[9px] font-medium text-slate-500 mt-0.5">{stop.action}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <TravelPlan stops={travelPlan} />
 
           </div>
         </div>
