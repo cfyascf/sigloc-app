@@ -9,25 +9,109 @@ import {
   Save,
   X,
   Plus,
+  Check,
   Search,
+  Flame,
+  Snowflake,
+  Tag,
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { FormAlert } from "@/components/auth/FormAlert"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { useProductOptions } from "@/hooks/use-product-options"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { createRouteSegment } from "@/services/route-segment-service"
 import { mapRouteSegmentFieldErrors } from "@/constants/route-segments"
+import {
+  categoryLabel,
+  environmentLabel,
+  TRANSPORT_ENVIRONMENT,
+} from "@/constants/products"
+
+/**
+ * Catalog row styled like the product-management list: SKU code, hazard/thermal
+ * badges, bold name and a category·weight subline. Clicking toggles the product
+ * in or out of the cargo so the same list serves browsing and selection.
+ */
+function CatalogItem({ product, selected, onToggle }) {
+  const isChilled =
+    product.transportEnvironment &&
+    product.transportEnvironment !== TRANSPORT_ENVIRONMENT.DRY
+
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(product.value)}
+      className={`flex w-full items-start gap-3 border-b border-slate-100 p-3 text-left transition-colors last:border-b-0 focus:outline-none ${
+        selected ? "bg-blue-50/60" : "bg-white hover:bg-slate-50/70"
+      }`}
+    >
+      <span
+        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
+          selected
+            ? "border-blue-600 bg-blue-600 text-white"
+            : "border-slate-300 bg-white text-transparent"
+        }`}
+      >
+        <Check size={13} strokeWidth={3} />
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center gap-2">
+          <span
+            title={product.sku}
+            className="min-w-0 truncate font-mono text-[10px] font-bold tracking-wider text-slate-500 uppercase"
+          >
+            {product.sku}
+          </span>
+          <div className="flex shrink-0 gap-1">
+            {product.dangerous && (
+              <Badge
+                variant="secondary"
+                className="flex items-center border-none bg-amber-100 px-1.5 py-0 text-[9px] font-black tracking-wider text-amber-700 uppercase"
+              >
+                <Flame size={10} className="mr-1" /> Hazmat
+              </Badge>
+            )}
+            {isChilled && (
+              <Badge
+                variant="secondary"
+                className="flex items-center border-none bg-sky-100 px-1.5 py-0 text-[9px] font-black tracking-wider text-sky-700 uppercase"
+              >
+                <Snowflake size={10} className="mr-1" />
+                {environmentLabel(product.transportEnvironment)}
+              </Badge>
+            )}
+            {product.fragile && (
+              <Badge
+                variant="secondary"
+                className="border-none bg-rose-50 px-1.5 py-0 text-[9px] font-black tracking-wider text-rose-600 uppercase"
+              >
+                Frágil
+              </Badge>
+            )}
+          </div>
+        </div>
+        <h3
+          title={product.name}
+          className={`truncate text-sm ${
+            selected ? "font-bold text-blue-900" : "font-semibold text-slate-800"
+          }`}
+        >
+          {product.name}
+        </h3>
+        <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+          <Tag size={12} /> {categoryLabel(product.category)}
+          {product.defaultWeight != null ? ` • ${product.defaultWeight}kg` : ""}
+        </p>
+      </div>
+    </button>
+  )
+}
 
 export default function CreateRouteSegment() {
   const navigate = useNavigate()
@@ -57,11 +141,6 @@ export default function CreateRouteSegment() {
   )
 
   const filteredProductOptions = productOptions.filter((product) => {
-    const isAlreadySelected = selectedProducts.some(
-      (p) => p.value === product.value
-    )
-    if (isAlreadySelected) return false
-
     const search = productSearch.trim().toLowerCase()
     if (!search) return true
 
@@ -70,12 +149,21 @@ export default function CreateRouteSegment() {
       .some((field) => field.toLowerCase().includes(search))
   })
 
-  const handleAddProduct = (productId) => {
-    const productToAdd = productOptions.find((p) => p.value === productId)
-    if (productToAdd) {
-      setSelectedProducts([...selectedProducts, { ...productToAdd, quantity: 1 }])
-    }
-    setProductSearch("")
+  const selectedValues = useMemo(
+    () => new Set(selectedProducts.map((p) => p.value)),
+    [selectedProducts]
+  )
+
+  const handleToggleProduct = (productId) => {
+    setSelectedProducts((current) => {
+      if (current.some((p) => p.value === productId)) {
+        return current.filter((p) => p.value !== productId)
+      }
+      const productToAdd = productOptions.find((p) => p.value === productId)
+      return productToAdd
+        ? [...current, { ...productToAdd, quantity: 1 }]
+        : current
+    })
   }
 
   const handleRemoveProduct = (productId) => {
@@ -136,30 +224,6 @@ export default function CreateRouteSegment() {
               Trechos
             </Button>
           </Link>
-
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pending}
-              className="h-9 border-slate-200 bg-white text-xs font-semibold text-slate-700"
-              onClick={() => navigate("/route-segment-management")}
-            >
-              <X size={14} className="mr-1.5" /> Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={pending}
-              className="h-9 bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700"
-            >
-              {pending ? (
-                <Loader2 size={14} className="mr-1.5 animate-spin" />
-              ) : (
-                <Save size={14} className="mr-1.5" />
-              )}
-              Salvar Trecho Operacional
-            </Button>
-          </div>
         </div>
 
         {error ? (
@@ -170,76 +234,79 @@ export default function CreateRouteSegment() {
 
         <div className="min-h-0 flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto pr-2 pb-6">
-            <div className="grid min-h-full gap-6 md:grid-cols-2 md:grid-rows-[auto_1fr]">
+            <div className="grid gap-6 md:grid-cols-2 md:grid-rows-[auto_auto_auto]">
               {/* ========================================================
-                  LINHA 1: ESPECIFICAÇÕES (Esq) + ITINERÁRIO (Dir)
+                  COLUNA ESQUERDA: ESPECIFICAÇÕES (ocupa toda a altura)
+                  COLUNA DIREITA: ITINERÁRIO + PRAZOS + BALIZAMENTO
                   ======================================================== */}
 
-              {/* Bloco 1: Identificação da Mercadoria (Esquerda, Topo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
-                <div className="flex h-[52px] shrink-0 items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
-                  <PackageOpen size={16} className="text-blue-600" />
-                  <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
-                    Especificações da Carga
-                  </h2>
+              {/* Bloco 1: Composição da Carga (Esquerda, altura total) */}
+              <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white md:row-span-3 md:h-full">
+                <div className="flex h-[52px] shrink-0 items-center justify-between gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
+                  <div className="flex items-center gap-2">
+                    <PackageOpen size={16} className="text-blue-600" />
+                    <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
+                      Composição da Carga
+                    </h2>
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="border-none bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700"
+                  >
+                    {selectedProducts.length}{" "}
+                    {selectedProducts.length === 1 ? "item" : "itens"}
+                  </Badge>
                 </div>
 
-                <div className="flex flex-col space-y-4 p-5">
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold text-slate-600">
-                      Composição da Carga (Produtos)
-                    </label>
+                <div className="flex min-h-0 flex-1 flex-col p-4">
+                  {/* Busca no catálogo */}
+                  <div className="relative shrink-0">
+                    <Search className="absolute top-3 left-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      value={productSearch}
+                      onChange={(event) =>
+                        setProductSearch(event.target.value)
+                      }
+                      placeholder="Buscar por nome ou código..."
+                      className="h-10 border-slate-200 bg-slate-50 pl-9 text-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
 
-                    {/* Select atua como botão/pesquisa para Adicionar */}
-                    <Select value="" onValueChange={handleAddProduct}>
-                      <SelectTrigger className="h-10 w-full border-slate-200 bg-slate-50 text-sm transition-colors hover:bg-slate-100 focus:border-blue-500 focus:ring-blue-500">
-                        <SelectValue placeholder="Buscar e adicionar produto à carga..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-2 py-2 backdrop-blur-sm">
-                          <div className="relative">
-                            <Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" />
-                            <Input
-                              value={productSearch}
-                              onChange={(event) =>
-                                setProductSearch(event.target.value)
-                              }
-                              onKeyDown={(event) => event.stopPropagation()}
-                              placeholder="Buscar por código ou nome..."
-                              className="h-9 border-slate-200 bg-slate-50 pl-9 text-xs focus:border-blue-500 focus:ring-blue-500"
-                            />
-                          </div>
-                        </div>
+                  {/* Catálogo clicável (mesmo estilo de /product-management) */}
+                  <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-200">
+                    {filteredProductOptions.length === 0 ? (
+                      <div className="flex h-full items-center justify-center p-4 text-center text-xs text-slate-500">
+                        Nenhum produto encontrado.
+                      </div>
+                    ) : (
+                      filteredProductOptions.map((product) => (
+                        <CatalogItem
+                          key={product.id}
+                          product={product}
+                          selected={selectedValues.has(product.value)}
+                          onToggle={handleToggleProduct}
+                        />
+                      ))
+                    )}
+                  </div>
 
-                        {filteredProductOptions.length === 0 ? (
-                          <div className="px-3 py-3 text-xs text-slate-500">
-                            Nenhum produto encontrado.
-                          </div>
-                        ) : (
-                          filteredProductOptions.map((product) => (
-                            <SelectItem key={product.id} value={product.value}>
-                              <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
-                                <div className="flex items-center gap-2">
-                                  <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-slate-500 uppercase">
-                                    {product.sku}
-                                  </span>
-                                  <span className="truncate font-semibold text-slate-800">
-                                    {product.name}
-                                  </span>
-                                </div>
-                                <span className="pl-[3.4rem] text-[11px] text-slate-500">
-                                  {product.details}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-
-                    {/* LISTA MÚLTIPLA: produtos adicionados, com quantidade */}
-                    {selectedProducts.length > 0 && (
-                      <div className="flex max-h-[160px] animate-in flex-col gap-2 overflow-y-auto pr-1 fade-in">
+                  {/* Quantidades dos itens selecionados */}
+                  <div className="mt-3 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-600">
+                        Itens na carga ({selectedProducts.length})
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/register-product")}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                      >
+                        <Plus size={12} /> Cadastrar produto
+                      </button>
+                    </div>
+                    <div className="mt-2 h-[132px] overflow-y-auto pr-1">
+                    {selectedProducts.length > 0 ? (
+                      <div className="flex flex-col gap-2">
                         {selectedProducts.map((product) => (
                           <div
                             key={product.value}
@@ -288,34 +355,24 @@ export default function CreateRouteSegment() {
                           </div>
                         ))}
                       </div>
+                    ) : (
+                      <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-2.5 text-center text-[11px] font-medium text-slate-500">
+                        Selecione produtos no catálogo acima para compor a carga.
+                      </div>
                     )}
+                    </div>
 
                     {itemsError ?? mappedFieldErrors.items ? (
-                      <p className="text-[11px] font-medium text-rose-600">
+                      <p className="mt-2 text-[11px] font-medium text-rose-600">
                         {itemsError ?? mappedFieldErrors.items}
                       </p>
                     ) : null}
-                  </div>
-
-                  <div className="mt-auto flex items-center justify-between rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-2.5">
-                    <p className="text-[11px] font-medium text-slate-500">
-                      Não encontrou o produto na lista?
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate("/register-product")}
-                      className="h-8 border-slate-200 bg-white text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
-                    >
-                      <Plus size={13} className="mr-1.5" /> Cadastrar produto
-                    </Button>
                   </div>
                 </div>
               </div>
 
               {/* Bloco 3: Malha Logística (Direita, Topo) */}
-              <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
+              <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white">
                 <div className="flex h-[52px] shrink-0 items-center gap-2 rounded-t-xl border-b border-slate-100 bg-slate-50/50 px-5">
                   <MapPinned size={16} className="text-emerald-600" />
                   <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
@@ -499,6 +556,31 @@ export default function CreateRouteSegment() {
                     O piso legal (ANTT) será calculado depois.
                   </p>
                 </div>
+              </div>
+
+              {/* Ações (Cancelar / Salvar) — abaixo do Balizamento, coluna direita */}
+              <div className="flex items-center justify-end gap-3 md:col-start-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  className="h-10 border-slate-200 bg-white text-xs font-semibold text-slate-700"
+                  onClick={() => navigate("/route-segment-management")}
+                >
+                  <X size={14} className="mr-1.5" /> Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={pending}
+                  className="h-10 bg-blue-600 text-xs font-bold tracking-wide text-white hover:bg-blue-700"
+                >
+                  {pending ? (
+                    <Loader2 size={14} className="mr-1.5 animate-spin" />
+                  ) : (
+                    <Save size={14} className="mr-1.5" />
+                  )}
+                  Salvar Trecho Operacional
+                </Button>
               </div>
             </div>
           </div>
