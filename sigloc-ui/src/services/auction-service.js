@@ -347,6 +347,13 @@ export function toCarrierAnalysis(dto) {
       city: stop.city ?? "",
       action: stop.action ?? "",
     })),
+    segments: (dto.segments ?? []).map((segment) => ({
+      id: segment.id ?? null,
+      mainProduct: segment.mainProduct ?? "",
+      origin: segment.origin ?? "",
+      destination: segment.destination ?? "",
+      financialCeiling: segment.financialCeiling ?? null,
+    })),
     myBid: dto.myBid
       ? {
           bidId: dto.myBid.bidId ?? null,

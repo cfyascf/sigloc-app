@@ -243,7 +243,7 @@ export default function SegmentDetails() {
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
                 <div className="flex items-center gap-2">
                   <Layers size={16} className="text-blue-600" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Trechos Contidos nesta Rota ({route.segments.length})</h2>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Produtos Contidos nesta Rota ({route.segments.length})</h2>
                 </div>
               </div>
               <div className="divide-y divide-slate-100">

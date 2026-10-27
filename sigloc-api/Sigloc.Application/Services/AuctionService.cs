@@ -573,6 +573,13 @@ public class AuctionService : IAuctionService
             RequiredTemperature: ResolveRequiredTemperature(products, requirement),
             HandlingRestrictions: ResolveHandlingRestrictions(products));
 
+        var segments = detail.Segments.Select(s => new AuctionSegmentDto(
+            Id: s.Id,
+            MainProduct: ResolveMainProduct(s),
+            Origin: CityName(s.OriginPlace),
+            Destination: CityName(s.DestinationPlace),
+            FinancialCeiling: s.BudgetCeiling)).ToList();
+
         return new CarrierBidAnalysisDto(
             AuctionId: detail.Auction.Id,
             RouteSummary: new CarrierAnalysisRouteSummaryDto(
@@ -597,6 +604,7 @@ public class AuctionService : IAuctionService
             TravelPlan: stops
                 .Select(s => new CarrierAnalysisTravelStopDto(s.Order, s.CityState, s.ActionType))
                 .ToList(),
+            Segments: segments,
             MyBid: myBidDto);
     }
 

@@ -302,6 +302,7 @@ public record CarrierBidAnalysisDto(
     CarrierAnalysisPhysicalRequirementsDto PhysicalRequirements,
     IReadOnlyList<CarrierAnalysisVehicleDto> CarrierAvailableFleet,
     IReadOnlyList<CarrierAnalysisTravelStopDto> TravelPlan,
+    IReadOnlyList<AuctionSegmentDto> Segments,
     CarrierAnalysisMyBidDto? MyBid);
 
 // ---------------------------------------------------------------------------
