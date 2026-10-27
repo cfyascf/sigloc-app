@@ -229,7 +229,7 @@ export default function FleetManagement() {
                 {/* LINHA PRINCIPAL VISÍVEL */}
                 <div className="flex items-center w-full p-3.5 text-left">
 
-                  <div className="grid min-w-0 flex-1 grid-cols-[150px_1fr_130px_1fr_160px] items-center gap-5 pl-2">
+                  <div className="grid min-w-0 flex-1 grid-cols-[1fr_1fr_1fr_1fr_1fr_210px] items-center gap-5 pl-2 pr-20">
                     {/* Col 1: ID e Status */}
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 shrink-0 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
@@ -271,21 +271,21 @@ export default function FleetManagement() {
                         <MapPin size={14} className="text-slate-400" /> {vehicle.location}
                       </p>
                     </div>
-                  </div>
 
-                  {/* Capacidade (Peso/Vol) as bordered boxes matching the ETA/Ping style. Right padding keeps it clear of the hover actions. */}
-                  <div className="ml-5 grid w-[240px] shrink-0 grid-cols-2 gap-2 pr-20 text-left">
-                    <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
-                      <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                        <Scale size={10} /> Peso
+                    {/* Col 6: Capacidade (Peso/Vol) as bordered boxes matching the ETA/Ping style. */}
+                    <div className="grid min-w-0 grid-cols-2 gap-2 text-left">
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                          <Scale size={10} className="shrink-0" /> Peso
+                        </div>
+                        <div className="mt-0.5 whitespace-nowrap text-xs font-bold text-slate-700 font-mono">{formatWeight(vehicle.weightKg)}</div>
                       </div>
-                      <div className="mt-0.5 truncate text-xs font-bold text-slate-700 font-mono">{formatWeight(vehicle.weightKg)}</div>
-                    </div>
-                    <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
-                      <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                        <Box size={10} /> Volume
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                          <Box size={10} className="shrink-0" /> Volume
+                        </div>
+                        <div className="mt-0.5 whitespace-nowrap text-xs font-bold text-slate-700 font-mono">{formatVolume(vehicle.volumeM3)}</div>
                       </div>
-                      <div className="mt-0.5 truncate text-xs font-bold text-slate-700 font-mono">{formatVolume(vehicle.volumeM3)}</div>
                     </div>
                   </div>
 
