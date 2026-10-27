@@ -373,7 +373,7 @@ export default function PlaceBid() {
                       <p className="text-[10px] font-semibold text-slate-500">Nenhum veículo cadastrado na sua frota</p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
                       {carrierAvailableFleet.map((vehicle) => {
                         const isSelected = selectedVehicleId === vehicle.vehicleId
                         const details = [vehicle.model, ...vehicle.specifications].filter(Boolean).join(" · ")
