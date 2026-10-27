@@ -45,11 +45,12 @@ const NO_FILTERS = { status: "", bodyType: "", refrigeration: "" }
 const FieldError = ({ message }) =>
   message ? <p className="text-[10px] font-semibold text-rose-600">{message}</p> : null
 
-const getStatusTextStyle = (status) => {
-  if (status === "Livre") return "text-emerald-600 font-bold"
-  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "text-blue-600 font-bold"
-  if (status === "Manutenção") return "text-amber-600 font-bold"
-  return "text-slate-400"
+// Pill (chip) colours for the dedicated status column.
+const getStatusChipStyle = (status) => {
+  if (status === "Livre") return "border-emerald-200 bg-emerald-50 text-emerald-700"
+  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "border-blue-200 bg-blue-50 text-blue-700"
+  if (status === "Manutenção") return "border-amber-200 bg-amber-50 text-amber-700"
+  return "border-slate-200 bg-slate-50 text-slate-500"
 }
 
 export default function FleetManagement() {
@@ -228,15 +229,15 @@ export default function FleetManagement() {
                 {/* LINHA PRINCIPAL VISÍVEL */}
                 <div className="flex items-center w-full p-3.5 text-left">
 
-                  <div className="grid min-w-0 flex-1 grid-cols-[120px_1.1fr_1.3fr_250px] items-center gap-6 pl-2">
-                    {/* Col 1: Status, ID e Tipo */}
+                  <div className="grid min-w-0 flex-1 grid-cols-[1fr_1fr_1fr_1fr_1fr_210px] items-center gap-5 pl-2 pr-20">
+                    {/* Col 1: ID e Status */}
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 shrink-0 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
-                      <div className="flex min-w-0 flex-col gap-1">
+                      <div className="flex min-w-0 flex-col gap-1.5">
                         <span className="font-mono text-[11px] font-semibold tracking-wider text-slate-400">#{shortId(vehicle.id)}</span>
-                        <Badge variant="secondary" className="w-fit text-[10px] bg-slate-100 text-slate-600 font-bold uppercase tracking-wide border-none px-1.5 py-0">
-                          {vehicle.bodyType}
-                        </Badge>
+                        <span className={`inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${getStatusChipStyle(displayStatus(vehicle))}`}>
+                          {displayStatus(vehicle)}
+                        </span>
                       </div>
                     </div>
 
@@ -248,25 +249,42 @@ export default function FleetManagement() {
                       </span>
                     </div>
 
-                    {/* Col 3: Motorista e Localização/Status */}
+                    {/* Col 3: Tipo */}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                        <User size={14} className="text-slate-400" /> {vehicle.driver}
-                      </p>
-                      <span className={`text-[11px] flex items-center gap-1 mt-0.5 ${getStatusTextStyle(displayStatus(vehicle))}`}>
-                        {displayStatus(vehicle)} <span className="text-slate-300 mx-0.5">•</span> <MapPin size={10} /> {vehicle.location}
-                      </span>
+                      <Badge variant="secondary" className="w-fit text-[10px] bg-slate-100 text-slate-600 font-bold uppercase tracking-wide border-none px-1.5 py-0.5">
+                        {vehicle.bodyType}
+                      </Badge>
                     </div>
 
-                    {/* Col 4: Capacidade (Peso/Vol). Right padding keeps it clear of the hover actions. */}
-                    <div className="flex items-center justify-end gap-3 pr-20 text-xs font-bold whitespace-nowrap">
-                      <div className="text-right mr-2">
-                        <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Capacidade Total</span>
+                    {/* Col 4: Motorista */}
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Motorista</span>
+                      <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5 mt-0.5">
+                        <User size={14} className="text-slate-400" /> {vehicle.driver}
+                      </p>
+                    </div>
+
+                    {/* Col 5: Localização */}
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Localização</span>
+                      <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5 mt-0.5">
+                        <MapPin size={14} className="text-slate-400" /> {vehicle.location}
+                      </p>
+                    </div>
+
+                    {/* Col 6: Capacidade (Peso/Vol) as bordered boxes matching the ETA/Ping style. */}
+                    <div className="grid min-w-0 grid-cols-2 gap-2 text-left">
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                          <Scale size={10} className="shrink-0" /> Peso
+                        </div>
+                        <div className="mt-0.5 whitespace-nowrap text-xs font-bold text-slate-700 font-mono">{formatWeight(vehicle.weightKg)}</div>
                       </div>
-                      <div className="flex gap-1.5 text-slate-600 bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
-                        <span className="flex items-center gap-1"><Scale size={12} className="text-slate-400"/> {formatWeight(vehicle.weightKg)}</span>
-                        <span className="text-slate-300">•</span>
-                        <span className="flex items-center gap-1"><Box size={12} className="text-slate-400"/> {formatVolume(vehicle.volumeM3)}</span>
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                          <Box size={10} className="shrink-0" /> Volume
+                        </div>
+                        <div className="mt-0.5 whitespace-nowrap text-xs font-bold text-slate-700 font-mono">{formatVolume(vehicle.volumeM3)}</div>
                       </div>
                     </div>
                   </div>

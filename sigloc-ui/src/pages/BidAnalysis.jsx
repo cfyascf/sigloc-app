@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { auctionService } from "@/services/auction-service"
 import { ApiError } from "@/lib/api-client"
+import { shortId } from "@/lib/utils"
 
 const numberFormat = new Intl.NumberFormat("pt-BR")
 const formatWeight = (value) => `${numberFormat.format(Math.round(value ?? 0))} kg`
@@ -82,7 +83,7 @@ export default function BidAnalysis() {
     )
   }
 
-  const { routeSummary, competition, physicalRequirements, travelPlan, myBid } = analysis
+  const { routeSummary, competition, physicalRequirements, travelPlan, segments, myBid } = analysis
   // The leader offer is a total (freight + toll), so it is compared against the bid's total.
   const myBidDistanceToLeader = myBid && bestLeaderOffer != null ? myBid.totalValue - bestLeaderOffer : null
 
@@ -232,6 +233,34 @@ export default function BidAnalysis() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* PRODUTOS CONTIDOS NA ROTA */}
+            <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <Layers size={16} className="text-blue-600" />
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Produtos Contidos nesta Rota ({segments.length})</h2>
+                </div>
+              </div>
+              {segments.length === 0 ? (
+                <p className="px-5 py-4 text-xs font-medium text-slate-500">Nenhum produto associado a esta rota.</p>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {segments.map((seg) => (
+                    <div key={seg.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="font-mono text-[10px] font-semibold tracking-wider text-slate-400">#{shortId(seg.id)}</p>
+                          <p className="text-xs font-bold text-slate-800">{seg.mainProduct}</p>
+                          <p className="text-[10px] font-medium text-slate-500">{seg.origin} ➔ {seg.destination}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs font-bold font-mono text-slate-600">Teto: {formatCurrency(seg.financialCeiling ?? 0)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* ITINERÁRIO */}
