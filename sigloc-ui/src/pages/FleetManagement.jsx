@@ -45,11 +45,12 @@ const NO_FILTERS = { status: "", bodyType: "", refrigeration: "" }
 const FieldError = ({ message }) =>
   message ? <p className="text-[10px] font-semibold text-rose-600">{message}</p> : null
 
-const getStatusTextStyle = (status) => {
-  if (status === "Livre") return "text-emerald-600 font-bold"
-  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "text-blue-600 font-bold"
-  if (status === "Manutenção") return "text-amber-600 font-bold"
-  return "text-slate-400"
+// Pill (chip) colours for the dedicated status column.
+const getStatusChipStyle = (status) => {
+  if (status === "Livre") return "border-emerald-200 bg-emerald-50 text-emerald-700"
+  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "border-blue-200 bg-blue-50 text-blue-700"
+  if (status === "Manutenção") return "border-amber-200 bg-amber-50 text-amber-700"
+  return "border-slate-200 bg-slate-50 text-slate-500"
 }
 
 export default function FleetManagement() {
@@ -228,7 +229,7 @@ export default function FleetManagement() {
                 {/* LINHA PRINCIPAL VISÍVEL */}
                 <div className="flex items-center w-full p-3.5 text-left">
 
-                  <div className="grid min-w-0 flex-1 grid-cols-[120px_1.1fr_1.3fr_250px] items-center gap-6 pl-2">
+                  <div className="grid min-w-0 flex-1 grid-cols-[120px_1fr_1fr_140px_150px_210px] items-center gap-5 pl-2">
                     {/* Col 1: Status, ID e Tipo */}
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 shrink-0 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
@@ -248,17 +249,32 @@ export default function FleetManagement() {
                       </span>
                     </div>
 
-                    {/* Col 3: Motorista e Localização/Status */}
+                    {/* Col 3: Motorista */}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Motorista</span>
+                      <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5 mt-0.5">
                         <User size={14} className="text-slate-400" /> {vehicle.driver}
                       </p>
-                      <span className={`text-[11px] flex items-center gap-1 mt-0.5 ${getStatusTextStyle(displayStatus(vehicle))}`}>
-                        {displayStatus(vehicle)} <span className="text-slate-300 mx-0.5">•</span> <MapPin size={10} /> {vehicle.location}
+                    </div>
+
+                    {/* Col 4: Status */}
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Status</span>
+                      <span className={`mt-1 inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-bold ${getStatusChipStyle(displayStatus(vehicle))}`}>
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
+                        {displayStatus(vehicle)}
                       </span>
                     </div>
 
-                    {/* Col 4: Capacidade (Peso/Vol). Right padding keeps it clear of the hover actions. */}
+                    {/* Col 5: Localização */}
+                    <div className="min-w-0">
+                      <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Localização</span>
+                      <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5 mt-0.5">
+                        <MapPin size={14} className="text-slate-400" /> {vehicle.location}
+                      </p>
+                    </div>
+
+                    {/* Col 6: Capacidade (Peso/Vol). Right padding keeps it clear of the hover actions. */}
                     <div className="flex items-center justify-end gap-3 pr-20 text-xs font-bold whitespace-nowrap">
                       <div className="text-right mr-2">
                         <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Capacidade Total</span>
