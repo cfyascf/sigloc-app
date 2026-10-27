@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Search, SlidersHorizontal, Truck, ChevronRight, RefreshCw, Loader2, Archive } from "lucide-react"
+import { Search, SlidersHorizontal, Truck, ChevronRight, RefreshCw, Loader2, Archive, CalendarClock } from "lucide-react"
 
 import AppShell from "@/components/app-shell"
 import { Badge } from "@/components/ui/badge"
@@ -112,7 +112,7 @@ export function TripListView({ title, heading, historyHeading, searchPlaceholder
             >
               {/* ID + STATUS */}
               <div className="flex w-[140px] shrink-0 flex-col items-start gap-1 text-left">
-                <span className="font-mono text-sm font-black text-slate-900">#{shortId(rota.id) || "Viagem"}</span>
+                <span className="font-mono text-[11px] font-semibold tracking-wider text-slate-400">{shortId(rota.id) || "Viagem"}</span>
                 <Badge variant="outline" className={`text-[10px] font-bold uppercase border-none px-1.5 py-0 ${statusBadgeClass(rota.status)}`}>
                     {tripStatusLabel(rota.status)}
                 </Badge>
@@ -138,16 +138,18 @@ export function TripListView({ title, heading, historyHeading, searchPlaceholder
               </div>
 
               {/* DADOS DE MONITORAMENTO */}
-              <div className="ml-auto flex shrink-0 gap-4 whitespace-nowrap text-right">
-                <div className="w-[140px]">
-                    <span className="block text-[10px] text-slate-400 uppercase font-bold">ETA</span>
-                    <span className="text-sm font-bold text-slate-700 font-mono">{formatTripDate(rota.eta)}</span>
+              <div className="ml-auto grid w-[300px] shrink-0 grid-cols-2 gap-2 text-left">
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                    <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                        <CalendarClock size={10} /> ETA
+                    </div>
+                    <div className="mt-0.5 truncate text-xs font-bold text-slate-700 font-mono">{formatTripDate(rota.eta)}</div>
                 </div>
-                <div className="w-[160px]">
-                    <span className="block text-[10px] text-slate-400 uppercase font-bold">Ping</span>
-                    <span className="text-sm font-bold text-slate-700 font-mono flex justify-end items-center gap-1">
-                        <RefreshCw size={10} /> {formatTripDate(rota.lastPing)}
-                    </span>
+                <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                    <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                        <RefreshCw size={10} /> Ping
+                    </div>
+                    <div className="mt-0.5 truncate text-xs font-bold text-slate-700 font-mono">{formatTripDate(rota.lastPing)}</div>
                 </div>
               </div>
 
