@@ -141,4 +141,13 @@ public class AuthController : ControllerBase
         await _authService.ConfirmPasswordResetAsync(dto, cancellationToken);
         return NoContent();
     }
+
+    /// <summary>Ends every session of the caller: tokens issued before now stop working.</summary>
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+    {
+        await _authService.LogoutAsync(User.GetUserId(), cancellationToken);
+        return NoContent();
+    }
 }

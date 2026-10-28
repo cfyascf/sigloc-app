@@ -10,6 +10,7 @@ import { useAsyncAction } from "@/hooks/use-async-action"
 import { formatCnpj } from "@/lib/formatters"
 import { profileService } from "@/services/profile-service"
 import { ROLES } from "@/constants/roles"
+import { useAuth } from "@/contexts/AuthContext"
 
 function MetricTile({ icon: Icon, label, value }) {
   return (
@@ -25,6 +26,9 @@ function MetricTile({ icon: Icon, label, value }) {
   )
 }
 
+// Same limit as the API (ProfileService.MaxCompanyNameLength).
+const COMPANY_NAME_MAX_LENGTH = 150
+
 const EMPTY_CONTACT = { logisticsContactName: "", logisticsContactPhone: "", logisticsContactEmail: "" }
 
 const toContactForm = (profile) => ({
@@ -34,6 +38,7 @@ const toContactForm = (profile) => ({
 })
 
 export default function Profile() {
+  const { setDisplayName } = useAuth()
   const [profile, setProfile] = useState(null)
   const [form, setForm] = useState({ companyName: "", tradeName: "" })
   const [successMessage, setSuccessMessage] = useState("")
@@ -86,6 +91,7 @@ export default function Profile() {
         companyName: result.data.companyName ?? "",
         tradeName: result.data.tradeName ?? "",
       })
+      setDisplayName(result.data.tradeName || result.data.companyName)
       setSuccessMessage("Dados atualizados com sucesso.")
     }
   }
@@ -179,6 +185,7 @@ export default function Profile() {
                     type="text"
                     placeholder="Empresa LTDA"
                     required
+                    maxLength={COMPANY_NAME_MAX_LENGTH}
                     value={form.companyName}
                     onChange={handleChange}
                     error={companyNameError}
@@ -188,6 +195,7 @@ export default function Profile() {
                     label="Nome Fantasia"
                     type="text"
                     placeholder="Nome comercial"
+                    maxLength={COMPANY_NAME_MAX_LENGTH}
                     value={form.tradeName}
                     onChange={handleChange}
                     error={tradeNameError}

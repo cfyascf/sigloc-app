@@ -98,7 +98,7 @@ public partial class AuthService : IAuthService
         await _users.AddAsync(user, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return BuildAuthResult(user);
+        return await BuildAuthResultAsync(user, cancellationToken);
     }
 
     public async Task<InviteCreatedDto> CreateInviteAsync(Guid contractorId, CreateInviteDto dto, CancellationToken cancellationToken = default)
@@ -241,7 +241,7 @@ public partial class AuthService : IAuthService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         await NotifyPartnerJoinedAsync(contractor.Id, carrier);
-        return BuildAuthResult(user);
+        return await BuildAuthResultAsync(user, cancellationToken);
     }
 
     public async Task<PartnerConnectionCreatedDto> ConnectCarrierByInviteAsync(Guid carrierId, string token, CancellationToken cancellationToken = default)
@@ -302,7 +302,7 @@ public partial class AuthService : IAuthService
             throw new InvalidCredentialsException();
         }
 
-        return BuildAuthResult(user);
+        return await BuildAuthResultAsync(user, cancellationToken);
     }
 
     public async Task RequestPasswordResetAsync(PasswordResetRequestDto dto, CancellationToken cancellationToken = default)
@@ -375,7 +375,22 @@ public partial class AuthService : IAuthService
         }
 
         user.PasswordHash = _passwordHasher.Hash(dto.Password);
+        // A new password ends every session opened with the old one.
+        user.TokenVersion++;
         resetToken.UsedAt = now;
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task LogoutAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _users.GetByIdAsync(userId, cancellationToken);
+        if (user is null)
+        {
+            return;
+        }
+
+        // Every token issued so far carries the old version and stops being accepted.
+        user.TokenVersion++;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
@@ -420,7 +435,7 @@ public partial class AuthService : IAuthService
         await _users.AddAsync(user, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return BuildAuthResult(user);
+        return await BuildAuthResultAsync(user, cancellationToken);
     }
 
     public async Task<AuthResultDto> RegisterCarrierByInviteWithGoogleAsync(string token, RegisterCarrierGoogleDto dto, CancellationToken cancellationToken = default)
@@ -491,7 +506,7 @@ public partial class AuthService : IAuthService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         await NotifyPartnerJoinedAsync(contractor.Id, carrier);
-        return BuildAuthResult(user);
+        return await BuildAuthResultAsync(user, cancellationToken);
     }
 
     public async Task<AuthResultDto> LoginWithGoogleAsync(GoogleLoginDto dto, CancellationToken cancellationToken = default)
@@ -508,25 +523,52 @@ public partial class AuthService : IAuthService
             throw new InvalidCredentialsException();
         }
 
-        return BuildAuthResult(user);
+        return await BuildAuthResultAsync(user, cancellationToken);
     }
 
-    private AuthResultDto BuildAuthResult(User user)
+    private async Task<AuthResultDto> BuildAuthResultAsync(User user, CancellationToken cancellationToken)
     {
         var token = _jwtProvider.Generate(
             user.Id,
             user.Email,
             user.ProfileType.ToRole(),
             user.ProfileType.ToWire(),
-            user.CompanyId);
+            user.CompanyId,
+            user.TokenVersion);
 
         var userDto = new AuthUserDto(
             user.Id,
             user.Email,
             user.ProfileType.ToWire(),
-            user.CompanyId);
+            user.CompanyId,
+            await GetCompanyDisplayNameAsync(user, cancellationToken));
 
         return new AuthResultDto(token, userDto);
+    }
+
+    // Shown in the app header: trade name when set, else the legal name. Null for admins or a
+    // company that can't be found, and the UI falls back to the e-mail.
+    private async Task<string?> GetCompanyDisplayNameAsync(User user, CancellationToken cancellationToken)
+    {
+        if (user.CompanyId is not Guid companyId)
+        {
+            return null;
+        }
+
+        (string? TradeName, string CompanyName)? company = user.ProfileType switch
+        {
+            ProfileType.Contratante => await _contractors.GetByIdAsync(companyId, cancellationToken) is { } contractor
+                ? (contractor.TradeName, contractor.CompanyName)
+                : null,
+            ProfileType.Transportador => await _carriers.GetByIdAsync(companyId, cancellationToken) is { } carrier
+                ? (carrier.TradeName, carrier.CompanyName)
+                : null,
+            _ => null,
+        };
+
+        return company is { } found
+            ? (string.IsNullOrWhiteSpace(found.TradeName) ? found.CompanyName : found.TradeName)
+            : null;
     }
 
     private async Task<Contracts.GoogleUserInfo> VerifyGoogleAsync(string? idToken, CancellationToken cancellationToken)
@@ -554,6 +596,10 @@ public partial class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(companyName))
         {
             errors.Add(new ValidationError("razaoSocial", "Campo obrigatório."));
+        }
+        else if (companyName.Trim().Length > ProfileService.MaxCompanyNameLength)
+        {
+            errors.Add(new ValidationError("razaoSocial", $"Máximo de {ProfileService.MaxCompanyNameLength} caracteres."));
         }
 
         if (errors.Count > 0)
@@ -603,6 +649,10 @@ public partial class AuthService : IAuthService
         {
             errors.Add(new ValidationError("razaoSocial", "Campo obrigatório."));
         }
+        else if (companyName.Trim().Length > ProfileService.MaxCompanyNameLength)
+        {
+            errors.Add(new ValidationError("razaoSocial", $"Máximo de {ProfileService.MaxCompanyNameLength} caracteres."));
+        }
 
         if (string.IsNullOrWhiteSpace(email) || !EmailRegex().IsMatch(email))
         {
@@ -648,6 +698,6 @@ public partial class AuthService : IAuthService
         await _users.AddAsync(user, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return BuildAuthResult(user);
+        return await BuildAuthResultAsync(user, cancellationToken);
     }
 }

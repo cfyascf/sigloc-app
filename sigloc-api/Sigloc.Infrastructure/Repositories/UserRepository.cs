@@ -26,6 +26,15 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
     }
 
+    public async Task<int?> GetTokenVersionAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.Id == id)
+            .Select(u => (int?)u.TokenVersion)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public Task<User?> GetByGoogleIdAsync(string googleId, CancellationToken cancellationToken = default)
     {
         return _dbContext.Users

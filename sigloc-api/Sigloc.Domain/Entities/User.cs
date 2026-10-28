@@ -36,4 +36,10 @@ public class User : BaseEntity
     /// matching Contractor/Carrier row), null for Admin.
     /// </summary>
     public Guid? CompanyId { get; set; }
+
+    /// <summary>
+    /// Carried in every JWT; tokens with an older value are rejected. Incremented on logout and
+    /// password reset, which ends every session of the user at once.
+    /// </summary>
+    public int TokenVersion { get; set; }
 }

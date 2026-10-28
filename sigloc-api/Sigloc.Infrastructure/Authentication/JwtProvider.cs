@@ -16,14 +16,18 @@ public sealed class JwtProvider : IJwtProvider
         _jwtSettings = jwtOptions.Value;
     }
 
-    public string Generate(Guid userId, string email, string role, string profileType, Guid? companyId)
+    /// <summary>Claim holding <see cref="Sigloc.Domain.Entities.User.TokenVersion"/>; checked on every request.</summary>
+    public const string TokenVersionClaim = "versaoToken";
+
+    public string Generate(Guid userId, string email, string role, string profileType, Guid? companyId, int tokenVersion = 0)
     {
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, userId.ToString()),
             new(ClaimTypes.Email, email),
             new(ClaimTypes.Role, role),
-            new("tipoPerfil", profileType)
+            new("tipoPerfil", profileType),
+            new(TokenVersionClaim, tokenVersion.ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer32)
         };
 
         if (companyId.HasValue)

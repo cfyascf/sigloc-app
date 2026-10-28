@@ -21,6 +21,7 @@ const ENDPOINTS = {
   passwordResetConfirm: "/api/auth/password-reset/confirm",
   invite: "/api/auth/invite",
   activeInvite: "/api/auth/invite/active",
+  logout: "/api/auth/logout",
 }
 
 /**
@@ -44,6 +45,10 @@ export function extractInviteToken(input) {
  * app, attaching a derived `role`.
  */
 function deriveDisplayName(user) {
+  if (typeof user?.companyName === "string" && user.companyName.trim()) {
+    return user.companyName.trim()
+  }
+
   if (typeof user?.email === "string" && user.email.includes("@")) {
     return user.email.split("@")[0]
   }
@@ -65,6 +70,19 @@ function toSession(payload) {
       name: deriveDisplayName(user),
     },
   }
+}
+
+/**
+ * Ends the session on the server: every token issued so far stops working. Sends the given token
+ * explicitly because the caller clears the local session right after.
+ */
+export async function logout(token, options) {
+  if (!token) return
+  await apiClient.post(ENDPOINTS.logout, undefined, {
+    auth: false,
+    headers: { Authorization: `Bearer ${token}` },
+    ...options,
+  })
 }
 
 /**
@@ -252,4 +270,5 @@ export const authService = {
   registerCarrierByInvite,
   registerCarrierByInviteWithGoogle,
   connectByInvite,
+  logout,
 }
