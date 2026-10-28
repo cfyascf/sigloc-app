@@ -213,8 +213,8 @@ export default function CarrierRouteTracking() {
           <TripKpiCard icon={Clock} tone="emerald" label="ETA Previsto" value={formatTripDate(trip.eta)} hint={!trip.eta && isActive ? "Recalculado no próximo ping" : undefined} />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:items-stretch">
-          <div className="flex min-h-0 flex-col gap-4 lg:col-span-8">
+        <div className="grid grid-cols-1 gap-4 lg:flex-1 lg:grid-cols-12 lg:items-stretch">
+          <div className="flex flex-col gap-4 lg:col-span-8">
             <div className="shrink-0">
               <TripStopTimeline stops={trip.stops} renderStopActions={renderStopActions} />
             </div>
@@ -256,8 +256,8 @@ export default function CarrierRouteTracking() {
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-col gap-4 lg:col-span-4">
-            <TripLocationCard trip={trip} className="flex min-h-[140px] flex-1 flex-col overflow-hidden" mapClassName="min-h-0 flex-1">
+          <div className="flex flex-col gap-4 lg:col-span-4">
+            <TripLocationCard trip={trip} className="flex min-h-fit flex-1 flex-col overflow-hidden" mapClassName="min-h-[180px] flex-1">
               {noTracker && <NoTrackerNotice plate={trip.plate} isCarrier />}
               <Button
                 className="w-full bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
@@ -330,8 +330,8 @@ export default function CarrierRouteTracking() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto pb-6 pr-2 lg:flex lg:flex-col lg:overflow-hidden">
-          <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">{renderBody()}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto pb-6 pr-2 lg:flex lg:flex-col">
+          <div className="space-y-4 lg:flex lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">{renderBody()}</div>
         </div>
       </div>
 

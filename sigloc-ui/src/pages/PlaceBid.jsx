@@ -59,10 +59,10 @@ function RequirementCell({ icon: Icon, label, value, hint, className = "" }) {
   )
 }
 
-function StepCard({ step, done, title, description, children }) {
+function StepCard({ step, done, title, description, children, className = "" }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mb-4 flex items-start gap-2.5">
+    <div className={`rounded-xl border border-slate-200 bg-white p-4 ${className}`}>
+      <div className="mb-4 flex shrink-0 items-start gap-2.5">
         <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-black text-white ${done ? "bg-emerald-500" : "bg-blue-600"}`}>
           {done ? <Check size={12} strokeWidth={3} /> : step}
         </div>
@@ -294,10 +294,10 @@ export default function PlaceBid() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-2 pb-6 space-y-4">
+          <div className="h-full space-y-4 overflow-y-auto pr-2 lg:flex lg:flex-col lg:space-y-0 lg:gap-4">
 
             {/* CABEÇALHO */}
-            <div>
+                      <div className="shrink-0">
               <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
                 <Gavel size={18} className="text-blue-600" /> {myBid ? "Atualizar Lance" : "Dar Lance"}
               </h1>
@@ -307,7 +307,7 @@ export default function PlaceBid() {
             </div>
 
             {/* EXIGÊNCIAS DA CARGA */}
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
               <div className="border-b border-slate-100 px-4 py-2.5">
                 <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Exigências da Carga</h2>
               </div>
@@ -334,7 +334,7 @@ export default function PlaceBid() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
               <div className="space-y-4 lg:col-span-8">
 
                 {/* 1. VALOR DO FRETE */}
@@ -387,7 +387,8 @@ export default function PlaceBid() {
                       <p className="text-[10px] font-semibold text-slate-500">Nenhum veículo cadastrado na sua frota</p>
                     </div>
                   ) : (
-                    <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                    // lg: exactly two vehicle rows (61px each + 8px gap); the rest scrolls inside the list.
+                    <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1 lg:max-h-[130px]">
                       {carrierAvailableFleet.map((vehicle) => {
                         const isSelected = selectedVehicleId === vehicle.vehicleId
                         const details = [vehicle.model, ...vehicle.specifications].filter(Boolean).join(" · ")
@@ -423,7 +424,7 @@ export default function PlaceBid() {
               </div>
 
               {/* RESUMO DO LANCE */}
-              <aside className="rounded-xl border border-slate-200 bg-white lg:col-span-4 lg:sticky lg:top-0">
+              <aside className="rounded-xl border border-slate-200 bg-white lg:col-span-4 lg:flex lg:flex-col">
                 <div className="border-b border-slate-100 px-4 py-3">
                   <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Resumo do Lance</h2>
                 </div>
@@ -455,7 +456,7 @@ export default function PlaceBid() {
                   </div>
                 </div>
 
-                <div className="space-y-1 border-t border-slate-100 p-4">
+                <div className="space-y-1 border-t border-slate-100 p-4 lg:mt-auto">
                   <Button
                     disabled={!selectedVehicleId || submitting}
                     onClick={handleSubmit}
