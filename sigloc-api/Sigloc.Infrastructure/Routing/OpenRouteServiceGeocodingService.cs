@@ -20,6 +20,9 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
     private const double MetersPerKilometer = 1000d;
     private const double SecondsPerHour = 3600d;
 
+    // Pelias confidence (0–1) from which a result is accepted without further checks.
+    private const double MinimumConfidence = 0.8;
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -101,13 +104,44 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
 
         var feature = response?.Features?.FirstOrDefault();
         var coordinates = feature?.Geometry?.Coordinates;
-        if (coordinates is not { Length: >= 2 })
+        if (coordinates is not { Length: >= 2 } || !IsPlausibleMatch(address, feature!.Properties))
         {
             throw new AddressNotFoundException(address);
         }
 
         // OpenRouteService always works in [longitude, latitude] order.
         return (new[] { coordinates[0], coordinates[1] }, FormatPlace(feature!.Properties));
+    }
+
+    /// <summary>
+    /// Pelias always returns its best guess, even for gibberish ("xyzqwv lugar inexistente" came
+    /// back as São Paulo). A guess is kept when Pelias is confident in it, or when the city, county
+    /// or state it matched was actually typed. Results without a confidence score are kept.
+    /// </summary>
+    private static bool IsPlausibleMatch(string address, GeocodeProperties? properties)
+    {
+        if (properties?.Confidence is not double confidence || confidence >= MinimumConfidence)
+        {
+            return true;
+        }
+
+        var typed = $" {Normalize(address)} ";
+        return new[] { properties.Locality, properties.LocalAdmin, properties.County, properties.Region }
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Any(name => typed.Contains($" {Normalize(name!)} ", StringComparison.Ordinal));
+    }
+
+    // Lower case, no accents, punctuation as spaces: "São Paulo, SP" -> "sao paulo sp".
+    private static string Normalize(string text)
+    {
+        var builder = new System.Text.StringBuilder(text.Length);
+        foreach (var c in text.Normalize(System.Text.NormalizationForm.FormD))
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark) continue;
+            builder.Append(char.IsLetterOrDigit(c) ? char.ToLowerInvariant(c) : ' ');
+        }
+
+        return string.Join(' ', builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
     /// <summary>
@@ -202,6 +236,9 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
 
         [JsonPropertyName("region")]
         public string? Region { get; init; }
+
+        [JsonPropertyName("confidence")]
+        public double? Confidence { get; init; }
     }
 
     private sealed class GeocodeGeometry

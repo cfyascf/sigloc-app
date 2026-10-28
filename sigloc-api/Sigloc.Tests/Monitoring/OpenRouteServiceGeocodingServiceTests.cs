@@ -42,4 +42,33 @@ public class OpenRouteServiceGeocodingServiceTests
         Assert.Null(geometry.OriginPlace);
         Assert.Null(geometry.DestinationPlace);
     }
+
+    [Fact]
+    public async Task A_low_confidence_guess_in_a_city_that_was_not_typed_is_rejected()
+    {
+        var service = Service(query => query.Contains("xyzqwv")
+            ? """{"features":[{"geometry":{"coordinates":[-46.63,-23.55]},"properties":{"locality":"São Paulo","region":"São Paulo","region_a":"SP","confidence":0.4}}]}"""
+            : """{"features":[{"geometry":{"coordinates":[-51.16,-23.31]},"properties":{"locality":"Londrina","region_a":"PR","confidence":1}}]}""");
+
+        await Assert.ThrowsAsync<Sigloc.Application.Exceptions.AddressNotFoundException>(
+            () => service.ResolveAsync("xyzqwv lugar inexistente 99999", "Londrina, PR"));
+    }
+
+    [Theory]
+    [InlineData("Rua Inventada 123, Curitiba, PR", "Curitiba", 0.6)]
+    [InlineData("rua x, sao paulo", "São Paulo", 0.5)]
+    [InlineData("Rua Terra Roxa", "Curitiba", 0.9)]
+    public async Task A_guess_is_kept_when_confident_or_when_its_city_was_typed(string address, string locality, double confidence)
+    {
+        var score = confidence.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var body = "{\"features\":[{\"geometry\":{\"coordinates\":[-49.27,-25.43]},\"properties\":{\"locality\":\""
+            + locality + "\",\"region_a\":\"PR\",\"confidence\":" + score + "}}]}";
+        var service = Service(query => query.Contains("Londrina")
+            ? """{"features":[{"geometry":{"coordinates":[-51.16,-23.31]},"properties":{"locality":"Londrina","region_a":"PR","confidence":1}}]}"""
+            : body);
+
+        var geometry = await service.ResolveAsync(address, "Londrina, PR");
+
+        Assert.Equal($"{locality}, PR", geometry.OriginPlace);
+    }
 }
