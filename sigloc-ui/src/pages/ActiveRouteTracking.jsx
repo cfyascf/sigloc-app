@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react"
+import { useCallback, useState } from "react"
 import { ArrowLeft, RefreshCw, Truck, Clock, Phone, User, Scale, ArrowRightLeft, Target, Loader2, FileText } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import AppShell from "@/components/app-shell"
@@ -8,6 +8,7 @@ import { TripCard } from "@/components/trips/trip-card"
 import { TripEventLog } from "@/components/trips/trip-event-log"
 import { TripKpiCard } from "@/components/trips/trip-kpi-card"
 import { TripLocationCard } from "@/components/trips/trip-location-card"
+import { NO_TRACKER_ERROR, NoTrackerNotice } from "@/components/trips/no-tracker-notice"
 import { TripStopTimeline } from "@/components/trips/trip-stop-timeline"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { useTripRequest } from "@/hooks/use-trip-request"
@@ -17,19 +18,24 @@ import { formatFileSize, formatRouteProgress, formatTripDate, formatTripNumber, 
 
 export default function ActiveRouteTracking() {
   const { tripId } = useParams()
-  // Page load reads the cached snapshot; only the "Localizar Motorista" button sets
-  // this flag so the next request fetches a live GPS position from the provider.
-  const refreshNext = useRef(false)
-  const load = useCallback((options) => {
-    const refresh = refreshNext.current
-    refreshNext.current = false
-    return getTripDetails(tripId, { ...options, refresh })
-  }, [tripId])
-  const { data: trip, pending, error, reload } = useTripRequest(load, tripId)
-  const handlePing = useCallback(() => {
-    refreshNext.current = true
-    reload()
-  }, [reload])
+  // Page load reads the cached snapshot; "Localizar Motorista" is a separate request for a live GPS
+  // position, so a failed attempt keeps the trip on screen and only reports why.
+  const load = useCallback((options) => getTripDetails(tripId, options), [tripId])
+  const { data: trip, pending, error, replace } = useTripRequest(load, tripId)
+  const pingAction = useAsyncAction((id) => getTripDetails(id, { refresh: true }))
+  // Outcome of the last attempt, tied to its trip so it never shows on another one.
+  const [ping, setPing] = useState(null)
+  const pingOutcome = ping?.tripId === tripId ? ping : null
+  const noTracker = trip?.hasTracker === false || pingOutcome?.code === NO_TRACKER_ERROR
+  const handlePing = async () => {
+    const result = await pingAction.run(tripId)
+    if (result.ok) {
+      replace(result.data)
+      setPing(null)
+    } else {
+      setPing({ tripId, code: result.error?.code, error: result.error?.message || "Não foi possível localizar o motorista." })
+    }
+  }
   const toast = useToast()
   const downloadAction = useAsyncAction((id, proofId) => downloadTripProof(id, proofId))
   const handleDownload = async (proof) => {
@@ -38,8 +44,23 @@ export default function ActiveRouteTracking() {
     else toast.error("Não foi possível baixar o comprovante", result.error?.message || "Tente novamente.")
   }
 
+  if (error?.status === 404) {
+    return (
+      <AppShell title="Monitoramento">
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-16 text-center">
+          <Truck size={28} className="text-slate-300" />
+          <p className="text-sm font-bold text-slate-700">Viagem não encontrada</p>
+          <p className="max-w-md text-xs text-slate-500">Ela não existe ou não pertence à sua empresa.</p>
+          <Link to="/active-routes">
+            <Button variant="outline" className="mt-2">Ver rotas ativas</Button>
+          </Link>
+        </div>
+      </AppShell>
+    )
+  }
+
   return (
-    <AppShell title={`Monitoramento: ${trip?.reference || tripId || "Viagem"}`}>
+    <AppShell title={trip?.reference ? `Monitoramento: ${trip.reference}` : "Monitoramento"}>
       <div className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden">
         <div className="mb-4 flex shrink-0 items-center justify-between border-b border-slate-200 pb-3 pt-1">
           <Link to="/active-routes">
@@ -47,9 +68,14 @@ export default function ActiveRouteTracking() {
               <ArrowLeft size={16} className="mr-2" /> Voltar para Rotas Ativas
             </Button>
           </Link>
-          <Button className="h-9 bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700" onClick={handlePing} disabled={pending}>
-            <RefreshCw size={14} className={`mr-1.5 ${pending ? "animate-spin" : ""}`} />
-            {pending ? "Localizando..." : "Localizar Motorista"}
+          <Button
+            className="h-9 bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
+            onClick={handlePing}
+            disabled={pending || pingAction.pending || noTracker}
+            title={noTracker ? "Veículo sem dispositivo Traccar: não é possível rastrear por GPS." : undefined}
+          >
+            <RefreshCw size={14} className={`mr-1.5 ${pingAction.pending ? "animate-spin" : ""}`} />
+            {pingAction.pending ? "Localizando..." : "Localizar Motorista"}
           </Button>
         </div>
 
@@ -57,6 +83,8 @@ export default function ActiveRouteTracking() {
           <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">
             {pending && <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Carregando monitoramento...</p>}
             {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error.message || "Não foi possível carregar a viagem."}</p>}
+            {noTracker && <NoTrackerNotice plate={trip?.plate} />}
+            {pingOutcome?.error && !noTracker && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{pingOutcome.error}</p>}
             {trip?.stale && <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{trip.warning || "Dados de monitoramento desatualizados."}</p>}
 
             <div className="grid shrink-0 grid-cols-1 gap-4 md:grid-cols-4">

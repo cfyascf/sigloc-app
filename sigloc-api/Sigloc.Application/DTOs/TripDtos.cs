@@ -66,6 +66,12 @@ public record TripDetailDto(
     IReadOnlyList<TripProofOfDeliveryDto>? Proofs = null)
 {
     [JsonPropertyName("viagemId")] public Guid TripId => Id;
+
+    /// <summary>
+    /// False when the vehicle has no Traccar device: GPS tracking ("Localizar Motorista",
+    /// "Transmitir Posição GPS") is impossible and the screens say so up front.
+    /// </summary>
+    [JsonPropertyName("possuiRastreador")] public bool HasTracker { get; init; }
     [JsonPropertyName("rotaId")] public Guid ConsolidatedRouteId => RouteId;
     [JsonPropertyName("codigoReferencia")] public string ReferenceCode => Reference;
     [JsonPropertyName("statusGeral")] public string GeneralStatus => Status == "EM_TRANSITO" ? "EM_CURSO" : Status;

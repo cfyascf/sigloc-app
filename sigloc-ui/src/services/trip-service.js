@@ -35,6 +35,7 @@ export function toProof(dto) {
 
 export function toActiveTrip(dto) {
   const cache = dto.monitoramentoCache ?? {}
+  const delivered = (dto.statusViagem ?? dto.statusGeral ?? dto.status) === "ENTREGUE"
   const carrier = typeof dto.transportadora === "object" ? dto.transportadora?.nomeFantasia : dto.transportadora
   const plate = typeof dto.veiculo === "object" ? dto.veiculo?.placa : dto.placa
   return {
@@ -49,7 +50,8 @@ export function toActiveTrip(dto) {
     shipperName: typeof dto.embarcador === "string" ? dto.embarcador : null,
     origin: dto.origem,
     destination: dto.destino,
-    progress: numberOrNull(dto.progressoPercentual ?? cache.progressoPercentual),
+    // A delivered trip covered the whole route even when no GPS ping ever filled the cache.
+    progress: delivered ? 100 : numberOrNull(dto.progressoPercentual ?? cache.progressoPercentual),
     eta: dto.novoEta ?? cache.ultimoEtaCalculado,
     lastPing: dto.ultimaPosicaoEm ?? cache.ultimaAtualizacaoPing,
     lastCalculation: dto.ultimaAtualizacaoCalculada ?? dto.ultimaAtualizacao,
@@ -75,6 +77,8 @@ export function toTripDetails(dto) {
     ...base,
     carrier: (typeof dto.motorista === "object" ? dto.motorista?.transportadora : null) ?? base.carrier,
     plate: (typeof dto.motorista === "object" ? dto.motorista?.placa : null) ?? base.plate,
+    // false = the vehicle has no Traccar device, so GPS tracking is impossible; null = not reported.
+    hasTracker: typeof dto.possuiRastreador === "boolean" ? dto.possuiRastreador : null,
     eta: health.novoEta ?? health.ultimoEtaCalculado ?? base.eta,
     traveled: numberOrNull(health.distanciaPercorridaKm ?? dto.distanciaPercorridaKm),
     totalDistance: numberOrNull(health.distanciaTotalKm ?? dto.distanciaTotalKm),

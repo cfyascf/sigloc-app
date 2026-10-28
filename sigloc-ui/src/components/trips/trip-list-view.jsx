@@ -35,7 +35,12 @@ export function TripListView({ title, heading, historyHeading, searchPlaceholder
   const hasHistory = typeof historyLoadTrips === "function"
   const isHistory = hasHistory && selectedTab === "history"
   useEffect(() => {
-    const timeout = setTimeout(() => setQuery((current) => ({ ...current, search: search.trim() })), 300)
+    // Keep the same object when the term didn't change: a new query object rebuilds the loader,
+    // which re-runs the request and aborts the one already in flight (seen as a double fetch).
+    const timeout = setTimeout(() => {
+      const term = search.trim()
+      setQuery((current) => (current.search === term ? current : { ...current, search: term }))
+    }, 300)
     return () => clearTimeout(timeout)
   }, [search])
   const handleTabChange = (value) => {

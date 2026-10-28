@@ -20,6 +20,11 @@ public sealed class CarrierTripsController(ICarrierTripService service) : Contro
     public async Task<IActionResult> Search([FromQuery] TripQueryDto query, CancellationToken ct) =>
         Ok(await service.SearchAsync(User.GetCompanyId(), query, ct));
 
+    /// <summary>Delivered and cancelled trips of the carrier (the "Histórico" tab).</summary>
+    [HttpGet("historico")]
+    public async Task<IActionResult> SearchHistory([FromQuery] TripQueryDto query, CancellationToken ct) =>
+        Ok(await service.SearchHistoryAsync(User.GetCompanyId(), query, ct));
+
     /// <summary>Trip detail; <c>refresh=true</c> is the driver's "Transmitir Posição GPS" ping.</summary>
     [HttpGet("{id:guid}/detalhes")]
     public async Task<IActionResult> Detail(Guid id, [FromQuery] bool refresh, CancellationToken ct)

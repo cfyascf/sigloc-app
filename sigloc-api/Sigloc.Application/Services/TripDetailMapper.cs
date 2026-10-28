@@ -33,7 +33,10 @@ public static class TripDetailMapper
                 s.IsCompleted ? "CONCLUIDA" : s == next ? "EM_TRANSITO" : "PENDENTE", s.CompletedAt, s.CompletionSource,
                 s.Actions.OrderBy(a => a.Kind).ThenBy(a => a.Deadline).ThenBy(a => a.Id).Select(a => new TripActionDto(a.Id, a.SegmentId, a.ProductName,
                     a.Kind == StopActionKind.Pickup ? "COLETA" : "ENTREGA", a.Deadline, a.CompletedAt, a.CompletionSource)).ToList())).ToList(),
-            state.Events.OrderByDescending(e => e.OccurredAt).ThenBy(e => e.Id).Take(50).Select(e => new TripEventDto(e.Id, e.Kind, e.Description, e.OccurredAt)).ToList());
+            state.Events.OrderByDescending(e => e.OccurredAt).ThenBy(e => e.Id).Take(50).Select(e => new TripEventDto(e.Id, e.Kind, e.Description, e.OccurredAt)).ToList())
+        {
+            HasTracker = state.Vehicle.TraccarDeviceId is > 0,
+        };
     }
 
     /// <summary>Earliest open action deadline of the first pending stop.</summary>

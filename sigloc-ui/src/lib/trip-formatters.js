@@ -73,6 +73,8 @@ export function stopActionLabel(type) {
 
 export function formatFileSize(bytes) {
   if (typeof bytes !== "number" || !Number.isFinite(bytes)) return UNKNOWN
+  // Below 1 KB the rounded value would read "0 KB" for a real file.
+  if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${formatTripNumber(bytes / 1024)} KB`
   return `${formatTripNumber(bytes / (1024 * 1024))} MB`
 }
@@ -117,5 +119,6 @@ export function eventSeverity(event) {
   }
   if (kind === "OCORRENCIA_ENCERRADA") return { level: "RESOLVED", label: "Encerrada", style: "bg-emerald-100 text-emerald-700" }
   if (kind === "PARADA_CONFIRMADA") return { level: "INFO", label: "Parada", style: "bg-blue-100 text-blue-700" }
+  if (kind === "PARADA_SUSPEITA") return { level: "WARNING", label: "Suspeita", style: "bg-amber-100 text-amber-700" }
   return { level: "INFO", label: "Info", style: "bg-slate-100 text-slate-600" }
 }

@@ -10,6 +10,7 @@ import { TripCard } from "@/components/trips/trip-card"
 import { TripEventLog } from "@/components/trips/trip-event-log"
 import { TripKpiCard } from "@/components/trips/trip-kpi-card"
 import { TripLocationCard } from "@/components/trips/trip-location-card"
+import { NO_TRACKER_ERROR, NoTrackerNotice } from "@/components/trips/no-tracker-notice"
 import { TripStopTimeline } from "@/components/trips/trip-stop-timeline"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
@@ -91,6 +92,7 @@ export default function CarrierRouteTracking() {
   const pingOutcome = ping?.tripId === tripId ? ping : null
 
   const isActive = Boolean(trip) && !trip.lifecycle
+  const noTracker = trip?.hasTracker === false || pingOutcome?.code === NO_TRACKER_ERROR
   const busy = pingAction.pending || completeAction.pending || occurrenceAction.pending
   const deadline = trip?.currentAction?.deadline ?? trip?.nextDeadline
   const remaining = useCountdown(isActive ? deadline : null)
@@ -104,7 +106,7 @@ export default function CarrierRouteTracking() {
   const handlePing = async () => {
     const result = await pingAction.run(tripId)
     if (!result.ok) {
-      setPing({ tripId, error: result.error?.message || "Não foi possível transmitir a posição." })
+      setPing({ tripId, code: result.error?.code, error: result.error?.message || "Não foi possível transmitir a posição." })
       return
     }
     detail.replace(result.data)
@@ -256,11 +258,17 @@ export default function CarrierRouteTracking() {
 
           <div className="flex min-h-0 flex-col gap-4 lg:col-span-4">
             <TripLocationCard trip={trip} className="flex min-h-[140px] flex-1 flex-col overflow-hidden" mapClassName="min-h-0 flex-1">
-              <Button className="w-full bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700" onClick={handlePing} disabled={!isActive || busy}>
+              {noTracker && <NoTrackerNotice plate={trip.plate} isCarrier />}
+              <Button
+                className="w-full bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
+                onClick={handlePing}
+                disabled={!isActive || busy || noTracker}
+                title={noTracker ? "Veículo sem dispositivo Traccar: não é possível rastrear por GPS." : undefined}
+              >
                 <RefreshCw className={pingAction.pending ? "animate-spin" : ""} />
                 {pingAction.pending ? "Transmitindo..." : "Transmitir Posição GPS (Ping)"}
               </Button>
-              {pingOutcome?.error && <p className="text-xs font-medium text-rose-600">{pingOutcome.error}</p>}
+              {pingOutcome?.error && !noTracker && <p className="text-xs font-medium text-rose-600">{pingOutcome.error}</p>}
               {pingOutcome?.renewed === false && (
                 <p className="text-xs text-amber-700">Nenhuma nova posição foi calculada agora: exibindo a posição em cache.</p>
               )}
