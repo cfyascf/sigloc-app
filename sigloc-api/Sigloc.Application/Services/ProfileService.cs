@@ -65,6 +65,9 @@ public class ProfileService : IProfileService
         return MapContractor(contractor);
     }
 
+    // Shared with registration (AuthService); long names break cards, headers and notifications.
+    internal const int MaxCompanyNameLength = 150;
+
     private static string Validate(UpdateCompanyProfileDto dto, bool isCarrier)
     {
         var errors = new List<ValidationError>();
@@ -72,6 +75,15 @@ public class ProfileService : IProfileService
         if (string.IsNullOrWhiteSpace(dto.CompanyName))
         {
             errors.Add(new ValidationError("razaoSocial", "Campo obrigatório."));
+        }
+        else if (dto.CompanyName.Trim().Length > MaxCompanyNameLength)
+        {
+            errors.Add(new ValidationError("razaoSocial", $"Máximo de {MaxCompanyNameLength} caracteres."));
+        }
+
+        if (dto.TradeName?.Trim().Length > MaxCompanyNameLength)
+        {
+            errors.Add(new ValidationError("nomeFantasia", $"Máximo de {MaxCompanyNameLength} caracteres."));
         }
 
         // Carriers have no logistics contact; their values are ignored rather than rejected.

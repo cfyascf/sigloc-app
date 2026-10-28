@@ -5,8 +5,22 @@
  */
 
 import { apiClient } from "@/lib/api-client"
+import { ROLES } from "@/constants/roles"
 
 const BASE = "/api/profile"
+
+// The profile endpoint names roles in the domain vocabulary ("Shipper" / "Carrier"); the UI
+// compares against its own ROLES values.
+const PROFILE_ROLE_TO_ROLE = {
+  SHIPPER: ROLES.CONTRACTOR,
+  CONTRATANTE: ROLES.CONTRACTOR,
+  CARRIER: ROLES.CARRIER,
+  TRANSPORTADOR: ROLES.CARRIER,
+}
+
+export function toRole(value) {
+  return typeof value === "string" ? (PROFILE_ROLE_TO_ROLE[value.toUpperCase()] ?? null) : null
+}
 
 /** Normalizes a `CompanyProfileDto` into a plain object for the UI. */
 function toProfile(dto) {
@@ -16,7 +30,7 @@ function toProfile(dto) {
 
   return {
     id: dto.id ?? null,
-    role: dto.role ?? null,
+    role: toRole(dto.role),
     cnpj: dto.cnpj ?? "",
     companyName: dto.companyName ?? "",
     tradeName: dto.tradeName ?? "",

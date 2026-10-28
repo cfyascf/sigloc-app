@@ -125,6 +125,7 @@ export function InviteRegisterForm({ token, onSuccess, onExistingCarrier }) {
           type="text"
           placeholder="Transportadora LTDA"
           required
+          maxLength={150}
           value={company.companyName}
           onChange={handleCompanyChange}
           error={fieldErrors.companyName}
@@ -132,6 +133,7 @@ export function InviteRegisterForm({ token, onSuccess, onExistingCarrier }) {
 
         <FormField
           id="tradeName"
+          maxLength={150}
           label="Nome Fantasia"
           type="text"
           placeholder="Nome comercial"
