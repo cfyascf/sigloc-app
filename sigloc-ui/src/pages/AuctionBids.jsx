@@ -10,6 +10,7 @@ import { FormAlert } from "@/components/auth/FormAlert"
 import { useToast } from "@/components/ui/toast"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { getBidRanking, awardAuction } from "@/services/auction-service"
+import { shortId } from "@/lib/utils"
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value ?? 0)
@@ -72,7 +73,7 @@ export default function AuctionBids() {
       toast.success(
         "Leilão adjudicado com sucesso",
         tripId
-          ? `Viagem criada (${tripId}). Acompanhe em Rotas Ativas.`
+          ? `Viagem TRP-${shortId(tripId)} criada. Acompanhe em Rotas Ativas.`
           : "Acompanhe a viagem em Rotas Ativas."
       )
       navigate("/active-routes")
@@ -196,12 +197,16 @@ export default function AuctionBids() {
           <div className="h-full overflow-y-auto pr-2 pb-6">
             
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 ml-1">Ranking de Propostas ({rankedBids.length})</h3>
+              {!(loadAction.error && !ranking) && (
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 ml-1">Ranking de Propostas ({rankedBids.length})</h3>
+              )}
 
               {rankedBids.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 border-dashed py-12 text-center text-slate-500 bg-slate-50/50">
-                  {loadAction.pending ? "Carregando propostas…" : "Nenhum lance recebido para este leilão ainda."}
-                </div>
+                loadAction.error && !ranking ? null : (
+                  <div className="rounded-xl border border-slate-200 border-dashed py-12 text-center text-slate-500 bg-slate-50/50">
+                    {loadAction.pending ? "Carregando propostas…" : "Nenhum lance recebido para este leilão ainda."}
+                  </div>
+                )
               ) : (
                 rankedBids.map((bid) => {
                   const isTopRank = bid.rank === 1

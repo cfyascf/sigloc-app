@@ -19,15 +19,16 @@ after(async () => {
   await server?.close()
 })
 
-test("carrier analysis keeps the estimated toll and vehicle volume used by the bid page", () => {
+test("carrier analysis keeps the estimated toll, ANTT floor and vehicle volume used by the bid page", () => {
   const analysis = auctions.toCarrierAnalysis({
-    competition: { activeBids: 3, bestLeaderOffer: 4700, auctionCeiling: 5000, estimatedToll: 450 },
+    competition: { activeBids: 3, bestLeaderOffer: 4700, auctionCeiling: 5000, estimatedToll: 450, estimatedAnttFloor: 4000 },
     carrierAvailableFleet: [{ vehicleId: "v1", plate: "ABC1234", capacityWeightKg: 8000, capacityVolumeM3: 30 }],
   })
-  assert.deepEqual(analysis.competition, { activeBids: 3, bestLeaderOffer: 4700, auctionCeiling: 5000, estimatedToll: 450 })
+  assert.deepEqual(analysis.competition, { activeBids: 3, bestLeaderOffer: 4700, auctionCeiling: 5000, estimatedToll: 450, estimatedAnttFloor: 4000 })
   assert.equal(analysis.carrierAvailableFleet[0].capacityVolumeM3, 30)
 })
 
-test("carrier analysis defaults a missing toll to zero", () => {
+test("carrier analysis defaults a missing toll to zero and a missing floor to null", () => {
   assert.equal(auctions.toCarrierAnalysis({}).competition.estimatedToll, 0)
+  assert.equal(auctions.toCarrierAnalysis({}).competition.estimatedAnttFloor, null)
 })

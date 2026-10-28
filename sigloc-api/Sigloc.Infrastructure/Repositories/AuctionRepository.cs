@@ -123,6 +123,23 @@ public class AuctionRepository : IAuctionRepository
         return new AuctionWithRoute(row.auction, row.route, segments);
     }
 
+    public async Task<IReadOnlyList<(Guid AuctionId, Guid ContractorId)>> GetExpiredAutomaticAsync(
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await (
+            from auction in _dbContext.Auctions.AsNoTracking()
+            join route in _dbContext.ConsolidatedRoutes.AsNoTracking() on auction.RouteId equals route.Id
+            where auction.Status == AuctionStatus.Open
+                && auction.AutomaticAward
+                && auction.ExpiresAt <= now
+            orderby auction.ExpiresAt
+            select new { AuctionId = auction.Id, route.ContractorId })
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(r => (r.AuctionId, r.ContractorId)).ToList();
+    }
+
     public async Task<Auction?> GetTrackedByIdAsync(
         Guid id,
         Guid contractorId,

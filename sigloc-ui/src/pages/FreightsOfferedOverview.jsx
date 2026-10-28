@@ -60,7 +60,8 @@ const toStops = (summary) => {
 /** Maps an auction list item DTO to the card view model used by the JSX. */
 const toCardModel = (item) => ({
   id: item.id,
-  name: item.itinerarySummary || item.itineraryWithStates || item.id,
+  // An undone auction no longer has segments, so it has no itinerary to show.
+  name: item.itinerarySummary || item.itineraryWithStates || "Rota sem trechos",
   stops: toStops(item.itineraryWithStates || item.itinerarySummary),
   bestBid: item.bidMetrics?.bestBid ?? null,
   totalBids: item.bidMetrics?.totalBids ?? 0,
@@ -399,7 +400,9 @@ export default function FreightsOfferedOverview() {
                             <Input type="datetime-local" value={editForm.deadline ?? ""} onChange={(e) => setEditForm({...editForm, deadline: e.target.value})} className="h-8 text-xs border-slate-200" />
                           </div>
                           {updateAction.error && (
-                            <p className="text-[10px] font-semibold text-rose-600">{updateAction.error.message}</p>
+                            <p className="text-[10px] font-semibold text-rose-600">
+                              {updateAction.fieldErrors.expiresAt ?? updateAction.error.message}
+                            </p>
                           )}
                           <div className="flex gap-2 justify-end mt-auto pt-4 border-t border-slate-100">
                             <Button size="sm" variant="ghost" onClick={cancelEditing} disabled={updateAction.pending} className="h-8 text-xs">Cancelar</Button>

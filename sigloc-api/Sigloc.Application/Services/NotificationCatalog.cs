@@ -21,6 +21,9 @@ public static class NotificationCatalog
     public const string TripDeliveredType = "VIAGEM_ENTREGUE";
     public const string OccurrenceType = "OCORRENCIA";
     public const string TripAtRiskType = "VIAGEM_EM_RISCO";
+    public const string SuspiciousStopType = "PARADA_SUSPEITA";
+    public const string AuctionAutoAwardedType = "LEILAO_ADJUDICADO";
+    public const string AuctionNoWinnerType = "LEILAO_SEM_VENCEDOR";
     // Either side.
     public const string PartnershipEndedType = "PARCERIA_ENCERRADA";
 
@@ -58,6 +61,19 @@ public static class NotificationCatalog
         new(carrierId, AuctionCancelledType, "Leilão cancelado",
             $"O embarcador cancelou o leilão {route}. Seu lance foi descartado.", "/freights-offers-overview");
 
+    public static NotificationMessage AuctionEndedWithoutWinnerForCarrier(Guid carrierId, string route) =>
+        new(carrierId, AuctionLostType, "Leilão encerrado",
+            $"O leilão {route} terminou sem vencedor. Seu lance foi descartado.", "/freights-offers-overview");
+
+    public static NotificationMessage AuctionAutoAwarded(Guid contractorId, Guid tripId, string route, decimal totalValue) =>
+        new(contractorId, AuctionAutoAwardedType, "Leilão adjudicado automaticamente",
+            $"O leilão {route} terminou e o menor lance ({totalValue.ToString("C", PtBr)}) foi escolhido. A viagem {TripDetailMapper.Reference(tripId)} aguarda a coleta.",
+            $"/active-route-tracking/{tripId}");
+
+    public static NotificationMessage AuctionEndedWithoutWinner(Guid contractorId, string route, string reason) =>
+        new(contractorId, AuctionNoWinnerType, "Leilão encerrado sem vencedor",
+            $"O leilão {route} terminou {reason}. Os trechos voltaram para a Gestão de Trechos.", "/route-segment-management");
+
     public static NotificationMessage BidReceived(Guid contractorId, string carrierName, string route, decimal totalValue, bool updated, Guid auctionId) =>
         new(contractorId, BidReceivedType, updated ? "Lance atualizado" : "Novo lance recebido",
             $"{carrierName} {(updated ? "atualizou o lance para" : "ofereceu")} {totalValue.ToString("C", PtBr)} no leilão {route}.",
@@ -84,6 +100,11 @@ public static class NotificationCatalog
             : new(contractorId, PickupConfirmedType, $"Coleta confirmada · {reference}",
                 $"O motorista confirmou a coleta em {city}.", link);
     }
+
+    public static NotificationMessage SuspiciousStop(Guid contractorId, Guid tripId, string city, string reason) =>
+        new(contractorId, SuspiciousStopType, $"Confirmação suspeita · {TripDetailMapper.Reference(tripId)}",
+            $"A parada em {city} foi confirmada, mas {reason}. Verifique com a transportadora.",
+            $"/active-route-tracking/{tripId}");
 
     public static NotificationMessage OccurrenceReported(Guid contractorId, Guid tripId, string occurrence, bool critical) =>
         new(contractorId, OccurrenceType, $"Ocorrência na viagem {TripDetailMapper.Reference(tripId)}",

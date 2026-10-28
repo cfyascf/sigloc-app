@@ -62,6 +62,7 @@ try
     builder.Services.PostConfigure<FileStorageSettings>(settings =>
         settings.RootPath = Path.GetFullPath(settings.RootPath, builder.Environment.ContentRootPath));
     builder.Services.AddApplication();
+    builder.Services.AddHostedService<Sigloc.Api.BackgroundJobs.AuctionAutoAwardWorker>();
     builder.Services.AddControllers();
 
     // Allowed origins are read from configuration ("Cors:AllowedOrigins") so they

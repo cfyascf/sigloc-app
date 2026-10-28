@@ -851,6 +851,131 @@ public class AuctionServiceTests
     }
 
     // =====================================================================
+    // AutoAwardAsync
+    // =====================================================================
+
+    private (ConsolidatedRoute Route, Auction Auction, RouteSegment Segment) ExpiredAutomaticAuction(DateTimeOffset? pickup = null)
+    {
+        var route = Route();
+        var auction = Auction(routeId: route.Id);
+        auction.AutomaticAward = true;
+        auction.ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        var segment = Segment(contractorId: _contractorId, status: SegmentStatus.Routed, routeId: route.Id,
+            pickup: pickup ?? DateTimeOffset.UtcNow.AddDays(1), products: TestData.Product());
+        _auctionRepository.GetTrackedByIdAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>()).Returns(auction);
+        _routeRepository.GetTrackedByIdAsync(route.Id, Arg.Any<CancellationToken>()).Returns(route);
+        _segmentRepository.GetTrackedByRouteAsync(route.Id, Arg.Any<CancellationToken>()).Returns(new List<RouteSegment> { segment });
+        _auctionRepository.GetDetailAsync(auction.Id, _contractorId, Arg.Any<CancellationToken>())
+            .Returns(new AuctionWithRoute(auction, route, new[] { segment }));
+        return (route, auction, segment);
+    }
+
+    private Bid NewBid(Guid auctionId, decimal total, DateTimeOffset submittedAt, Guid? vehicleId = null) => new()
+    {
+        Id = Guid.NewGuid(), AuctionId = auctionId, CarrierId = Guid.NewGuid(), VehicleId = vehicleId ?? Guid.NewGuid(),
+        TotalValue = total, SubmittedAt = submittedAt, Status = BidStatus.Pending,
+    };
+
+    [Fact]
+    public async Task AutoAwardAsync_lowest_total_wins_and_earliest_breaks_a_tie()
+    {
+        var (_, auction, _) = ExpiredAutomaticAuction();
+        var now = DateTimeOffset.UtcNow;
+        var higher = NewBid(auction.Id, 900m, now.AddHours(-5));
+        var lateTie = NewBid(auction.Id, 700m, now.AddHours(-1));
+        var earlyTie = NewBid(auction.Id, 700m, now.AddHours(-2));
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[] { higher, lateTie, earlyTie });
+
+        var outcome = await _service.AutoAwardAsync(_contractorId, auction.Id, now);
+
+        outcome.Should().Be(AutoAwardOutcome.Awarded);
+        earlyTie.Status.Should().Be(BidStatus.Winner);
+        auction.Status.Should().Be(AuctionStatus.Closed);
+        await _notifier.Received(1).AuctionAutoAwardedAsync(_contractorId, Arg.Any<Guid>(), Arg.Any<string>(), 700m, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AutoAwardAsync_skips_a_bid_whose_vehicle_is_no_longer_free()
+    {
+        var (_, auction, segment) = ExpiredAutomaticAuction();
+        var now = DateTimeOffset.UtcNow;
+        var busyVehicle = Guid.NewGuid();
+        var cheapest = NewBid(auction.Id, 500m, now.AddHours(-3), busyVehicle);
+        var next = NewBid(auction.Id, 600m, now.AddHours(-2));
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[] { cheapest, next });
+        _tripRepository.GetActiveWindowsForVehicleAsync(busyVehicle, Arg.Any<CancellationToken>())
+            .Returns(new[] { new TripScheduleWindow(segment.PickupDeadline, segment.DeliveryDeadline) });
+
+        var outcome = await _service.AutoAwardAsync(_contractorId, auction.Id, now);
+
+        outcome.Should().Be(AutoAwardOutcome.Awarded);
+        next.Status.Should().Be(BidStatus.Winner);
+        cheapest.Status.Should().Be(BidStatus.Losing);
+    }
+
+    [Fact]
+    public async Task AutoAwardAsync_without_bids_closes_and_releases_the_segments()
+    {
+        var (route, auction, segment) = ExpiredAutomaticAuction();
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(Array.Empty<Bid>());
+
+        var outcome = await _service.AutoAwardAsync(_contractorId, auction.Id, DateTimeOffset.UtcNow);
+
+        outcome.Should().Be(AutoAwardOutcome.ClosedWithoutWinner);
+        auction.Status.Should().Be(AuctionStatus.Closed);
+        route.Status.Should().Be(RouteStatus.Planned);
+        segment.Status.Should().Be(SegmentStatus.Available);
+        segment.RouteId.Should().BeNull();
+        await _tripRepository.DidNotReceive().AddAsync(Arg.Any<Trip>(), Arg.Any<CancellationToken>());
+        await _notifier.Received(1).AuctionEndedWithoutWinnerAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(),
+            Arg.Any<string>(), "sem lances", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AutoAwardAsync_after_the_first_pickup_deadline_does_not_create_a_late_trip()
+    {
+        var (_, auction, segment) = ExpiredAutomaticAuction(pickup: DateTimeOffset.UtcNow.AddDays(-3));
+        var bid = NewBid(auction.Id, 500m, DateTimeOffset.UtcNow.AddDays(-4));
+        _bidRepository.GetTrackedByAuctionAsync(auction.Id, Arg.Any<CancellationToken>()).Returns(new[] { bid });
+
+        var outcome = await _service.AutoAwardAsync(_contractorId, auction.Id, DateTimeOffset.UtcNow);
+
+        outcome.Should().Be(AutoAwardOutcome.ClosedWithoutWinner);
+        bid.Status.Should().Be(BidStatus.Losing);
+        segment.Status.Should().Be(SegmentStatus.Available);
+        await _tripRepository.DidNotReceive().AddAsync(Arg.Any<Trip>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AutoAwardAsync_route_that_already_has_a_trip_only_closes_the_auction()
+    {
+        var (route, auction, segment) = ExpiredAutomaticAuction();
+        route.Status = RouteStatus.Completed;
+        segment.Status = SegmentStatus.Completed;
+
+        var outcome = await _service.AutoAwardAsync(_contractorId, auction.Id, DateTimeOffset.UtcNow);
+
+        outcome.Should().Be(AutoAwardOutcome.ClosedStale);
+        auction.Status.Should().Be(AuctionStatus.Closed);
+        route.Status.Should().Be(RouteStatus.Completed);
+        segment.Status.Should().Be(SegmentStatus.Completed);
+    }
+
+    [Fact]
+    public async Task AutoAwardAsync_ignores_manual_or_unexpired_auctions()
+    {
+        var (_, auction, _) = ExpiredAutomaticAuction();
+        auction.ExpiresAt = DateTimeOffset.UtcNow.AddHours(1);
+
+        (await _service.AutoAwardAsync(_contractorId, auction.Id, DateTimeOffset.UtcNow)).Should().Be(AutoAwardOutcome.Skipped);
+
+        auction.ExpiresAt = DateTimeOffset.UtcNow.AddHours(-1);
+        auction.AutomaticAward = false;
+        (await _service.AutoAwardAsync(_contractorId, auction.Id, DateTimeOffset.UtcNow)).Should().Be(AutoAwardOutcome.Skipped);
+        auction.Status.Should().Be(AuctionStatus.Open);
+    }
+
+    // =====================================================================
     // GetCarrierAnalysisAsync
     // =====================================================================
 
@@ -904,6 +1029,7 @@ public class AuctionServiceTests
         result.Competition.ActiveBids.Should().Be(3);
         result.Competition.BestLeaderOffer.Should().Be(5000m);
         result.Competition.AuctionCeiling.Should().Be(6000m);
+        result.Competition.EstimatedAnttFloor.Should().Be(4800m);
         result.CarrierAvailableFleet.Should().ContainSingle().Which.VehicleId.Should().Be(vehicle.Id);
         result.MyBid.Should().NotBeNull();
         result.MyBid!.BidId.Should().Be(myBid.Id);

@@ -15,6 +15,15 @@ const formatWeight = (value) => `${numberFormat.format(Math.round(value ?? 0))} 
 const formatVolume = (value) => `${numberFormat.format(Math.round(value ?? 0))} m³`
 const formatCurrency = (value) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value ?? 0)
+// Differences can be a few cents (R$ 2.850,01 against a R$ 3.000 total), which whole reais round to 0.
+const formatDifference = (value) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value ?? 0)
+const roundCents = (value) => Math.round(value * 100) / 100
 
 const formatDateTime = (value) => {
   if (!value) return "—"
@@ -132,12 +141,12 @@ function SummaryRow({ label, value }) {
 /** Where the bid total stands against the ceiling and the current leader. */
 function getBidPosition({ hasValue, bidTotal, ceiling, leader }) {
   if (!hasValue) return { tone: "slate", text: "Informe o valor do frete para ver sua posição." }
-  if (bidTotal > ceiling) return { tone: "rose", text: `${formatCurrency(bidTotal - ceiling)} acima do teto do leilão.` }
+  if (bidTotal > ceiling) return { tone: "rose", text: `${formatDifference(roundCents(bidTotal - ceiling))} acima do teto do leilão.` }
   if (leader == null) return { tone: "emerald", text: "Nenhum lance ainda: você abre a disputa." }
-  const diff = bidTotal - leader
-  if (diff < 0) return { tone: "emerald", text: `${formatCurrency(-diff)} abaixo do líder: você assume a liderança.` }
+  const diff = roundCents(bidTotal - leader)
+  if (diff < 0) return { tone: "emerald", text: `${formatDifference(-diff)} abaixo do líder: você assume a liderança.` }
   if (diff === 0) return { tone: "amber", text: "Mesmo valor do líder." }
-  return { tone: "amber", text: `${formatCurrency(diff)} acima do líder.` }
+  return { tone: "amber", text: `${formatDifference(diff)} acima do líder.` }
 }
 
 const POSITION_STYLES = {
@@ -170,8 +179,10 @@ export default function PlaceBid() {
         const data = await auctionService.getCarrierAnalysis(auctionId, { signal })
         if (signal?.aborted) return
         setAnalysis(data)
-        // Pre-fill with the carrier's own active bid when present, otherwise the ceiling.
-        setBidValue(data?.myBid?.netFreightValue ?? data?.competition?.auctionCeiling ?? "")
+        // Pre-fill with the carrier's own active bid when present, otherwise the highest freight that
+        // fits the ceiling (the ceiling is a total, so the toll comes off it).
+        const ceilingFreight = Math.max((data?.competition?.auctionCeiling ?? 0) - (data?.competition?.estimatedToll ?? 0), 0)
+        setBidValue(data?.myBid?.netFreightValue ?? (data?.competition ? roundCents(ceilingFreight) : ""))
         setSelectedVehicleId(data?.myBid?.vehicleId ?? null)
       } catch (error) {
         if (error?.name === "AbortError") return
@@ -193,12 +204,15 @@ export default function PlaceBid() {
   const bestLeaderOffer = analysis?.competition?.bestLeaderOffer ?? null
   // The leader offer and the ceiling are totals (freight + toll); the input is freight only.
   const estimatedToll = analysis?.competition?.estimatedToll ?? 0
-  const anttFloor = ceiling * 0.75
+  // The route's estimated floor, the same figure the contractor sees, read as a total like the
+  // ceiling and never above it (it is still a placeholder equal to the ceiling on most routes).
+  const serverFloor = analysis?.competition?.estimatedAnttFloor
+  const anttFloorTotal = Math.min(serverFloor > 0 ? serverFloor : ceiling, ceiling)
 
   const applyLeaderBid = () => {
     if (bestLeaderOffer != null) setBidValue(Math.max(bestLeaderOffer - estimatedToll - 50, 0))
   }
-  const applyFloorBid = () => setBidValue(Math.round(anttFloor))
+  const applyFloorBid = () => setBidValue(Math.max(roundCents(anttFloorTotal - estimatedToll), 0))
 
   const selectedVehicle = (analysis?.carrierAvailableFleet ?? []).find((v) => v.vehicleId === selectedVehicleId) ?? null
 
@@ -354,7 +368,7 @@ export default function PlaceBid() {
 
                   <PriceRuler
                     bidTotal={hasValue ? bidTotal : null}
-                    floor={anttFloor + estimatedToll}
+                    floor={anttFloorTotal}
                     leader={bestLeaderOffer}
                     ceiling={ceiling}
                   />
