@@ -9,16 +9,15 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { vehicleService } from "@/services/vehicle-service"
-import { BODY_TYPE_OPTIONS, REFRIGERATION_BY_VALUE, STATUS_OPTIONS } from "@/constants/vehicles"
+import { BODY_TYPE_OPTIONS, ON_TRIP_LABEL, REFRIGERATION_BY_VALUE, STATUS_OPTIONS } from "@/constants/vehicles"
 import { ListFilters, filtersLabel } from "@/components/list-filters"
-import { validateVehicle } from "@/lib/vehicle-validation"
+import { VEHICLE_LIMITS, mapVehicleFieldErrors, validateVehicle } from "@/lib/vehicle-validation"
 import { shortId } from "@/lib/utils"
 import VehicleForm from "@/pages/VehicleForm"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`
 
-const ON_TRIP_LABEL = "Em viagem"
 
 // A "Livre" vehicle already committed to an active trip is not free; the stored status is the
 // carrier-managed value, so this only changes what the list shows.
@@ -28,7 +27,7 @@ const displayStatus = (vehicle) =>
 // Cores baseadas no status do veículo
 const getStatusDotStyle = (status) => {
   if (status === "Livre") return "bg-emerald-500"
-  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "bg-blue-500"
+  if (status === ON_TRIP_LABEL) return "bg-blue-500"
   if (status === "Manutenção") return "bg-amber-500"
   return "bg-slate-300"
 }
@@ -36,7 +35,7 @@ const getStatusDotStyle = (status) => {
 // Mirrors the API limits so an invalid edit never reaches the server.
 const toOptions = (labels) => labels.map((label) => ({ value: label, label }))
 const FILTER_FIELDS = [
-  { key: "status", label: "Filtrar por status", allLabel: "Todos os status", options: toOptions(["Livre", ON_TRIP_LABEL, "Em Trânsito", "Manutenção"]) },
+  { key: "status", label: "Filtrar por status", allLabel: "Todos os status", options: toOptions(["Livre", ON_TRIP_LABEL, "Manutenção"]) },
   { key: "bodyType", label: "Filtrar por carroceria", allLabel: "Todas as carrocerias", options: toOptions(BODY_TYPE_OPTIONS) },
   { key: "refrigeration", label: "Filtrar por refrigeração", allLabel: "Qualquer refrigeração", options: Object.entries(REFRIGERATION_BY_VALUE).map(([value, label]) => ({ value, label })) },
 ]
@@ -48,7 +47,7 @@ const FieldError = ({ message }) =>
 // Pill (chip) colours for the dedicated status column.
 const getStatusChipStyle = (status) => {
   if (status === "Livre") return "border-emerald-200 bg-emerald-50 text-emerald-700"
-  if (status === "Em Trânsito" || status === ON_TRIP_LABEL) return "border-blue-200 bg-blue-50 text-blue-700"
+  if (status === ON_TRIP_LABEL) return "border-blue-200 bg-blue-50 text-blue-700"
   if (status === "Manutenção") return "border-amber-200 bg-amber-50 text-amber-700"
   return "border-slate-200 bg-slate-50 text-slate-500"
 }
@@ -101,7 +100,8 @@ export default function FleetManagement() {
 
   const startEditing = (vehicle) => {
     setEditingId(vehicle.id)
-    setEditForm({ ...vehicle })
+    // A record still holding the retired manual "in transit" status is edited as Livre.
+    setEditForm({ ...vehicle, status: vehicle.status === ON_TRIP_LABEL ? "Livre" : vehicle.status })
     setEditErrors({})
     setDeletingId(null)
     saveAction.reset()
@@ -314,15 +314,15 @@ export default function FleetManagement() {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Marca / Modelo</label>
-                        <Input value={editForm.model} onChange={(e) => setEditForm({...editForm, model: e.target.value})} aria-invalid={Boolean(editErrors.model)} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
-                        <FieldError message={editErrors.model} />
+                        <Input value={editForm.model} maxLength={VEHICLE_LIMITS.model} onChange={(e) => setEditForm({...editForm, model: e.target.value})} aria-invalid={Boolean(editErrors.model)} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                        <FieldError message={editErrors.model ?? saveAction.fieldErrors.model} />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Motorista Atribuído</label>
                         <Input value={editForm.driver} onChange={(e) => setEditForm({...editForm, driver: e.target.value})} className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
                       </div>
 
-                      <VehicleForm value={editForm} onChange={setEditForm} disabled={saveAction.pending} idPrefix={`vehicle-${vehicle.id}`} preserveTrackerOnBlank />
+                      <VehicleForm value={editForm} onChange={setEditForm} disabled={saveAction.pending} idPrefix={`vehicle-${vehicle.id}`} preserveTrackerOnBlank errors={{ ...mapVehicleFieldErrors(saveAction.fieldErrors), ...editErrors }} />
 
                       {/* LINHA 2: Capacidade e Equipamento */}
                       <div className="space-y-1.5">
@@ -344,6 +344,11 @@ export default function FleetManagement() {
                           <span className="absolute right-2.5 top-2.5 text-[10px] font-semibold text-slate-400">m³</span>
                         </div>
                         <FieldError message={editErrors.volumeM3 ?? saveAction.fieldErrors.capacityVolume} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label htmlFor={`vehicle-${vehicle.id}-axles`} className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Quantidade de Eixos</label>
+                        <Input id={`vehicle-${vehicle.id}-axles`} type="number" step="1" value={editForm.axleCount ?? ""} onChange={(e) => setEditForm({...editForm, axleCount: e.target.value})} aria-invalid={Boolean(editErrors.axleCount || saveAction.fieldErrors.axleCount)} className="h-9 border-slate-200 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
+                        <FieldError message={editErrors.axleCount ?? saveAction.fieldErrors.axleCount} />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tipo de Carroceria</label>
