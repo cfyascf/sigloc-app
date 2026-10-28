@@ -26,6 +26,7 @@ import { ProductFormFields } from "@/components/products/ProductFormFields"
 import { useProductForm } from "@/hooks/use-product-form"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { productService } from "@/services/product-service"
+
 import {
   categoryLabel,
   environmentLabel,
@@ -33,6 +34,7 @@ import {
   TRANSPORT_ENVIRONMENT,
 } from "@/constants/products"
 
+const weightFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 })
 const SEARCH_DEBOUNCE_MS = 350
 
 function ListItem({ product, selected, onSelect }) {
@@ -93,7 +95,7 @@ function ListItem({ product, selected, onSelect }) {
         </h3>
         <p className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
           <Tag size={12} /> {categoryLabel(product.category)} •{" "}
-          {product.defaultWeight}kg
+          {weightFormat.format(product.defaultWeight ?? 0)} kg
         </p>
       </div>
     </button>

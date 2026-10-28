@@ -80,6 +80,15 @@ public class ProductRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task SkuExistsAsync_ignores_case()
+    {
+        await new ProductRepository(_db.CreateContext()).AddAsync(TestData.Product(_contractorId, sku: "PAR-001"));
+
+        var repo = new ProductRepository(_db.CreateContext());
+        (await repo.SkuExistsAsync(_contractorId, "par-001")).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task UpdateAsync_and_DeleteAsync_persist()
     {
         var product = TestData.Product(_contractorId, name: "Old");
