@@ -115,6 +115,8 @@ export function toRouteSegment(dto) {
     status: dto.status ?? null,
     // Computed server-side from pickup-deadline proximity (NORMAL/WARNING/CRITIC).
     risk: dto.riskIndicator ?? "NORMAL",
+    // COMUM / FRAGIL / PERIGOSA; MISTA for an older segment that mixes classes.
+    cargoClass: dto.cargoClass ?? "COMUM",
     items: (dto.items ?? []).map(toItem),
     calculatedTotals: {
       totalWeightKg: totals.totalWeightKg ?? 0,

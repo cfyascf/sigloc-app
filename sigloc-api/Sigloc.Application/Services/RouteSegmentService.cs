@@ -196,6 +196,15 @@ public class RouteSegmentService : IRouteSegmentService
             throw new ValidationException(errors, "Não foi possível salvar o trecho.");
         }
 
+        var classes = CargoClassification.ClassesOf(byId.Values);
+        if (classes.Count > 1)
+        {
+            throw new ValidationException(
+                [new ValidationError("items",
+                    $"Produtos de classes diferentes não podem ir no mesmo trecho ({CargoClassification.Describe(classes)}). Crie um trecho para cada classe de carga.")],
+                "Não foi possível salvar o trecho.");
+        }
+
         return byId;
     }
 
@@ -252,6 +261,13 @@ public class RouteSegmentService : IRouteSegmentService
         if (dto.BudgetCeiling is decimal budget && budget < 0)
         {
             errors.Add(new ValidationError("budgetCeiling", "Deve ser zero ou maior."));
+        }
+        else if (dto.BudgetCeiling is decimal ceiling && ceiling > 0
+            && dto.EstimatedTollCost is decimal tollCost && tollCost >= ceiling)
+        {
+            // Bids are checked as freight + toll against the ceiling, so a toll at or above the
+            // ceiling leaves no room for any freight value and the auction could never get a bid.
+            errors.Add(new ValidationError("estimatedTollCost", "O pedágio estimado deve ser menor que o orçamento teto."));
         }
 
         var validatedItems = new List<ValidatedItem>();
@@ -363,7 +379,10 @@ public class RouteSegmentService : IRouteSegmentService
             segment.CreatedAt,
             risk,
             segment.OriginCity,
-            segment.DestinationCity);
+            segment.DestinationCity)
+        {
+            CargoClass = CargoClassification.WireValue(carriedProducts),
+        };
     }
 
     private sealed record ValidatedSegment(

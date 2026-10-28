@@ -41,6 +41,9 @@ import {
   isSegmentEditable,
   segmentShortId,
   segmentStatusLabel,
+  isPickupOverdue,
+  CARGO_CLASS_BADGES,
+  cargoSelectionBlock,
   SEGMENT_STATUS,
   mapRouteSegmentFieldErrors,
 } from "@/constants/route-segments"
@@ -224,6 +227,9 @@ export default function RouteSegmentManagement() {
     previewAction.reset()
   }
 
+  // Class of the segments already ticked: only segments of the same class can join them.
+  const selectedCargoClass = segments.find((segment) => selectedSegmentIds.includes(segment.id))?.cargoClass ?? null
+
   const handleProceedToWorkspace = async () => {
     const result = await previewAction.run(selectedSegmentIds)
     if (result.ok) {
@@ -378,7 +384,7 @@ export default function RouteSegmentManagement() {
         )}
 
         {previewAction.error ? (
-          <FormAlert message={previewAction.error.message} />
+          <FormAlert message={[previewAction.error.message, previewAction.fieldErrors.segmentIds].filter(Boolean).join(" ")} />
         ) : null}
         {deleteAction.error ? (
           <FormAlert message={deleteAction.error.message} />
@@ -416,6 +422,10 @@ export default function RouteSegmentManagement() {
               const isEditingThis = editingId === segment.id
               const isDeletingThis = deletingId === segment.id
               const editable = isSegmentEditable(segment.status)
+              const pickupOverdue = isPickupOverdue(segment)
+              const cargoBlock = isChecked ? null : cargoSelectionBlock(segment, selectedCargoClass)
+              const selectable = editable && !pickupOverdue && !cargoBlock
+              const cargoBadge = CARGO_CLASS_BADGES[segment.cargoClass]
 
               if (isDeletingThis) {
                 return (
@@ -473,8 +483,14 @@ export default function RouteSegmentManagement() {
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          disabled={!editable}
-                          title={editable ? undefined : "Somente trechos disponíveis podem entrar em uma nova rota."}
+                          disabled={!selectable}
+                          title={
+                            pickupOverdue
+                              ? "O prazo de coleta já passou. Edite o prazo para ofertar este trecho."
+                              : !editable
+                                ? "Somente trechos disponíveis podem entrar em uma nova rota."
+                                : (cargoBlock ?? undefined)
+                          }
                           onChange={() => handleToggleSegment(segment.id)}
                           className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
                         />
@@ -490,12 +506,21 @@ export default function RouteSegmentManagement() {
                           <RiskDot risk={segment.risk} />
                           <Badge
                             variant="secondary"
-                            className={`text-[10px] font-bold uppercase tracking-wide border-none px-1.5 py-0 ${statusBadgeClass(
-                              segment.status
-                            )}`}
+                            className={`text-[10px] font-bold uppercase tracking-wide border-none px-1.5 py-0 ${
+                              pickupOverdue ? "bg-rose-50 text-rose-700" : statusBadgeClass(segment.status)
+                            }`}
                           >
-                            {segmentStatusLabel(segment.status)}
+                            {pickupOverdue ? "Coleta vencida" : segmentStatusLabel(segment.status)}
                           </Badge>
+                          {cargoBadge && (
+                            <Badge
+                              variant="secondary"
+                              title="Trechos só podem formar uma rota com outros da mesma classe de carga."
+                              className={`text-[10px] font-bold uppercase tracking-wide border-none px-1.5 py-0 ${cargoBadge.className}`}
+                            >
+                              {cargoBadge.label}
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
@@ -560,6 +585,8 @@ export default function RouteSegmentManagement() {
                           variant="ghost"
                           size="icon"
                           onClick={() => startEditing(segment)}
+                          aria-label={`Editar trecho ${segmentShortId(segment.id)}`}
+                          title="Editar trecho"
                           className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0 transition-colors"
                         >
                           <Pencil size={14} />
@@ -568,6 +595,8 @@ export default function RouteSegmentManagement() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setDeletingId(segment.id)}
+                          aria-label={`Excluir trecho ${segmentShortId(segment.id)}`}
+                          title="Excluir trecho"
                           className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors"
                         >
                           <Trash2 size={14} />
@@ -733,6 +762,12 @@ export default function RouteSegmentManagement() {
                           <Box size={12} className="text-slate-400" /> Produtos do
                           trecho
                         </div>
+                        {segment.cargoClass === "MISTA" && (
+                          <p className="mb-2 text-[11px] font-medium text-amber-700">
+                            Este trecho mistura classes de carga (perigosa, frágil e comum não podem ir juntas).
+                            Remova os produtos de outra classe para salvar.
+                          </p>
+                        )}
                         {editForm.items.length === 0 ? (
                           <p className="text-[11px] text-slate-500">
                             Nenhum produto vinculado.
@@ -780,6 +815,25 @@ export default function RouteSegmentManagement() {
                                       }}
                                       className="h-7 w-16 border-slate-200 text-center text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
                                     />
+                                    {/* Lets an older segment that mixes cargo classes be split back to one class. */}
+                                    {editForm.items.length > 1 && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={`Remover ${detail?.name ?? "produto"} do trecho`}
+                                        title="Remover do trecho"
+                                        onClick={() =>
+                                          setEditForm((current) => ({
+                                            ...current,
+                                            items: current.items.filter((_, i) => i !== index),
+                                          }))
+                                        }
+                                        className="h-7 w-7 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                      >
+                                        <X size={12} />
+                                      </Button>
+                                    )}
                                   </div>
                                 </div>
                               )

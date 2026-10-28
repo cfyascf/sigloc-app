@@ -67,7 +67,14 @@ public record RouteSegmentResponseDto(
     DateTimeOffset CreatedAt,
     string RiskIndicator,
     string? OriginCity = null,
-    string? DestinationCity = null);
+    string? DestinationCity = null)
+{
+    /// <summary>
+    /// COMUM, FRAGIL or PERIGOSA; MISTA for an older segment that mixes classes (it must be edited
+    /// before it can join a route). Only segments of the same class can be consolidated.
+    /// </summary>
+    public string CargoClass { get; init; } = "COMUM";
+}
 
 /// <summary>Paged list response.</summary>
 public record PagedRouteSegmentsDto(
