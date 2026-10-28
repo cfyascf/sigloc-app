@@ -96,8 +96,10 @@ public class DashboardService : IDashboardService
         return milestones
             .Select(m =>
             {
-                // Fall back to "now" when the trip has no ETA snapshot yet.
-                var reference = m.LastCalculatedEta ?? now;
+                // Projected arrival: the ETA snapshot, but never earlier than now. A stale ETA
+                // that is already in the past (or a missing one) means the stop can't be reached
+                // before "now", so a deadline that has passed shows as negative.
+                var reference = m.LastCalculatedEta is { } eta && eta > now ? eta : now;
                 var remaining = (long)Math.Round((m.SlaDeadline - reference).TotalMinutes);
                 return new SlaMilestoneDto(
                     ReferenceCode: m.ReferenceCode,
@@ -208,8 +210,10 @@ public class DashboardService : IDashboardService
         return milestones
             .Select(m =>
             {
-                // Fall back to "now" when the trip has no ETA snapshot yet.
-                var reference = m.LastCalculatedEta ?? now;
+                // Projected arrival: the ETA snapshot, but never earlier than now. A stale ETA
+                // that is already in the past (or a missing one) means the stop can't be reached
+                // before "now", so a deadline that has passed shows as negative.
+                var reference = m.LastCalculatedEta is { } eta && eta > now ? eta : now;
                 var remaining = (long)Math.Round((m.SlaDeadline - reference).TotalMinutes);
                 return new ControlTowerItemDto(
                     VehiclePlate: m.VehiclePlate,

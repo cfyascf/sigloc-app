@@ -155,6 +155,23 @@ public class DashboardRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task GetKpisAsync_does_not_count_expired_open_auctions()
+    {
+        var ctx = _db.CreateContext();
+        var liveRoute = Route(_contractorId, RouteStatus.InAuction);
+        var expiredRoute = Route(_contractorId, RouteStatus.InAuction);
+        ctx.ConsolidatedRoutes.AddRange(liveRoute, expiredRoute);
+        var expired = Auction(expiredRoute.Id, AuctionStatus.Open);
+        expired.ExpiresAt = DateTimeOffset.UtcNow.AddHours(-1);
+        ctx.Auctions.AddRange(Auction(liveRoute.Id, AuctionStatus.Open), expired);
+        await ctx.SaveChangesAsync();
+
+        var kpis = await Repo().GetKpisAsync(_contractorId);
+
+        kpis.ActiveAuctions.Should().Be(1);
+    }
+
+    [Fact]
     public async Task GetKpisAsync_scopes_by_contractor_and_returns_zeros_when_empty()
     {
         var kpis = await Repo().GetKpisAsync(Guid.NewGuid());
@@ -308,6 +325,29 @@ public class DashboardRepositoryTests : IDisposable
         result.Should().ContainSingle();
         result[0].SlaDeadline.Should().BeCloseTo(deadline, TimeSpan.FromSeconds(1));
         result[0].LastCalculatedEta.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task GetSlaMilestonesAsync_includes_trip_awaiting_pickup()
+    {
+        var ctx = _db.CreateContext();
+        var route = Route(_contractorId, RouteStatus.AwaitingPickup);
+        var auction = Auction(route.Id, AuctionStatus.Closed);
+        var vehicle = Vehicle();
+        var pickup = DateTimeOffset.UtcNow.AddDays(-7);
+        ctx.ConsolidatedRoutes.Add(route);
+        ctx.Auctions.Add(auction);
+        ctx.Vehicles.Add(vehicle);
+        ctx.Trips.Add(Trip(route.Id, auction.Id, _carrierId, vehicle.Id, TripStatus.AwaitingPickup));
+        ctx.RouteSegments.Add(Segment(_contractorId, route.Id, SegmentStatus.Routed,
+            pickup: pickup, delivery: DateTimeOffset.UtcNow.AddDays(-5)));
+        await ctx.SaveChangesAsync();
+
+        var result = await Repo().GetSlaMilestonesAsync(_contractorId);
+
+        result.Should().ContainSingle();
+        result[0].MilestoneType.Should().Be("COLETA");
+        result[0].SlaDeadline.Should().BeCloseTo(pickup, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -563,6 +603,28 @@ public class DashboardRepositoryTests : IDisposable
 
         result.Should().ContainSingle();
         result[0].MilestoneType.Should().Be("ENTREGA");
+    }
+
+    [Fact]
+    public async Task GetCarrierSlaMilestonesAsync_includes_trip_awaiting_pickup()
+    {
+        var ctx = _db.CreateContext();
+        var route = Route(_contractorId, RouteStatus.AwaitingPickup);
+        var auction = Auction(route.Id, AuctionStatus.Closed);
+        var vehicle = Vehicle(plate: "ABC1A45");
+        ctx.ConsolidatedRoutes.Add(route);
+        ctx.Auctions.Add(auction);
+        ctx.Vehicles.Add(vehicle);
+        ctx.Trips.Add(Trip(route.Id, auction.Id, _carrierId, vehicle.Id, TripStatus.AwaitingPickup));
+        ctx.RouteSegments.Add(Segment(_contractorId, route.Id, SegmentStatus.Routed,
+            pickup: DateTimeOffset.UtcNow.AddDays(-7), delivery: DateTimeOffset.UtcNow.AddDays(-5)));
+        await ctx.SaveChangesAsync();
+
+        var result = await Repo().GetCarrierSlaMilestonesAsync(_carrierId);
+
+        result.Should().ContainSingle();
+        result[0].VehiclePlate.Should().Be("ABC1A45");
+        result[0].MilestoneType.Should().Be("COLETA");
     }
 
     [Fact]

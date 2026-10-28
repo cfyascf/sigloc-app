@@ -139,6 +139,24 @@ public class DashboardServiceTests
         result.SlaMilestones.Should().BeInAscendingOrder(m => m.TimeRemainingMinutes);
     }
 
+    [Fact]
+    public async Task GetExecutiveDashboardAsync_sla_milestone_with_stale_eta_counts_from_now()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var milestones = new List<TripSlaMilestone>
+        {
+            // ETA snapshot from days ago, deadline already passed: the stale ETA must not make
+            // the milestone look on time.
+            new("REF-1", "A->B", "ENTREGA", SlaDeadline: now.AddDays(-2), LastCalculatedEta: now.AddDays(-3.5)),
+        };
+        _repository.GetSlaMilestonesAsync(_contractorId, Arg.Any<CancellationToken>()).Returns(milestones);
+
+        var result = await _service.GetExecutiveDashboardAsync(_contractorId);
+
+        result.SlaMilestones.Single().TimeRemainingMinutes.Should().BeLessThan(-2 * 24 * 60 + 5);
+        result.SlaMilestones.Single().IsCritical.Should().BeTrue();
+    }
+
     // ---------------- Carrier dashboard ----------------
 
     [Fact]
@@ -246,5 +264,22 @@ public class DashboardServiceTests
         result.ControlTower[0].IsDelayed.Should().BeTrue();
         result.ControlTower.Single(m => m.ReferenceCode == "REF-2").IsDelayed.Should().BeFalse();
         result.ControlTower.Should().BeInAscendingOrder(m => m.TimeRemainingMinutes);
+    }
+
+    [Fact]
+    public async Task GetCarrierDashboardAsync_control_tower_with_stale_eta_is_delayed()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var milestones = new List<CarrierSlaMilestone>
+        {
+            // Old ETA still before the deadline, but the deadline itself has passed.
+            new("ABC1B34", "REF-1", "ENTREGA", SlaDeadline: now.AddHours(-1), LastCalculatedEta: now.AddDays(-3)),
+        };
+        _repository.GetCarrierSlaMilestonesAsync(_carrierId, Arg.Any<CancellationToken>()).Returns(milestones);
+
+        var result = await _service.GetCarrierDashboardAsync(_carrierId);
+
+        result.ControlTower.Single().TimeRemainingMinutes.Should().BeLessThan(0);
+        result.ControlTower.Single().IsDelayed.Should().BeTrue();
     }
 }
