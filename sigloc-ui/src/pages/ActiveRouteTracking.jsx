@@ -79,8 +79,8 @@ export default function ActiveRouteTracking() {
           </Button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto pb-6 pr-2 lg:flex lg:flex-col lg:overflow-hidden">
-          <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">
+        <div className="min-h-0 flex-1 overflow-y-auto pb-6 pr-2 lg:flex lg:flex-col">
+          <div className="space-y-4 lg:flex lg:flex-1 lg:flex-col lg:space-y-0 lg:gap-4">
             {pending && <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={16} className="animate-spin" /> Carregando monitoramento...</p>}
             {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error.message || "Não foi possível carregar a viagem."}</p>}
             {noTracker && <NoTrackerNotice plate={trip?.plate} />}
@@ -100,8 +100,8 @@ export default function ActiveRouteTracking() {
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:items-stretch">
-              <div className="flex min-h-0 flex-col gap-4 lg:col-span-8">
+            <div className="grid grid-cols-1 gap-4 lg:flex-1 lg:grid-cols-12 lg:items-stretch">
+              <div className="flex flex-col gap-4 lg:col-span-8">
                 <div className="shrink-0">
                   <TripStopTimeline stops={trip?.timeline ?? []} />
                 </div>
@@ -112,8 +112,8 @@ export default function ActiveRouteTracking() {
                 />
               </div>
 
-              <div className="flex min-h-0 flex-col gap-4 lg:col-span-4">
-                <TripLocationCard trip={trip} className="flex min-h-[140px] flex-1 flex-col overflow-hidden" mapClassName="min-h-0 flex-1" />
+              <div className="flex flex-col gap-4 lg:col-span-4">
+                <TripLocationCard trip={trip} className="flex min-h-fit flex-1 flex-col overflow-hidden" mapClassName="min-h-[180px] flex-1" />
 
                 <TripCard icon={Truck} title="Veículo e Motorista" className="shrink-0" bodyClassName="space-y-3 p-4">
                   <div>

@@ -99,10 +99,10 @@ export default function BidAnalysis() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-2 pb-6 space-y-4">
+          <div className="h-full space-y-4 overflow-y-auto pr-2 lg:flex lg:flex-col lg:space-y-0 lg:gap-4">
 
             {/* CABEÇALHO E SLA CRÍTICO */}
-            <div className="flex flex-col gap-4">
+                      <div className="flex shrink-0 flex-col gap-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1.5">
@@ -141,7 +141,7 @@ export default function BidAnalysis() {
             </div>
 
             {/* MERCADO & CONCORRÊNCIA */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-4">
               <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2 text-xs">
                 <Activity size={14} className="text-slate-500" /> Mercado & Concorrência
               </h3>
@@ -181,7 +181,7 @@ export default function BidAnalysis() {
             </div>
 
             {/* PAINEL TÉCNICO: PRODUTO E EQUIPAMENTO */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid shrink-0 grid-cols-1 gap-4 md:grid-cols-2">
 
               {/* Informações Críticas do Produto */}
               <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
@@ -236,8 +236,8 @@ export default function BidAnalysis() {
             </div>
 
             {/* PRODUTOS CONTIDOS NA ROTA */}
-            <div className="flex flex-col rounded-xl border border-slate-200 bg-white">
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
+            <div className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white lg:min-h-[104px]">
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
                 <div className="flex items-center gap-2">
                   <Layers size={16} className="text-blue-600" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">Produtos Contidos nesta Rota ({segments.length})</h2>
@@ -246,7 +246,7 @@ export default function BidAnalysis() {
               {segments.length === 0 ? (
                 <p className="px-5 py-4 text-xs font-medium text-slate-500">Nenhum produto associado a esta rota.</p>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
                   {segments.map((seg) => (
                     <div key={seg.id} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/50 transition-colors">
                       <div className="flex items-center gap-4">
@@ -264,7 +264,7 @@ export default function BidAnalysis() {
             </div>
 
             {/* ITINERÁRIO */}
-            <TravelPlan stops={travelPlan} />
+            <div className="shrink-0"><TravelPlan stops={travelPlan} /></div>
 
           </div>
         </div>

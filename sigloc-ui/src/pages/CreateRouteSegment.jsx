@@ -224,7 +224,7 @@ export default function CreateRouteSegment() {
         className="flex h-[calc(100vh-8.5rem)] flex-col overflow-hidden"
       >
         {/* HEADER LIMPO E TEXTUAL */}
-        <div className="mb-5 flex shrink-0 items-center justify-between border-b border-slate-200 pt-1 pb-3">
+        <div className="mb-4 flex shrink-0 items-center justify-between border-b border-slate-200 pt-1 pb-3">
           <Link to="/route-segment-management">
             <Button
               type="button"
@@ -244,8 +244,8 @@ export default function CreateRouteSegment() {
         ) : null}
 
         <div className="min-h-0 flex-1 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-2 pb-6">
-            <div className="grid gap-6 md:grid-cols-2 md:grid-rows-[auto_auto_auto]">
+          <div className="h-full overflow-y-auto pr-2">
+            <div className="grid gap-4 md:grid-cols-2 md:grid-rows-[auto_auto_auto]">
               {/* ========================================================
                   COLUNA ESQUERDA: ESPECIFICAÇÕES (ocupa toda a altura)
                   COLUNA DIREITA: ITINERÁRIO + PRAZOS + BALIZAMENTO
@@ -283,8 +283,8 @@ export default function CreateRouteSegment() {
                     />
                   </div>
 
-                  {/* Catálogo clicável (mesmo estilo de /product-management) */}
-                  <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-200">
+                  {/* Catálogo clicável (mesmo estilo de /product-management). md:h-0 keeps a long catalog from stretching the grid rows. */}
+                  <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-200 md:h-0">
                     {filteredProductOptions.length === 0 ? (
                       <div className="flex h-full items-center justify-center p-4 text-center text-xs text-slate-500">
                         Nenhum produto encontrado.
