@@ -176,6 +176,18 @@ public class TripMonitoringServiceTests
         Assert.Equal(0, h.Tracking.Calls); Assert.Equal(0, h.Routing.Calls);
     }
 
+    [Theory]
+    [InlineData(null, false)] [InlineData(42L, true)]
+    public async Task Detail_says_whether_the_vehicle_can_be_tracked(long? deviceId, bool expected)
+    {
+        var h = new Harness();
+        h.State.Vehicle.TraccarDeviceId = deviceId;
+
+        var detail = await h.Service.GetDetailAsync(h.CompanyId, h.State.Trip.Id);
+
+        Assert.Equal(expected, detail.HasTracker);
+    }
+
     [Fact]
     public async Task Cancellation_is_propagated_not_stale_fallback()
     {

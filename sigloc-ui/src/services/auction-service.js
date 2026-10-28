@@ -326,6 +326,7 @@ export function toCarrierAnalysis(dto) {
       bestLeaderOffer: competition.bestLeaderOffer ?? null,
       auctionCeiling: competition.auctionCeiling ?? 0,
       estimatedToll: competition.estimatedToll ?? 0,
+      estimatedAnttFloor: competition.estimatedAnttFloor ?? null,
     },
     physicalRequirements: {
       recommendedFleet: physical.recommendedFleet ?? "",

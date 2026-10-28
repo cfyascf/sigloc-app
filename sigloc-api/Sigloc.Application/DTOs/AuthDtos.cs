@@ -87,7 +87,8 @@ public record AuthUserDto(
     Guid Id,
     string Email,
     string ProfileType,
-    Guid? CompanyId);
+    Guid? CompanyId,
+    string? CompanyName = null);
 
 /// <summary>Response for login and registration endpoints that issue a token.</summary>
 public record AuthResultDto(

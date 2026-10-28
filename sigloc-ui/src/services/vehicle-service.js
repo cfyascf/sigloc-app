@@ -25,8 +25,8 @@ const BASE = "/api/vehicles"
  * Normalizes a `VehicleResponseDto` into the plain object the FleetManagement
  * page consumes. Enum ints become PT-BR labels; capacity/location fields are
  * renamed to the UI vocabulary. The enum-backed and UI-only fields the update
- * form doesn't expose (axleCount, refrigerationLevel, hasMopp, hasCargoSecuring)
- * are preserved so they can be re-sent on update without being wiped.
+ * form doesn't expose (refrigerationLevel, hasMopp, hasCargoSecuring) are
+ * preserved so they can be re-sent on update without being wiped.
  */
 export function toVehicle(dto) {
   if (!dto) {

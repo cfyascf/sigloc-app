@@ -95,8 +95,8 @@ export function RegisterForm() {
           </div>
           {method === "google" ? <p className="text-sm text-slate-600">Conta Google confirmada. Complete os dados da empresa para continuar.</p> : null}
           <FormField id="cnpj" label="CNPJ" type="text" inputMode="numeric" placeholder="00.000.000/0000-00" required value={company.cnpj} onChange={handleCompanyChange} error={fieldErrors.cnpj} />
-          <FormField id="companyName" label="Razão Social" type="text" placeholder="Empresa LTDA" required value={company.companyName} onChange={handleCompanyChange} error={fieldErrors.companyName} />
-          <FormField id="tradeName" label="Nome Fantasia" type="text" placeholder="Nome comercial" value={company.tradeName} onChange={handleCompanyChange} error={fieldErrors.tradeName} />
+          <FormField id="companyName" label="Razão Social" type="text" placeholder="Empresa LTDA" required maxLength={150} value={company.companyName} onChange={handleCompanyChange} error={fieldErrors.companyName} />
+          <FormField id="tradeName" label="Nome Fantasia" type="text" placeholder="Nome comercial" maxLength={150} value={company.tradeName} onChange={handleCompanyChange} error={fieldErrors.tradeName} />
           {method === "password" ? <>
             <FormField id="email" label="Email Corporativo" type="email" placeholder="nome@empresa.com" autoComplete="email" required value={credentials.email} onChange={handleCredentialsChange} error={fieldErrors.email} />
             <FormField id="password" label="Senha" type="password" autoComplete="new-password" required value={credentials.password} onChange={handleCredentialsChange} error={fieldErrors.password} />

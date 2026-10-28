@@ -25,7 +25,7 @@ import { FormAlert } from "@/components/auth/FormAlert"
 import { useProductOptions } from "@/hooks/use-product-options"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { createRouteSegment } from "@/services/route-segment-service"
-import { mapRouteSegmentFieldErrors } from "@/constants/route-segments"
+import { cargoClassName, cargoClassOfProduct, CARGO_CLASS, mapRouteSegmentFieldErrors } from "@/constants/route-segments"
 import {
   categoryLabel,
   environmentLabel,
@@ -37,7 +37,7 @@ import {
  * badges, bold name and a category·weight subline. Clicking toggles the product
  * in or out of the cargo so the same list serves browsing and selection.
  */
-function CatalogItem({ product, selected, onToggle }) {
+function CatalogItem({ product, selected, onToggle, blockedReason = null }) {
   const isChilled =
     product.transportEnvironment &&
     product.transportEnvironment !== TRANSPORT_ENVIRONMENT.DRY
@@ -46,8 +46,10 @@ function CatalogItem({ product, selected, onToggle }) {
     <button
       type="button"
       onClick={() => onToggle(product.value)}
-      className={`flex w-full items-start gap-3 border-b border-slate-100 p-3 text-left transition-colors last:border-b-0 focus:outline-none ${
-        selected ? "bg-blue-50/60" : "bg-white hover:bg-slate-50/70"
+      disabled={Boolean(blockedReason)}
+      title={blockedReason ?? undefined}
+      className={`flex w-full items-start gap-3 border-b border-slate-100 p-3 text-left transition-colors last:border-b-0 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+        selected ? "bg-blue-50/60" : "bg-white hover:bg-slate-50/70 disabled:hover:bg-white"
       }`}
     >
       <span
@@ -108,6 +110,7 @@ function CatalogItem({ product, selected, onToggle }) {
           <Tag size={12} /> {categoryLabel(product.category)}
           {product.defaultWeight != null ? ` • ${product.defaultWeight}kg` : ""}
         </p>
+        {blockedReason && <p className="mt-1 text-[10px] font-semibold text-slate-500">{blockedReason}</p>}
       </div>
     </button>
   )
@@ -153,6 +156,14 @@ export default function CreateRouteSegment() {
     () => new Set(selectedProducts.map((p) => p.value)),
     [selectedProducts]
   )
+
+  // A segment carries a single cargo class: once a product is in, only products of its class
+  // (dangerous, fragile or common) can be added.
+  const loadClass = selectedProducts.length > 0 ? cargoClassOfProduct(selectedProducts[0]) : null
+  const blockedReasonFor = (product) =>
+    loadClass && !selectedValues.has(product.value) && cargoClassOfProduct(product) !== loadClass
+      ? `Não pode ir junto com ${cargoClassName(loadClass)}: crie outro trecho para ${cargoClassName(cargoClassOfProduct(product))}.`
+      : null
 
   const handleToggleProduct = (productId) => {
     setSelectedProducts((current) => {
@@ -285,6 +296,7 @@ export default function CreateRouteSegment() {
                           product={product}
                           selected={selectedValues.has(product.value)}
                           onToggle={handleToggleProduct}
+                          blockedReason={blockedReasonFor(product)}
                         />
                       ))
                     )}
@@ -304,6 +316,11 @@ export default function CreateRouteSegment() {
                         <Plus size={12} /> Cadastrar produto
                       </button>
                     </div>
+                    {loadClass && loadClass !== CARGO_CLASS.COMUM && (
+                      <p className="mt-1 text-[11px] font-medium text-slate-500">
+                        Trecho de {cargoClassName(loadClass)}: só produtos da mesma classe podem ser adicionados.
+                      </p>
+                    )}
                     <div className="mt-2 h-[132px] overflow-y-auto pr-1">
                     {selectedProducts.length > 0 ? (
                       <div className="flex flex-col gap-2">

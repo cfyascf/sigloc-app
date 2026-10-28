@@ -64,3 +64,22 @@ test("notification time reads as relative Portuguese", () => {
   assert.equal(bell.formatNotificationTime("2026-10-23T12:00:00Z", now), "ontem")
   assert.equal(bell.formatNotificationTime(null, now), "")
 })
+
+
+test("unread label agrees in number", () => {
+  assert.equal(bell.unreadLabel(0), "Notificações")
+  assert.equal(bell.unreadLabel(1), "Notificações (1 não lida)")
+  assert.equal(bell.unreadLabel(5), "Notificações (5 não lidas)")
+})
+
+test("a new bell's count waits for mark-as-read requests still in flight", async () => {
+  const order = []
+  let finish
+  bell.trackRead(new Promise((resolve) => { finish = resolve }).then(() => order.push("read")))
+  const counted = bell.waitForPendingReads().then(() => order.push("count"))
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  assert.deepEqual(order, [])
+  finish()
+  await counted
+  assert.deepEqual(order, ["read", "count"])
+})

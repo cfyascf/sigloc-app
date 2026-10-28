@@ -50,6 +50,19 @@ public sealed class AuctionNotifier(
         SafelyAsync(nameof(AuctionCancelledAsync), () => Task.FromResult<IReadOnlyCollection<NotificationMessage>>(
             bidderCarrierIds.Distinct().Select(id => NotificationCatalog.AuctionCancelled(id, route)).ToList()));
 
+    public Task AuctionAutoAwardedAsync(Guid contractorId, Guid tripId, string route, decimal totalValue,
+        CancellationToken cancellationToken = default) =>
+        SafelyAsync(nameof(AuctionAutoAwardedAsync), () => Task.FromResult<IReadOnlyCollection<NotificationMessage>>(
+            [NotificationCatalog.AuctionAutoAwarded(contractorId, tripId, route, totalValue)]));
+
+    public Task AuctionEndedWithoutWinnerAsync(Guid contractorId, IReadOnlyCollection<Guid> bidderCarrierIds, string route, string reason,
+        CancellationToken cancellationToken = default) =>
+        SafelyAsync(nameof(AuctionEndedWithoutWinnerAsync), () => Task.FromResult<IReadOnlyCollection<NotificationMessage>>(
+            bidderCarrierIds.Distinct()
+                .Select(id => NotificationCatalog.AuctionEndedWithoutWinnerForCarrier(id, route))
+                .Prepend(NotificationCatalog.AuctionEndedWithoutWinner(contractorId, route, reason))
+                .ToList()));
+
     // The auction operation already committed: a failed lookup must not turn its success into an error.
     private async Task SafelyAsync(string evt, Func<Task<IReadOnlyCollection<NotificationMessage>>> build)
     {

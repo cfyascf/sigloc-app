@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { ROLES } from "@/constants/roles"
 import { authService } from "@/services/auth-service"
+import { formatCnpj } from "@/lib/formatters"
 import { partnerService } from "@/services/partner-service"
 
 const statusStyles = {
@@ -87,7 +88,7 @@ function PartnerCard({ partner, isCarrierView, onRemove, removing }) {
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-900">{partner.name}</p>
             <p className="truncate font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              {isCarrierView ? partner.id : partner.cnpj}
+              {partner.cnpj ? formatCnpj(partner.cnpj) : "—"}
             </p>
           </div>
         </div>
@@ -124,9 +125,8 @@ function PartnerCard({ partner, isCarrierView, onRemove, removing }) {
 
         {isCarrierView ? (
           <div className="rounded-lg border border-slate-100 bg-white p-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Código de conexão</p>
-            <p className="mt-1 text-sm font-bold text-slate-800">{partner.inviteCode}</p>
-            <p className="mt-1 text-xs text-slate-500">Use esse código para validar o convite recebido.</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Última interação</p>
+            <p className="mt-1 text-sm font-bold text-slate-800">{formatDateTime(partner.lastInteraction)}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -159,7 +159,7 @@ function PartnerCard({ partner, isCarrierView, onRemove, removing }) {
           </div>
         )}
 
-        {isCarrierView && (
+        {isCarrierView && partner.status === "Ativo" && (
           <div className="pt-1">
             <Button asChild className="h-9 w-full bg-slate-900 text-xs font-bold text-white hover:bg-slate-800">
               <Link to={`/freights-offers-overview?partner=${encodeURIComponent(partner.name)}`}>

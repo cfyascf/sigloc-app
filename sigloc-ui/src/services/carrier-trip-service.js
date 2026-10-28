@@ -83,6 +83,11 @@ export function listCarrierTrips(filters, options) {
   return listTripsAt(BASE, filters, options)
 }
 
+/** Delivered and cancelled trips of the carrier (status/risk filters do not apply). */
+export function listCarrierTripHistory(filters, options) {
+  return listTripsAt(BASE, filters, options, "historico")
+}
+
 /** `refresh: true` is the driver's "Transmitir Posição GPS" ping; a normal load returns the stored snapshot. */
 export async function getCarrierTripDetails(tripId, { refresh = false, ...options } = {}) {
   const query = refresh ? "?refresh=true" : ""
@@ -109,6 +114,7 @@ export function downloadTripProof(tripId, proofId) {
 
 export const carrierTripService = {
   list: listCarrierTrips,
+  listHistory: listCarrierTripHistory,
   getDetails: getCarrierTripDetails,
   completeStop: completeTripStop,
   reportOccurrence: reportTripOccurrence,

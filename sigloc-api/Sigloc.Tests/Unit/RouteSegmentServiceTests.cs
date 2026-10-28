@@ -184,10 +184,54 @@ public class RouteSegmentServiceTests
         ex.Errors.Should().Contain(e => e.Field == "destination");
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task CreateAsync_mixing_cargo_classes_in_a_segment_is_rejected(bool dangerous, bool fragile)
+    {
+        var special = TestData.Product(contractorId: _contractorId);
+        special.Dangerous = dangerous;
+        special.Fragile = fragile;
+        var common = TestData.Product(contractorId: _contractorId);
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { special, common });
+
+        var act = () => _service.CreateAsync(_contractorId, ValidDto(items: new[] { Item(special.Id), Item(common.Id) }));
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().ContainSingle(e => e.Field == "items");
+    }
+
+    [Fact]
+    public async Task CreateAsync_reports_the_cargo_class_of_the_segment()
+    {
+        var product = TestData.Product(contractorId: _contractorId);
+        product.Fragile = true;
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { product });
+
+        var result = await _service.CreateAsync(_contractorId, ValidDto(items: new[] { Item(product.Id) }));
+
+        result.CargoClass.Should().Be("FRAGIL");
+    }
+
     [Fact]
     public async Task CreateAsync_negative_toll_throws_validation()
     {
         var dto = ValidDto(toll: -1m, items: new[] { Item(Guid.NewGuid()) });
+
+        var act = () => _service.CreateAsync(_contractorId, dto);
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().Contain(e => e.Field == "estimatedTollCost");
+    }
+
+    [Theory]
+    [InlineData(100, 500)]
+    [InlineData(100, 100)]
+    public async Task CreateAsync_toll_not_below_ceiling_throws_validation(decimal budget, decimal toll)
+    {
+        var dto = ValidDto(budget: budget, toll: toll, items: new[] { Item(Guid.NewGuid()) });
 
         var act = () => _service.CreateAsync(_contractorId, dto);
 

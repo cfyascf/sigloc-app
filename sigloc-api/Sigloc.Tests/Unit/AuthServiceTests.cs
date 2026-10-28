@@ -573,6 +573,22 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task LoginAsync_returns_the_company_name_for_the_header()
+    {
+        var companyId = Guid.NewGuid();
+        var user = TestData.User(email: "user@example.com", passwordHash: "stored-hash", companyId: companyId);
+        _users.GetByEmailAsync("user@example.com", Arg.Any<CancellationToken>()).Returns(user);
+        _passwordHasher.Verify("password123", "stored-hash").Returns(true);
+        var contractor = TestData.Contractor(id: companyId, companyName: "Contratante Ltda");
+        contractor.TradeName = "Contratante";
+        _contractors.GetByIdAsync(companyId, Arg.Any<CancellationToken>()).Returns(contractor);
+
+        var result = await _service.LoginAsync(new LoginDto("user@example.com", "password123"));
+
+        result.User.CompanyName.Should().Be("Contratante");
+    }
+
+    [Fact]
     public async Task LoginAsync_WithEmptyEmail_ThrowsInvalidCredentials()
     {
         var act = () => _service.LoginAsync(new LoginDto("", "password123"));
@@ -710,8 +726,35 @@ public class AuthServiceTests
         await _service.ConfirmPasswordResetAsync(new PasswordResetConfirmDto("rawtoken", "newpassword123"));
 
         user.PasswordHash.Should().Be("hashed-password");
+        user.TokenVersion.Should().Be(1, "a new password ends the sessions opened with the old one");
         resetToken.UsedAt.Should().NotBeNull();
         await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task LogoutAsync_increments_the_token_version()
+    {
+        var user = TestData.User();
+        user.TokenVersion = 4;
+        _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>()).Returns(user);
+
+        await _service.LogoutAsync(user.Id);
+
+        user.TokenVersion.Should().Be(5);
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Login_issues_a_token_with_the_current_token_version()
+    {
+        var user = TestData.User(email: "user@example.com", passwordHash: "stored-hash");
+        user.TokenVersion = 3;
+        _users.GetByEmailAsync("user@example.com", Arg.Any<CancellationToken>()).Returns(user);
+        _passwordHasher.Verify("password123", "stored-hash").Returns(true);
+
+        await _service.LoginAsync(new LoginDto("user@example.com", "password123"));
+
+        _jwtProvider.Received(1).Generate(user.Id, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>(), 3);
     }
 
     [Fact]

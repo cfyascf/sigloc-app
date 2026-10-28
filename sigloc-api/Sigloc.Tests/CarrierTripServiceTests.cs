@@ -50,6 +50,7 @@ public class CarrierTripServiceTests
     public async Task Delivery_with_proof_stores_file_and_finishes_trip()
     {
         var c = new CarrierHarness(); await c.Complete(c.Stops[0].Id);
+        c.H.Clock.Now = Now.AddHours(3); // ~157 km between the stops: a plausible drive.
 
         var result = await c.Complete(c.Stops[1].Id, Pdf, "Recebido por João");
 
@@ -70,6 +71,48 @@ public class CarrierTripServiceTests
         Assert.Single(result.Proofs);
         // The last delivery reports the whole trip as delivered.
         Assert.Equal(new[] { NotificationCatalog.PickupConfirmedType, NotificationCatalog.TripDeliveredType }, c.H.Notifications.Sent.Select(n => n.Type));
+    }
+
+    [Fact]
+    public async Task Delivery_confirmed_too_soon_after_pickup_is_accepted_but_flagged()
+    {
+        var c = new CarrierHarness(); await c.Complete(c.Stops[0].Id);
+        c.H.Clock.Now = Now.AddMinutes(1);
+
+        var result = await c.Complete(c.Stops[1].Id, Pdf);
+
+        Assert.Equal("ENTREGUE", result.Trip.Status);
+        var flag = Assert.Single(c.H.Store.State!.Events, e => e.Kind == "PARADA_SUSPEITA");
+        Assert.Contains("1 min", flag.Description);
+        var notice = Assert.Single(c.H.Notifications.Sent, n => n.Type == NotificationCatalog.SuspiciousStopType);
+        Assert.Equal(c.H.CompanyId, notice.RecipientCompanyId);
+    }
+
+    [Fact]
+    public async Task Confirmation_with_a_recent_gps_ping_far_from_the_stop_is_flagged()
+    {
+        var c = new CarrierHarness();
+        // Last ping ~700 km from the first stop (at 0,0), five minutes ago.
+        c.H.State.Snapshot = new TripMonitoring
+        {
+            Id = Guid.NewGuid(), TripId = c.H.State.Trip.Id, Latitude = 5, Longitude = 5, LastPingAt = Now.AddMinutes(-5),
+        };
+
+        await c.Complete(c.Stops[0].Id);
+
+        Assert.Contains(c.H.Store.State!.Events, e => e.Kind == "PARADA_SUSPEITA" && e.Description.Contains("GPS"));
+    }
+
+    [Fact]
+    public async Task Plausible_confirmations_are_not_flagged()
+    {
+        var c = new CarrierHarness(); await c.Complete(c.Stops[0].Id);
+        c.H.Clock.Now = Now.AddHours(3);
+
+        await c.Complete(c.Stops[1].Id, Pdf);
+
+        Assert.DoesNotContain(c.H.Store.State!.Events, e => e.Kind == "PARADA_SUSPEITA");
+        Assert.DoesNotContain(c.H.Notifications.Sent, n => n.Type == NotificationCatalog.SuspiciousStopType);
     }
 
     [Fact]
@@ -237,6 +280,14 @@ public class CarrierTripServiceTests
         var c = new CarrierHarness();
         await c.Service.SearchAsync(c.CarrierId, new TripQueryDto());
         Assert.Equal(TripScope.ForCarrier(c.CarrierId), c.H.Store.LastScope);
+    }
+
+    [Fact]
+    public async Task Carrier_history_is_scoped_to_carrier()
+    {
+        var c = new CarrierHarness();
+        await c.Service.SearchHistoryAsync(c.CarrierId, new TripQueryDto());
+        Assert.Equal(TripScope.ForCarrier(c.CarrierId), c.H.Store.LastHistoryScope);
     }
 
     private static Product Product(string name, TransportEnvironment environment, double min, double max, PackagingType packaging) => new()

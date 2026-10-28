@@ -20,4 +20,11 @@ public interface IAuctionNotifier
 
     /// <summary>Carriers that had bid learn the contractor cancelled the auction.</summary>
     Task AuctionCancelledAsync(IReadOnlyCollection<Guid> bidderCarrierIds, string route, CancellationToken cancellationToken = default);
+
+    /// <summary>Tells the contractor which bid the automatic award picked.</summary>
+    Task AuctionAutoAwardedAsync(Guid contractorId, Guid tripId, string route, decimal totalValue, CancellationToken cancellationToken = default);
+
+    /// <summary>An automatic-award auction ended with no winner: the contractor and the bidders are told why.</summary>
+    Task AuctionEndedWithoutWinnerAsync(Guid contractorId, IReadOnlyCollection<Guid> bidderCarrierIds, string route, string reason,
+        CancellationToken cancellationToken = default);
 }

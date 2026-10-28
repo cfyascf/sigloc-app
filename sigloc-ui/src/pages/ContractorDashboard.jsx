@@ -191,7 +191,7 @@ export default function ContractorDashboard() {
                         className="flex w-full items-center justify-between rounded-lg py-3 text-left first:pt-0 last:pb-0"
                       >
                         <div>
-                          <p className="text-sm font-semibold text-slate-800">{item.itinerary}</p>
+                          <p className="text-sm font-semibold text-slate-800">{item.itinerary || "Rota sem trechos"}</p>
                           <p className="text-xs text-slate-400 mt-0.5">Alvo: {formatCurrency(item.targetBudget)}</p>
                         </div>
                         <div className="text-right">

@@ -59,11 +59,13 @@ public class ProductRepository : IProductRepository
 
     public async Task<bool> SkuExistsAsync(Guid contractorId, string sku, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
+        // Case-insensitive: "par-001" and "PAR-001" are the same SKU to the user.
+        var normalized = sku.ToUpper();
         return await _dbContext.Products
             .AsNoTracking()
             .AnyAsync(
                 p => p.ContractorId == contractorId
-                    && p.Sku == sku
+                    && p.Sku.ToUpper() == normalized
                     && (excludeId == null || p.Id != excludeId),
                 cancellationToken);
     }

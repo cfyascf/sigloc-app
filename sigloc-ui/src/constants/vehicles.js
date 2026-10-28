@@ -24,10 +24,14 @@ export const REFRIGERATION_BY_VALUE = {
   2: "Congelado",
 }
 
-/** OperationalStatus (backend enum, 0-based). */
+/**
+ * OperationalStatus (backend enum, 0-based). 1 (in transit set by hand) is retired: "Em viagem"
+ * comes from the vehicle's active trip, so it is only a label for old records, never an option.
+ */
+export const ON_TRIP_LABEL = "Em viagem"
 export const STATUS_BY_VALUE = {
   0: "Livre",
-  1: "Em Trânsito",
+  1: ON_TRIP_LABEL,
   2: "Manutenção",
 }
 
@@ -44,7 +48,7 @@ export const STATUS_BY_LABEL = invert(STATUS_BY_VALUE)
 
 /** Options for the Select controls, in display order. */
 export const BODY_TYPE_OPTIONS = Object.values(BODY_TYPE_BY_VALUE)
-export const STATUS_OPTIONS = Object.values(STATUS_BY_VALUE)
+export const STATUS_OPTIONS = [STATUS_BY_VALUE[0], STATUS_BY_VALUE[2]]
 export const REFRIGERATION_OPTIONS = Object.values(REFRIGERATION_BY_VALUE)
 
 /** int -> label helpers (fall back to empty string for unknown values). */

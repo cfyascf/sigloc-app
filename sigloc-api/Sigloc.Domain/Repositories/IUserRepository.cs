@@ -8,6 +8,9 @@ public interface IUserRepository
 
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>Current token version of the user, or null when the user no longer exists.</summary>
+    Task<int?> GetTokenVersionAsync(Guid id, CancellationToken cancellationToken = default);
+
     Task<User?> GetByGoogleIdAsync(string googleId, CancellationToken cancellationToken = default);
 
     Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default);

@@ -184,4 +184,47 @@ public class RoutePreviewServiceTests
             false,
             Arg.Any<CancellationToken>());
     }
+
+    private static Product Flagged(bool dangerous = false, bool fragile = false)
+    {
+        var product = TestData.Product();
+        product.Dangerous = dangerous;
+        product.Fragile = fragile;
+        return product;
+    }
+
+    [Theory]
+    [InlineData(true, false, false, false)]   // dangerous + common
+    [InlineData(false, true, false, false)]   // fragile + common
+    [InlineData(true, false, false, true)]    // dangerous + fragile
+    public async Task PreviewAsync_rejects_segments_of_different_cargo_classes(bool firstDangerous, bool firstFragile, bool secondDangerous, bool secondFragile)
+    {
+        var first = Segment(Guid.NewGuid(), Flagged(firstDangerous, firstFragile), quantity: 1);
+        var second = Segment(Guid.NewGuid(), Flagged(secondDangerous, secondFragile), quantity: 1);
+        _repository
+            .GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), false, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { first, second });
+
+        var act = () => _service.PreviewAsync(_contractorId, new RoutePreviewRequestDto(new[] { first.Id, second.Id }));
+
+        var error = (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Single();
+        error.Field.Should().Be("segmentIds");
+        error.Reason.Should().Contain(first.Id.ToString("N")[^8..]).And.Contain(second.Id.ToString("N")[^8..]);
+        await _geocoding.DidNotReceive().ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PreviewAsync_accepts_segments_of_the_same_class_and_treats_dangerous_fragile_as_dangerous()
+    {
+        var first = Segment(Guid.NewGuid(), Flagged(dangerous: true), quantity: 1);
+        var second = Segment(Guid.NewGuid(), Flagged(dangerous: true, fragile: true), quantity: 1);
+        _repository
+            .GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), false, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { first, second });
+        _geocoding.ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new RouteLeg(10, 0.2));
+
+        var result = await _service.PreviewAsync(_contractorId, new RoutePreviewRequestDto(new[] { first.Id, second.Id }));
+
+        result.ConsolidatedVehicleRequirement.RequiresMopp.Should().BeTrue();
+    }
 }

@@ -70,6 +70,8 @@ internal static class RouteAggregator
             }
         }
 
+        EnsureSingleCargoClass(ordered);
+
         // Inter-segment legs: destination of one segment → origin of the next.
         for (var i = 0; i < ordered.Count - 1; i++)
         {
@@ -104,4 +106,33 @@ internal static class RouteAggregator
             TotalVolumeM3: totalVolume,
             VehicleRequirement: requirement);
     }
+
+    /// <summary>
+    /// Dangerous, fragile and common goods can't share a route. Checked over every product, so an
+    /// older segment that already mixes classes is caught too.
+    /// </summary>
+    private static void EnsureSingleCargoClass(IReadOnlyList<RouteSegment> segments)
+    {
+        var bySegment = segments
+            .Select(s => (Segment: s, Classes: CargoClassification.ClassesOf(s.Items.Where(i => i.Product is not null).Select(i => i.Product!))))
+            .ToList();
+        var classes = bySegment.SelectMany(x => x.Classes).Distinct().OrderByDescending(c => c).ToList();
+        if (classes.Count <= 1)
+        {
+            return;
+        }
+
+        // "carga perigosa (trechos 1a2b3c4d) e carga comum (trecho 5e6f7a8b)"
+        var parts = classes.Select(cargoClass =>
+        {
+            var ids = bySegment.Where(x => x.Classes.Contains(cargoClass)).Select(x => ShortId(x.Segment.Id)).ToList();
+            return $"{CargoClassification.Label(cargoClass)} ({(ids.Count == 1 ? "trecho" : "trechos")} {string.Join(", ", ids)})";
+        });
+        throw new ValidationException(
+            [new ValidationError("segmentIds", $"Trechos com classes de carga diferentes não podem formar a mesma rota: {string.Join(" e ", parts)}.")],
+            "Não foi possível consolidar a rota.");
+    }
+
+    // Same short code the segment cards show (the random tail of the UUIDv7).
+    private static string ShortId(Guid id) => id.ToString("N")[^8..];
 }

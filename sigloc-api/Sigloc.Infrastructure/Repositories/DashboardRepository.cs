@@ -27,10 +27,14 @@ public class DashboardRepository : IDashboardRepository
             .AsNoTracking()
             .CountAsync(s => s.ContractorId == contractorId && s.Status == SegmentStatus.Available, cancellationToken);
 
+        // Same definition as the auction panel's "Em andamento" tab: open and not expired.
+        var now = DateTimeOffset.UtcNow;
         var activeAuctions = await (
             from auction in db.Auctions.AsNoTracking()
             join route in db.ConsolidatedRoutes.AsNoTracking() on auction.RouteId equals route.Id
-            where route.ContractorId == contractorId && auction.Status == AuctionStatus.Open
+            where route.ContractorId == contractorId
+                && auction.Status == AuctionStatus.Open
+                && auction.ExpiresAt > now
             select auction.Id)
             .CountAsync(cancellationToken);
 
@@ -156,7 +160,9 @@ public class DashboardRepository : IDashboardRepository
         var trips = await (
             from trip in db.Trips.AsNoTracking()
             join route in db.ConsolidatedRoutes.AsNoTracking() on trip.RouteId equals route.Id
-            where route.ContractorId == contractorId && trip.Status == TripStatus.InTransit
+            // Trips awaiting pickup count too: an overdue pickup is an SLA risk.
+            where route.ContractorId == contractorId
+                && (trip.Status == TripStatus.InTransit || trip.Status == TripStatus.AwaitingPickup)
             join monitoring in db.TripMonitorings.AsNoTracking() on trip.Id equals monitoring.TripId into mon
             from monitoring in mon.DefaultIfEmpty()
             select new
@@ -412,7 +418,9 @@ public class DashboardRepository : IDashboardRepository
         var trips = await (
             from trip in db.Trips.AsNoTracking()
             join vehicle in db.Vehicles.AsNoTracking() on trip.VehicleId equals vehicle.Id
-            where trip.CarrierId == carrierId && trip.Status == TripStatus.InTransit
+            // Trips awaiting pickup count too: an overdue pickup is an SLA risk.
+            where trip.CarrierId == carrierId
+                && (trip.Status == TripStatus.InTransit || trip.Status == TripStatus.AwaitingPickup)
             join monitoring in db.TripMonitorings.AsNoTracking() on trip.Id equals monitoring.TripId into mon
             from monitoring in mon.DefaultIfEmpty()
             select new

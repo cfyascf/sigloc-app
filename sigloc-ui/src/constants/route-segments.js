@@ -35,6 +35,55 @@ export function isSegmentEditable(status) {
   return status === SEGMENT_STATUS.AVAILABLE
 }
 
+/**
+ * Handling class of a load (same rule as the API's CargoClassification): dangerous, fragile and
+ * common goods never travel together, inside a segment or across the segments of a route. A
+ * product that is both dangerous and fragile counts as dangerous.
+ */
+export const CARGO_CLASS = { COMUM: "COMUM", FRAGIL: "FRAGIL", PERIGOSA: "PERIGOSA", MISTA: "MISTA" }
+
+const CARGO_CLASS_NAMES = { COMUM: "carga comum", FRAGIL: "carga frágil", PERIGOSA: "carga perigosa" }
+
+export const CARGO_CLASS_BADGES = {
+  // Same colours as the product badges in the catalogue (Hazmat amber, Frágil rose).
+  PERIGOSA: { label: "Perigosa", className: "bg-amber-100 text-amber-700" },
+  FRAGIL: { label: "Frágil", className: "bg-rose-50 text-rose-600" },
+  MISTA: { label: "Carga mista", className: "bg-slate-200 text-slate-700" },
+}
+
+export function cargoClassOfProduct(product) {
+  if (product?.dangerous) return CARGO_CLASS.PERIGOSA
+  if (product?.fragile) return CARGO_CLASS.FRAGIL
+  return CARGO_CLASS.COMUM
+}
+
+export function cargoClassName(cargoClass) {
+  return CARGO_CLASS_NAMES[cargoClass] ?? "carga comum"
+}
+
+/**
+ * Why a segment can't join the route being selected, or null when it can. `selectedClass` is the
+ * class of the segments already ticked (null when none is).
+ */
+export function cargoSelectionBlock(segment, selectedClass) {
+  if (segment.cargoClass === CARGO_CLASS.MISTA) {
+    return "Este trecho mistura classes de carga. Edite o trecho e remova os produtos de outra classe antes de ofertá-lo."
+  }
+  if (selectedClass && segment.cargoClass !== selectedClass) {
+    return `Uma rota não pode misturar ${cargoClassName(selectedClass)} com ${cargoClassName(segment.cargoClass)}.`
+  }
+  return null
+}
+
+/**
+ * An available segment whose pickup deadline has passed. It stays editable (the contractor can
+ * move the deadline) but can't go into a new auction: the backend rejects past pickups.
+ */
+export function isPickupOverdue(segment, now = Date.now()) {
+  if (segment?.status !== SEGMENT_STATUS.AVAILABLE || !segment.pickupDeadline) return false
+  return new Date(segment.pickupDeadline).getTime() <= now
+}
+
 function findLabel(options, value) {
   return options.find((option) => option.value === value)?.label ?? value
 }

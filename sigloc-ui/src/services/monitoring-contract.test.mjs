@@ -178,3 +178,39 @@ test("stop timeline is per stop, ordered, keeps IDs and normalizes completion", 
   assert.equal(stops[1].actions[0].completed, false)
   assert.deepEqual(trips.toStopTimeline(undefined), [])
 })
+
+test("a delivered trip shows full progress in the lists even without GPS data", () => {
+  assert.equal(trips.toActiveTrip({ viagemId: "t1", statusGeral: "ENTREGUE", monitoramentoCache: null }).progress, 100)
+  assert.equal(trips.toActiveTrip({ viagemId: "t2", statusGeral: "AGUARDANDO_COLETA", monitoramentoCache: null }).progress, null)
+})
+
+test("files under 1 KB show their size in bytes", () => {
+  assert.equal(formatters.formatFileSize(41), "41 B")
+  assert.equal(formatters.formatFileSize(2048), "2 KB")
+})
+
+test("a 404 without a body reads as not found, not as an unexpected error", async () => {
+  globalThis.fetch = async () => new Response("", { status: 404 })
+  await assert.rejects(client.apiRequest("/api/auctions/not-a-guid/bids"), (error) => {
+    assert.equal(error.code, "NOT_FOUND")
+    assert.match(error.message, /não encontrado/)
+    return true
+  })
+})
+
+test("a 401 on an authenticated request ends the local session, a failed login does not", async () => {
+  let calls = 0
+  client.setUnauthorizedHandler(() => { calls += 1 })
+  globalThis.fetch = async () => respond({ error: "UNAUTHORIZED", message: "Sessão encerrada." }, 401)
+  await assert.rejects(client.apiRequest("/api/vehicles"))
+  assert.equal(calls, 1)
+  await assert.rejects(client.apiRequest("/api/auth/login", { method: "POST", body: {}, auth: false }))
+  assert.equal(calls, 1)
+  client.setUnauthorizedHandler(null)
+})
+
+test("trip detail tells whether the vehicle has a GPS tracker", () => {
+  assert.equal(trips.toTripDetails({ viagemId: "t1", possuiRastreador: false }).hasTracker, false)
+  assert.equal(trips.toTripDetails({ viagemId: "t1", possuiRastreador: true }).hasTracker, true)
+  assert.equal(trips.toTripDetails({ viagemId: "t1" }).hasTracker, null)
+})

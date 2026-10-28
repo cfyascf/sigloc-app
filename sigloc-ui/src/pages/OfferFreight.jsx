@@ -159,6 +159,13 @@ export default function OfferFreight() {
   }
   const requirement = preview?.consolidatedVehicleRequirement ?? null
   const contextPending = previewAction.pending || segmentsAction.pending
+  // The end-time reason shows under its input; any other field reason (e.g. a segment that is no
+  // longer available) is appended to the summary so the user knows what to fix.
+  const deadlineError = auctionAction.fieldErrors.expiresAt
+  const otherAuctionErrors = Object.entries(auctionAction.fieldErrors)
+    .filter(([field]) => field !== "expiresAt")
+    .map(([, message]) => message)
+  const auctionErrorMessage = [auctionAction.error?.message, ...otherAuctionErrors].filter(Boolean).join(" ")
 
   return (
     <AppShell title="Workspace de Rota">
@@ -174,7 +181,7 @@ export default function OfferFreight() {
               <FormAlert message={segmentsAction.error.message} />
             ) : null}
             {auctionAction.error ? (
-              <FormAlert message={auctionAction.error.message} />
+              <FormAlert message={auctionErrorMessage} />
             ) : null}
 
             {/* HEADER DA ROTA */}
@@ -355,8 +362,15 @@ export default function OfferFreight() {
                     type="datetime-local"
                     value={auctionDeadline}
                     onChange={(e) => setAuctionDeadline(e.target.value)}
+                    aria-invalid={Boolean(deadlineError)}
+                    aria-describedby={deadlineError ? "workspace-deadline-error" : undefined}
                     className="h-9 border-slate-200 bg-white text-xs font-medium focus:ring-blue-500"
                   />
+                  {deadlineError ? (
+                    <p id="workspace-deadline-error" className="text-[11px] font-semibold text-rose-600">
+                      {deadlineError}
+                    </p>
+                  ) : null}
                   <p className="text-[11px] text-slate-500">
                     Tempo estimado de viagem: ~{" "}
                     {numberFormat.format(preview?.estimatedTimeHours ?? 0)}h
@@ -374,7 +388,7 @@ export default function OfferFreight() {
                       </p>
                       <p className="text-[11px] leading-normal text-slate-500">
                         {isAutoAwardEnabled
-                          ? "O sistema adjudica o lance mais próximo do frete mínimo ao fim do cronômetro."
+                          ? "Ao fim do cronômetro, o sistema adjudica o lance de menor valor total (frete + pedágio). Sem lance válido, os trechos voltam para a gestão de trechos."
                           : "O operador analisa a lista de propostas e seleciona manualmente o transportador."}
                       </p>
                     </div>

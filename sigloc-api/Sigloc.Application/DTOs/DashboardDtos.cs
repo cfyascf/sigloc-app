@@ -35,8 +35,9 @@ public record CostDeviationDto(
     bool IsOverBudget);
 
 /// <summary>
-/// One of the most critical SLA milestones. <see cref="TimeRemainingMinutes"/> is the ETA vs
-/// deadline gap in minutes (may be negative when already late); critical below one hour.
+/// One of the most critical SLA milestones. <see cref="TimeRemainingMinutes"/> is the gap between
+/// the deadline and the projected arrival (the ETA, or now when the ETA is missing or already past),
+/// in minutes; negative when already late; critical below one hour.
 /// </summary>
 public record SlaMilestoneDto(
     string ReferenceCode,
@@ -82,8 +83,8 @@ public record ActiveDisputeDto(
     decimal AmountToCover);
 
 /// <summary>
-/// One of the most critical SLA milestones for the carrier's in-transit fleet.
-/// <see cref="TimeRemainingMinutes"/> is the ETA vs deadline gap in minutes (negative when
+/// One of the most critical SLA milestones for the carrier's active trips (awaiting pickup or in transit).
+/// <see cref="TimeRemainingMinutes"/> is the deadline vs projected-arrival gap in minutes (negative when
 /// already late); <see cref="IsDelayed"/> is true when the milestone is past due.
 /// </summary>
 public record ControlTowerItemDto(

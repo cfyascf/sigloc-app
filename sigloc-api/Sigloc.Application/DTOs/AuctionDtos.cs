@@ -250,13 +250,15 @@ public record CarrierAnalysisRouteSummaryDto(
 /// <summary>
 /// Competition snapshot: active bids, leader offer and auction ceiling. The leader offer and the
 /// ceiling are totals (freight + toll); <see cref="EstimatedToll"/> lets the workspace convert
-/// between the freight value the carrier types and those totals.
+/// between the freight value the carrier types and those totals. <see cref="EstimatedAnttFloor"/>
+/// is the route's estimated floor, the same value the contractor sees.
 /// </summary>
 public record CarrierAnalysisCompetitionDto(
     int ActiveBids,
     decimal? BestLeaderOffer,
     decimal AuctionCeiling,
-    decimal EstimatedToll);
+    decimal EstimatedToll,
+    decimal EstimatedAnttFloor);
 
 /// <summary>Consolidated physical/compliance requirements inherited from the cargo.</summary>
 public record CarrierAnalysisPhysicalRequirementsDto(
@@ -323,3 +325,14 @@ public record PlaceBidResponseDto(
     decimal TotalValue,
     DateTimeOffset SubmittedAt,
     string Status);
+
+/// <summary>What the auto-award job did with one expired auction.</summary>
+public enum AutoAwardOutcome
+{
+    /// <summary>Nothing to do: not open, not automatic, not expired or not found.</summary>
+    Skipped,
+    Awarded,
+    ClosedWithoutWinner,
+    /// <summary>The route already had a trip (data left by an old bug); only the status was fixed.</summary>
+    ClosedStale,
+}

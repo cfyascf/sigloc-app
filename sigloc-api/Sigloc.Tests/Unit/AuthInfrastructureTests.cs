@@ -53,6 +53,17 @@ public class AuthInfrastructureTests
     }
 
     [Fact]
+    public void Generate_carries_the_token_version()
+    {
+        var provider = CreateJwtProvider(out _);
+
+        var jwt = provider.Generate(Guid.NewGuid(), "user@example.com", "Shipper", "contratante", null, tokenVersion: 7);
+
+        new JwtSecurityTokenHandler().ReadJwtToken(jwt).Claims
+            .Should().Contain(c => c.Type == JwtProvider.TokenVersionClaim && c.Value == "7");
+    }
+
+    [Fact]
     public void Generate_omits_empresaId_claim_when_company_is_null()
     {
         var provider = CreateJwtProvider(out _);

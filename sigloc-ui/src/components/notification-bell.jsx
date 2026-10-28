@@ -21,6 +21,25 @@ import {
 } from "@/services/notification-service"
 
 const POLL_MS = 30_000
+
+// Mark-as-read requests still in flight. Clicking a notification navigates, which remounts the
+// bell; its first count has to wait for these, or it reads the old number and shows it until the
+// next poll.
+let pendingReads = Promise.resolve()
+
+export function trackRead(request) {
+  pendingReads = Promise.allSettled([pendingReads, request])
+  return request
+}
+
+export function waitForPendingReads() {
+  return pendingReads
+}
+
+export function unreadLabel(count) {
+  if (!count) return "Notificações"
+  return `Notificações (${count} ${count === 1 ? "não lida" : "não lidas"})`
+}
 const relative = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" })
 
 /** "agora", "há 5 minutos", "ontem"... */
@@ -49,6 +68,7 @@ export function NotificationBell({ className }) {
 
   const refreshCount = useCallback(async (signal) => {
     try {
+      await waitForPendingReads()
       setUnread(await getUnreadNotificationCount({ signal }))
     } catch {
       // The badge is best-effort; the next poll retries.
@@ -95,7 +115,7 @@ export function NotificationBell({ className }) {
     if (!item.read) {
       setItems((current) => current.map((n) => (n.id === item.id ? { ...n, read: true } : n)))
       setUnread((count) => Math.max(0, count - 1))
-      markNotificationRead(item.id).catch(() => refreshCount())
+      trackRead(markNotificationRead(item.id)).catch(() => refreshCount())
     }
     if (item.link) navigate(item.link)
   }
@@ -106,7 +126,7 @@ export function NotificationBell({ className }) {
     setItems((current) => current.map((n) => ({ ...n, read: true })))
     setUnread(0)
     try {
-      await markAllNotificationsRead()
+      await trackRead(markAllNotificationsRead())
     } catch {
       refreshCount()
     }
@@ -120,7 +140,7 @@ export function NotificationBell({ className }) {
         <Button
           variant="ghost"
           size="icon"
-          aria-label={unread ? `Notificações (${unread} não lidas)` : "Notificações"}
+          aria-label={unreadLabel(unread)}
           className={cn("relative hover:bg-black/5", className)}
         >
           <Bell size={20} />

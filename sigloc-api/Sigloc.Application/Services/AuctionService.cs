@@ -517,6 +517,94 @@ public class AuctionService : IAuctionService
             RouteStatus: route.Status.ToWire());
     }
 
+    public Task<IReadOnlyList<(Guid AuctionId, Guid ContractorId)>> GetExpiredAutomaticAuctionsAsync(
+        DateTimeOffset now, CancellationToken cancellationToken = default)
+        => _auctionRepository.GetExpiredAutomaticAsync(now, cancellationToken);
+
+    public async Task<AutoAwardOutcome> AutoAwardAsync(Guid contractorId, Guid auctionId, DateTimeOffset now, CancellationToken cancellationToken = default)
+    {
+        var auction = await _auctionRepository.GetTrackedByIdAsync(auctionId, contractorId, cancellationToken);
+        if (auction is null || auction.Status != AuctionStatus.Open || !auction.AutomaticAward || auction.ExpiresAt > now)
+        {
+            return AutoAwardOutcome.Skipped;
+        }
+
+        var route = await _routeRepository.GetTrackedByIdAsync(auction.RouteId, cancellationToken);
+        if (route is null || route.Status is RouteStatus.AwaitingPickup or RouteStatus.InTransit or RouteStatus.Completed)
+        {
+            // Already awarded before the status fix (old data): a trip exists, so only close it.
+            auction.Status = AuctionStatus.Closed;
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return AutoAwardOutcome.ClosedStale;
+        }
+
+        var segments = await _segmentRepository.GetTrackedByRouteAsync(route.Id, cancellationToken);
+        var routeLabel = NotificationCatalog.RouteLabel(segments);
+        var bids = (await _bidRepository.GetTrackedByAuctionAsync(auctionId, cancellationToken) ?? [])
+            .Where(b => b.Status != BidStatus.Withdrawn)
+            .OrderBy(b => b.TotalValue)
+            .ThenBy(b => b.SubmittedAt)
+            .ToList();
+
+        string reason;
+        if (segments.Count == 0)
+        {
+            reason = "sem trechos vinculados";
+        }
+        else if (segments.Min(s => s.PickupDeadline) <= now)
+        {
+            // Awarding now would create a trip that is already late for its first pickup.
+            reason = "depois do prazo da primeira coleta";
+        }
+        else if (bids.Count == 0)
+        {
+            reason = "sem lances";
+        }
+        else
+        {
+            foreach (var bid in bids)
+            {
+                try
+                {
+                    var awarded = await AwardAsync(contractorId, auctionId, new AwardAuctionRequestDto(bid.Id), cancellationToken);
+                    await _notifier.AuctionAutoAwardedAsync(contractorId, awarded.TripId, routeLabel, bid.TotalValue, cancellationToken);
+                    return AutoAwardOutcome.Awarded;
+                }
+                catch (BidRejectedException)
+                {
+                    // The vehicle of this bid got another trip in the meantime: try the next one.
+                }
+            }
+
+            reason = "sem lance válido (os veículos dos lances não estão mais livres)";
+        }
+
+        await _unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            auction.Status = AuctionStatus.Closed;
+            route.Status = RouteStatus.Planned;
+            foreach (var bid in bids)
+            {
+                bid.Status = BidStatus.Losing;
+            }
+
+            // Same release as undoing an auction: the segments go back to the management screen.
+            foreach (var segment in segments)
+            {
+                segment.Status = SegmentStatus.Available;
+                segment.RouteId = null;
+                segment.RouteSequence = null;
+            }
+
+            await _unitOfWork.SaveChangesAsync(ct);
+            return true;
+        }, cancellationToken);
+
+        await _notifier.AuctionEndedWithoutWinnerAsync(
+            contractorId, bids.Select(b => b.CarrierId).Distinct().ToList(), routeLabel, reason, cancellationToken);
+        return AutoAwardOutcome.ClosedWithoutWinner;
+    }
+
     public async Task<CarrierBidAnalysisDto> GetCarrierAnalysisAsync(
         Guid carrierId,
         Guid auctionId,
@@ -590,7 +678,8 @@ public class AuctionService : IAuctionService
                 ActiveBids: totalBids,
                 BestLeaderOffer: bestBid?.TotalValue,
                 AuctionCeiling: detail.Route.ConsolidatedCeiling,
-                EstimatedToll: detail.Segments.Sum(s => s.EstimatedTollCost)),
+                EstimatedToll: detail.Segments.Sum(s => s.EstimatedTollCost),
+                EstimatedAnttFloor: detail.Route.EstimatedAnttFloor),
             PhysicalRequirements: physical,
             CarrierAvailableFleet: fleet
                 .Select(v => new CarrierAnalysisVehicleDto(

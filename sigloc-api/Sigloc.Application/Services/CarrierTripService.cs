@@ -19,6 +19,9 @@ public sealed class CarrierTripService(
     public Task<PagedTripsDto> SearchAsync(Guid carrierId, TripQueryDto query, CancellationToken ct = default) =>
         monitoring.SearchAsync(TripScope.ForCarrier(carrierId), query, ct);
 
+    public Task<PagedTripsDto> SearchHistoryAsync(Guid carrierId, TripQueryDto query, CancellationToken ct = default) =>
+        monitoring.SearchHistoryAsync(TripScope.ForCarrier(carrierId), query, ct);
+
     public Task<CarrierTripDetailDto> GetDetailAsync(Guid carrierId, Guid tripId, bool refresh = false, CancellationToken ct = default) =>
         monitoring.GetDetailAsync(TripScope.ForCarrier(carrierId), tripId, refresh, CarrierTripMapper.Map, ct);
 
@@ -72,6 +75,7 @@ public sealed class CarrierTripService(
         }
 
         NotificationMessage? notice = null;
+        NotificationMessage? suspicion = null;
         CarrierTripDetailDto detail;
         try
         {
@@ -88,6 +92,8 @@ public sealed class CarrierTripService(
                 var now = clock.GetUtcNow();
                 var operationId = Guid.NewGuid();
                 var riskBefore = TripRiskEvaluator.Effective(state.Snapshot?.Risk, state.Occurrences);
+                // Checked before completing: it compares against the previous stop's confirmation.
+                var implausible = TripStopPlausibility.Check(state.Trip, stop, state.Snapshot, now);
                 TripStopCompletion.Complete(state, stop, now,
                     kind => kind == StopActionKind.Delivery ? "POD_CONFIRMED" : "DRIVER_CONFIRMED", operationId, now);
                 if (file != null)
@@ -100,6 +106,12 @@ public sealed class CarrierTripService(
                 TripStopCompletion.AddEvent(state, operationId, "PARADA_CONFIRMADA", Truncate(
                     $"Parada {stop.Sequence} ({stop.City}) confirmada pelo motorista: {(delivers ? "entrega com comprovante" : "coleta")}"
                     + (normalizedNote == null ? "." : $" — {normalizedNote}")), now);
+                if (implausible != null)
+                {
+                    TripStopCompletion.AddEvent(state, operationId, "PARADA_SUSPEITA",
+                        Truncate($"Confirmação da parada {stop.Sequence} ({stop.City}) fora do esperado: {implausible}."), now);
+                    suspicion = NotificationCatalog.SuspiciousStop(state.Route.ContractorId, state.Trip.Id, stop.City, implausible);
+                }
                 InvalidateEta(state);
                 TripMonitoringService.AddSlaEventIfChanged(state, riskBefore, operationId, now);
                 notice = NotificationCatalog.StopConfirmed(state.Route.ContractorId, state.Trip.Id, stop.City, delivers,
@@ -112,7 +124,7 @@ public sealed class CarrierTripService(
             if (key != null) await DeleteQuietlyAsync(key);
             throw;
         }
-        if (notice != null) await _notifications.PublishAsync([notice]);
+        if (notice != null) await _notifications.PublishAsync(suspicion == null ? [notice] : [notice, suspicion]);
         return detail;
     }
 

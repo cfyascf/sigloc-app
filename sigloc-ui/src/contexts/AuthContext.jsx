@@ -11,7 +11,7 @@ import {
 
 import { ROLES } from "@/constants/roles"
 import { authService } from "@/services/auth-service"
-import { setAuthTokenProvider } from "@/lib/api-client"
+import { setAuthTokenProvider, setUnauthorizedHandler } from "@/lib/api-client"
 
 const AuthContext = createContext()
 
@@ -84,7 +84,7 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const logout = useCallback(() => {
+  const clearSession = useCallback(() => {
     setToken(null)
     setUser(null)
 
@@ -93,6 +93,19 @@ export function AuthProvider({ children }) {
       localStorage.removeItem(USER_STORAGE_KEY)
     }
   }, [])
+
+  // "Sair": revoke the token on the server (best effort, so an offline logout still works locally),
+  // then forget the session here.
+  const logout = useCallback(() => {
+    authService.logout(tokenRef.current).catch(() => {})
+    clearSession()
+  }, [clearSession])
+
+  // A 401 on an authenticated request means the session ended elsewhere (logout, password reset or
+  // expiry): drop it so the route guards send the user to the login page.
+  useLayoutEffect(() => {
+    setUnauthorizedHandler(clearSession)
+  }, [clearSession])
 
   // Async wrappers around the auth service that persist the resulting session.
   const login = useCallback(
@@ -171,6 +184,17 @@ export function AuthProvider({ children }) {
     })
   }, [])
 
+  // Keeps the header in step after the profile's company name is edited.
+  const setDisplayName = useCallback((name) => {
+    if (!name) return
+    setUser((prev) => {
+      if (!prev || prev.name === name) return prev
+      const next = { ...prev, name }
+      writeUser(next)
+      return next
+    })
+  }, [])
+
   const toggleRole = useCallback(() => {
     setUser((prev) => {
       if (!prev) {
@@ -201,6 +225,7 @@ export function AuthProvider({ children }) {
       registerCarrierByInviteWithGoogle,
       logout,
       setRole,
+      setDisplayName,
       toggleRole,
     }),
     [
@@ -217,6 +242,7 @@ export function AuthProvider({ children }) {
       registerCarrierByInviteWithGoogle,
       logout,
       setRole,
+      setDisplayName,
       toggleRole,
     ]
   )

@@ -96,6 +96,14 @@ public interface IAuctionRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Open auctions with automatic award whose end time has passed, with the contractor that
+    /// owns them, oldest first. Used by the background job that elects their winners.
+    /// </summary>
+    Task<IReadOnlyList<(Guid AuctionId, Guid ContractorId)>> GetExpiredAutomaticAsync(
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Number of open, non-expired auctions per contractor. Contractors without any are absent
     /// from the result.
     /// </summary>

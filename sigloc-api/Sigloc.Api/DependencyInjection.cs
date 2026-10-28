@@ -27,6 +27,7 @@ public static class DependencyInjection
                     ValidAudience = jwtSettings.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
                 };
+                options.Events = new JwtBearerEvents { OnTokenValidated = TokenVersionValidator.ValidateAsync };
             });
 
         services.AddAuthorization(options =>

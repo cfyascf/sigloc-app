@@ -115,6 +115,19 @@ public class ProfileServiceTests
     }
 
     [Theory]
+    [InlineData(151, 0, "razaoSocial")]
+    [InlineData(10, 151, "nomeFantasia")]
+    public async Task UpdateAsync_too_long_names_throw_Validation(int companyLength, int tradeLength, string field)
+    {
+        _contractors.GetTrackedByIdAsync(_companyId, Arg.Any<CancellationToken>()).Returns(TestData.Contractor(id: _companyId));
+
+        var act = () => _service.UpdateAsync(_companyId, isCarrier: false,
+            new UpdateCompanyProfileDto(new string('R', companyLength), tradeLength == 0 ? null : new string('T', tradeLength), null, null, null));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == field);
+    }
+
+    [Theory]
     [InlineData("12345", null, "logisticsContactPhone")]
     [InlineData("+55 41 9999-0000x", null, "logisticsContactPhone")]
     [InlineData(null, "sem-arroba", "logisticsContactEmail")]

@@ -215,7 +215,7 @@ export default function OfferFreight() {
                         <p className="text-xs font-semibold text-slate-800">Seleção automática do vencedor</p>
                         <p className="text-[11px] text-slate-500 leading-normal">
                           {isAutoAwardEnabled
-                            ? "O sistema adjudica o lance mais próximo do frete mínimo ao fim do cronômetro."
+                            ? "Ao fim do cronômetro, o sistema adjudica o lance de menor valor total (frete + pedágio). Sem lance válido, os trechos voltam para a gestão de trechos."
                             : "O operador analisa a lista de propostas e seleciona manualmente o transportador."}
                         </p>
                       </div>

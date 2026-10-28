@@ -57,6 +57,16 @@ public interface IAuctionService
     /// </summary>
     Task<AwardAuctionResponseDto> AwardAsync(Guid contractorId, Guid auctionId, AwardAuctionRequestDto dto, CancellationToken cancellationToken = default);
 
+    /// <summary>Open automatic-award auctions whose end time has passed (input of the auto-award job).</summary>
+    Task<IReadOnlyList<(Guid AuctionId, Guid ContractorId)>> GetExpiredAutomaticAuctionsAsync(DateTimeOffset now, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ends one expired automatic-award auction: the lowest total bid wins (earliest on a tie),
+    /// skipping bids whose vehicle is no longer free. With no winner, or once the first pickup
+    /// deadline has passed, the auction closes and its segments become available again.
+    /// </summary>
+    Task<AutoAwardOutcome> AutoAwardAsync(Guid contractorId, Guid auctionId, DateTimeOffset now, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Builds the carrier bid workspace (Workspace de Lance): the deep route data, the
     /// competition snapshot, the cargo-inherited physical/compliance requirements and the

@@ -107,6 +107,37 @@ public class VehicleServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_out_of_range_values_report_each_field_and_do_not_save()
+    {
+        _repository.ExistsByPlateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        var dto = NewVehicleDto() with
+        {
+            Model = new string('M', 101),
+            AxleCount = 99,
+            CapacityWeight = 999_999_999m,
+            CapacityVolume = 99_999m,
+        };
+
+        var act = () => _service.CreateAsync(_carrierId, dto);
+
+        var ex = await act.Should().ThrowAsync<ValidationException>();
+        ex.Which.Errors.Select(e => e.Field).Should().BeEquivalentTo(
+            new[] { "model", "axleCount", "capacityWeight", "capacityVolume" });
+        await _repository.DidNotReceive().AddAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_accepts_values_at_the_limits()
+    {
+        _repository.ExistsByPlateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        var dto = NewVehicleDto() with { AxleCount = 12, CapacityWeight = 100_000m, CapacityVolume = 500m };
+
+        await _service.CreateAsync(_carrierId, dto);
+
+        await _repository.Received(1).AddAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GetByIdAsync_not_found_throws_KeyNotFound()
     {
         _repository.GetByIdAsync(Arg.Any<Guid>(), _carrierId, Arg.Any<CancellationToken>())
@@ -178,13 +209,13 @@ public class VehicleServiceTests
         var dto = new UpdateVehicleDto(
             Model: null, AxleCount: 5, CapacityWeight: null, CapacityVolume: null,
             BodyType: null, RefrigerationLevel: null, HasMopp: null, HasCargoSecuring: null,
-            Driver: null, CurrentLocation: null, Status: OperationalStatus.EM_TRANSITO);
+            Driver: null, CurrentLocation: null, Status: OperationalStatus.MANUTENCAO);
 
         await _service.UpdateAsync(_carrierId, vehicle.Id, dto);
 
         vehicle.AxleCount.Should().Be(5);
         vehicle.Model.Should().Be(originalModel);
-        vehicle.Status.Should().Be(OperationalStatus.EM_TRANSITO);
+        vehicle.Status.Should().Be(OperationalStatus.MANUTENCAO);
         await _repository.Received(1).UpdateAsync(vehicle, Arg.Any<CancellationToken>());
     }
 
@@ -192,7 +223,10 @@ public class VehicleServiceTests
     [InlineData(0, null, null, "axleCount")]
     [InlineData(null, -500, null, "capacityWeight")]
     [InlineData(null, null, 0, "capacityVolume")]
-    public async Task UpdateAsync_non_positive_capacity_throws_ValidationException_and_does_not_save(
+    [InlineData(13, null, null, "axleCount")]
+    [InlineData(null, 100_001, null, "capacityWeight")]
+    [InlineData(null, null, 501, "capacityVolume")]
+    public async Task UpdateAsync_out_of_range_capacity_throws_ValidationException_and_does_not_save(
         int? axles, int? weight, int? volume, string field)
     {
         var vehicle = TestData.Vehicle(_carrierId);
@@ -206,6 +240,22 @@ public class VehicleServiceTests
 
         var ex = await act.Should().ThrowAsync<ValidationException>();
         ex.Which.Errors.Should().ContainSingle(e => e.Field == field);
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_rejects_setting_in_transit_by_hand()
+    {
+        var vehicle = TestData.Vehicle(_carrierId);
+        _repository.GetByIdAsync(vehicle.Id, _carrierId, Arg.Any<CancellationToken>()).Returns(vehicle);
+        var dto = new UpdateVehicleDto(
+            Model: null, AxleCount: null, CapacityWeight: null, CapacityVolume: null,
+            BodyType: null, RefrigerationLevel: null, HasMopp: null, HasCargoSecuring: null,
+            Driver: null, CurrentLocation: null, Status: OperationalStatus.EM_TRANSITO);
+
+        var act = () => _service.UpdateAsync(_carrierId, vehicle.Id, dto);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == "status");
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
     }
 

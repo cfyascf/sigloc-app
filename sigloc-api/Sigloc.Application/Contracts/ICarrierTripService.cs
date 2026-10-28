@@ -6,6 +6,9 @@ public interface ICarrierTripService
 {
     Task<PagedTripsDto> SearchAsync(Guid carrierId, TripQueryDto query, CancellationToken ct = default);
 
+    /// <summary>Finished trips (delivered / cancelled) of the carrier, newest first.</summary>
+    Task<PagedTripsDto> SearchHistoryAsync(Guid carrierId, TripQueryDto query, CancellationToken ct = default);
+
     /// <summary>Detail view; <paramref name="refresh"/> runs the GPS ping/recalculation pipeline.</summary>
     Task<CarrierTripDetailDto> GetDetailAsync(Guid carrierId, Guid tripId, bool refresh = false, CancellationToken ct = default);
 

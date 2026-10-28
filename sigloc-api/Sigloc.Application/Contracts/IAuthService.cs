@@ -46,4 +46,7 @@ public interface IAuthService
 
     /// <summary>Validates a one-time reset token and updates the local password.</summary>
     Task ConfirmPasswordResetAsync(PasswordResetConfirmDto dto, CancellationToken cancellationToken = default);
+
+    /// <summary>Ends every session of the user: tokens issued before this call are rejected.</summary>
+    Task LogoutAsync(Guid userId, CancellationToken cancellationToken = default);
 }

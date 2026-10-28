@@ -10,7 +10,7 @@ import VehicleForm from "@/pages/VehicleForm"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { vehicleService } from "@/services/vehicle-service"
 import { BODY_TYPE_OPTIONS, REFRIGERATION_BY_VALUE } from "@/constants/vehicles"
-import { mapVehicleFieldErrors, validateVehicle } from "@/lib/vehicle-validation"
+import { VEHICLE_LIMITS, mapVehicleFieldErrors, validateVehicle } from "@/lib/vehicle-validation"
 
 const FieldError = ({ message }) =>
   message ? <p className="text-[11px] font-semibold text-rose-600">{message}</p> : null
@@ -107,6 +107,7 @@ export default function RegisterVehicle() {
                     <label className="text-xs font-bold text-slate-600">Marca / Modelo</label>
                     <Input 
                       placeholder="Ex: Volvo FH 540"
+                      maxLength={VEHICLE_LIMITS.model}
                       value={formData.model}
                       aria-invalid={Boolean(errors.model)}
                       onChange={(e) => setFormData({...formData, model: e.target.value})}
@@ -257,7 +258,6 @@ export default function RegisterVehicle() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Livre" className="font-semibold text-emerald-700">Livre (Disponível para carga)</SelectItem>
-                          <SelectItem value="Em Trânsito" className="font-semibold text-blue-700">Em Trânsito</SelectItem>
                           <SelectItem value="Manutenção" className="font-semibold text-amber-700">Em Manutenção</SelectItem>
                         </SelectContent>
                     </Select>

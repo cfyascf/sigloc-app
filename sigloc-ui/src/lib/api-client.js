@@ -42,6 +42,16 @@ export function setAuthTokenProvider(provider) {
   tokenProvider = typeof provider === "function" ? provider : () => null
 }
 
+let unauthorizedHandler = () => {}
+
+/**
+ * Registers what to do when an authenticated request gets 401: the session expired or was
+ * ended (logout or password reset elsewhere). Called once by the auth layer.
+ */
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = typeof handler === "function" ? handler : () => {}
+}
+
 function buildUrl(path) {
   if (/^https?:\/\//i.test(path)) {
     return path
@@ -138,6 +148,14 @@ function toApiError(status, body) {
     return new ApiError(message, { code: "VALIDATION_ERROR", status, details })
   }
 
+  // A 404 without a body comes from a route that didn't match (e.g. a malformed id in the URL).
+  if (status === 404) {
+    return new ApiError("Registro não encontrado. Confira o endereço e tente novamente.", {
+      code: "NOT_FOUND",
+      status,
+    })
+  }
+
   return new ApiError("Ocorreu um erro inesperado. Tente novamente.", {
     code: "UNKNOWN_ERROR",
     status,
@@ -164,6 +182,7 @@ export async function apiRequest(
   { method = "GET", body, auth = true, headers = {}, signal, responseType = "json" } = {}
 ) {
   const requestHeaders = { Accept: "application/json", ...headers }
+  let sentToken = null
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData
 
   if (body !== undefined && !isFormData) {
@@ -174,6 +193,7 @@ export async function apiRequest(
     const token = tokenProvider()
     if (token) {
       requestHeaders.Authorization = `Bearer ${token}`
+      sentToken = token
     }
   }
 
@@ -203,6 +223,10 @@ export async function apiRequest(
   const parsed = await parseBody(response)
 
   if (!response.ok) {
+    // Only for a token we sent ourselves: a 401 from login means wrong credentials, not a dead session.
+    if (response.status === 401 && sentToken) {
+      unauthorizedHandler()
+    }
     throw toApiError(response.status, parsed)
   }
 

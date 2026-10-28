@@ -6,7 +6,8 @@ export default function VehicleForm({ value, onChange, disabled = false, idPrefi
     <>
       <div className="space-y-1.5">
         <label htmlFor={`${idPrefix}-phone`} className="text-xs font-bold text-slate-600">Telefone do motorista (opcional)</label>
-        <Input id={`${idPrefix}-phone`} type="tel" maxLength={30} value={value.driverPhone ?? ""} onChange={(event) => onChange({ ...value, driverPhone: event.target.value })} disabled={disabled} className="h-9 border-slate-200 bg-white text-sm" />
+        <Input id={`${idPrefix}-phone`} type="tel" maxLength={30} value={value.driverPhone ?? ""} aria-invalid={Boolean(errors.driverPhone)} onChange={(event) => onChange({ ...value, driverPhone: event.target.value })} disabled={disabled} className="h-9 border-slate-200 bg-white text-sm" />
+        {errors.driverPhone && <p className="text-[11px] font-semibold text-rose-600">{errors.driverPhone}</p>}
       </div>
       <div className="space-y-1.5">
         <label htmlFor={`${idPrefix}-tracker`} className="text-xs font-bold text-slate-600">ID do dispositivo Traccar (opcional)</label>

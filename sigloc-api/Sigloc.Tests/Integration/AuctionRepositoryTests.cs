@@ -43,6 +43,27 @@ public class AuctionRepositoryTests : IDisposable
     };
 
     [Fact]
+    public async Task GetExpiredAutomaticAsync_returns_only_open_expired_automatic_auctions()
+    {
+        var ctx = _db.CreateContext();
+        var routes = Enumerable.Range(0, 4).Select(_ => Route(_contractorId)).ToList();
+        ctx.ConsolidatedRoutes.AddRange(routes);
+        var due = Auction(routes[0].Id, expiresAt: DateTimeOffset.UtcNow.AddMinutes(-5));
+        due.AutomaticAward = true;
+        var manual = Auction(routes[1].Id, expiresAt: DateTimeOffset.UtcNow.AddMinutes(-5));
+        var running = Auction(routes[2].Id, expiresAt: DateTimeOffset.UtcNow.AddHours(1));
+        running.AutomaticAward = true;
+        var closed = Auction(routes[3].Id, AuctionStatus.Closed, DateTimeOffset.UtcNow.AddMinutes(-5));
+        closed.AutomaticAward = true;
+        ctx.Auctions.AddRange(due, manual, running, closed);
+        await ctx.SaveChangesAsync();
+
+        var result = await new AuctionRepository(_db.CreateContext()).GetExpiredAutomaticAsync(DateTimeOffset.UtcNow);
+
+        result.Should().ContainSingle().Which.Should().Be((due.Id, _contractorId));
+    }
+
+    [Fact]
     public async Task AddAsync_does_not_save_until_caller_commits()
     {
         var route = Route(_contractorId);

@@ -1,2 +1,5 @@
 namespace Sigloc.Application.Exceptions;
-public sealed class TripNotFoundException(Guid id) : Exception($"Trip '{id}' was not found.");
+public sealed class TripNotFoundException(Guid id) : Exception("Viagem não encontrada ou não pertence à sua empresa.")
+{
+    public Guid Id { get; } = id;
+}

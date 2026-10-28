@@ -1,6 +1,7 @@
 using Sigloc.Application.Contracts;
 using Sigloc.Application.DTOs;
 using Sigloc.Domain.Entities;
+using Sigloc.Domain.Enums;
 using Sigloc.Domain.Repositories;
 
 namespace Sigloc.Application.Services;
@@ -31,6 +32,9 @@ public class VehicleService : IVehicleService
             throw new ArgumentException("A placa informada não segue o padrão brasileiro válido.");
         }
 
+        ValidateFields(dto.Model, dto.AxleCount, dto.CapacityWeight, dto.CapacityVolume, dto.Driver, dto.CurrentLocation,
+            requireModel: true, "Não foi possível cadastrar o veículo.");
+
         // 3. Criação da Entidade
         var vehicle = new Vehicle(
             transportadoraId,
@@ -60,7 +64,7 @@ public class VehicleService : IVehicleService
         var vehicle = await _repository.GetByIdAsync(id, transportadoraId, cancellationToken);
         if (vehicle == null)
         {
-            throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
+            throw new KeyNotFoundException("Veículo não encontrado.");
         }
 
         var onActiveTrip = await _repository.GetIdsOnActiveTripsAsync(transportadoraId, cancellationToken);
@@ -79,10 +83,18 @@ public class VehicleService : IVehicleService
         var vehicle = await _repository.GetByIdAsync(id, transportadoraId, cancellationToken);
         if (vehicle == null)
         {
-            throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
+            throw new KeyNotFoundException("Veículo não encontrado.");
         }
 
-        ValidateCapacity(dto);
+        if (dto.Status == OperationalStatus.EM_TRANSITO)
+        {
+            throw new Sigloc.Application.Exceptions.ValidationException(
+                [new("status", "\"Em viagem\" é definido automaticamente pelas viagens. Use Livre ou Manutenção.")],
+                "Não foi possível atualizar o veículo.");
+        }
+
+        ValidateFields(dto.Model, dto.AxleCount, dto.CapacityWeight, dto.CapacityVolume, dto.Driver, dto.CurrentLocation,
+            requireModel: false, "Não foi possível atualizar o veículo.");
         ValidateMonitoringFields(dto.TraccarDeviceId, dto.DriverPhone);
         if (dto.TraccarDeviceId.HasValue) vehicle.TraccarDeviceId = dto.TraccarDeviceId;
         if (dto.DriverPhone != null) vehicle.DriverPhone = NormalizePhone(dto.DriverPhone);
@@ -101,7 +113,7 @@ public class VehicleService : IVehicleService
     var vehicle = await _repository.GetByIdAsync(id, transportadoraId, cancellationToken);
     if (vehicle == null)
     {
-        throw new KeyNotFoundException($"Vehicle with ID {id} not found.");
+        throw new KeyNotFoundException("Veículo não encontrado.");
     }
 
     await _repository.DeleteAsync(vehicle, cancellationToken);
@@ -121,15 +133,33 @@ public class VehicleService : IVehicleService
     // Centraliza o mapeamento para evitar repetição de código
     private static string? NormalizePhone(string? phone) => string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
 
-    // Same limits the Vehicle constructor enforces on create, reported per field instead of as a
-    // single exception so the edit form can show them.
-    private static void ValidateCapacity(UpdateVehicleDto dto)
+    // Upper bounds keep typos (e.g. 999.999.999 kg) out of matching and occupancy figures. They are
+    // generous on purpose: a rodotrem carries ~74 t on 9 axles.
+    internal const int MaxAxleCount = 12;
+    internal const decimal MaxCapacityWeightKg = 100_000m;
+    internal const decimal MaxCapacityVolumeM3 = 500m;
+    internal const int MaxModelLength = 100;
+    internal const int MaxDriverLength = 100;
+    internal const int MaxLocationLength = 200;
+
+    // Reported per field (not as one exception from the Vehicle constructor) so the forms can show
+    // each message under its input. Null values are "not sent" on update and are skipped.
+    private static void ValidateFields(
+        string? model, int? axleCount, decimal? capacityWeight, decimal? capacityVolume,
+        string? driver, string? currentLocation, bool requireModel, string summary)
     {
         var errors = new List<Sigloc.Application.Exceptions.ValidationError>();
-        if (dto.AxleCount is <= 0) errors.Add(new("axleCount", "A quantidade de eixos deve ser maior que zero."));
-        if (dto.CapacityWeight is <= 0) errors.Add(new("capacityWeight", "A capacidade de peso deve ser maior que zero."));
-        if (dto.CapacityVolume is <= 0) errors.Add(new("capacityVolume", "A capacidade de volume deve ser maior que zero."));
-        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Não foi possível atualizar o veículo.");
+        if (requireModel && string.IsNullOrWhiteSpace(model)) errors.Add(new("model", "Informe a marca/modelo."));
+        if (model?.Trim().Length > MaxModelLength) errors.Add(new("model", $"A marca/modelo deve ter no máximo {MaxModelLength} caracteres."));
+        if (axleCount is <= 0) errors.Add(new("axleCount", "A quantidade de eixos deve ser maior que zero."));
+        if (axleCount > MaxAxleCount) errors.Add(new("axleCount", $"A quantidade de eixos deve ser no máximo {MaxAxleCount}."));
+        if (capacityWeight is <= 0) errors.Add(new("capacityWeight", "A capacidade de peso deve ser maior que zero."));
+        if (capacityWeight > MaxCapacityWeightKg) errors.Add(new("capacityWeight", $"A capacidade de peso deve ser no máximo 100.000 kg."));
+        if (capacityVolume is <= 0) errors.Add(new("capacityVolume", "A capacidade de volume deve ser maior que zero."));
+        if (capacityVolume > MaxCapacityVolumeM3) errors.Add(new("capacityVolume", $"A capacidade de volume deve ser no máximo 500 m³."));
+        if (driver?.Trim().Length > MaxDriverLength) errors.Add(new("driver", $"O nome do motorista deve ter no máximo {MaxDriverLength} caracteres."));
+        if (currentLocation?.Trim().Length > MaxLocationLength) errors.Add(new("currentLocation", $"A localização deve ter no máximo {MaxLocationLength} caracteres."));
+        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, summary);
     }
 
     private static void ValidateMonitoringFields(long? deviceId, string? phone)
