@@ -41,8 +41,7 @@ function logoLetterFrom(name) {
  * side, from the carrier's point of view) into a plain object for the UI.
  *
  * `ofertasAbertas` counts the contractor's auctions open to bids now; `corredoresAtivos`
- * counts the distinct lanes the carrier runs for them on active trips. The contractor CNPJ
- * doubles as the connection code shown on the card.
+ * counts the distinct lanes the carrier runs for them on active trips.
  */
 function toContractorPartner(dto) {
   const contractor = dto?.contratante ?? {}
@@ -57,7 +56,6 @@ function toContractorPartner(dto) {
     lastInteraction: dto?.ultimaInteracao ?? null,
     openOffers: dto?.ofertasAbertas ?? 0,
     currentLanes: dto?.corredoresAtivos ?? 0,
-    inviteCode: contractor.cnpj ?? "—",
   }
 }
 

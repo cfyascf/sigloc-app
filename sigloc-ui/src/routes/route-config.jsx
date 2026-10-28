@@ -30,7 +30,7 @@ import ResetPassword from "@/pages/ResetPassword"
 import ContractorDashboard from "@/pages/ContractorDashboard"
 import CarrierDashboard from "@/pages/CarrierDashboard"
 import ActiveRoutes from "@/pages/ActiveRoutes"
-import ControlTower from "@/pages/ControlTower"
+import ControlTowerRedirect from "@/routes/control-tower-redirect"
 import RegisterVehicle from "@/pages/RegisterVehicle"
 import FreightsOffersOverview from "@/pages/FreightsOffersOverview"
 import RouteSegmentManagement from "@/pages/RouteSegmentManagement"
@@ -82,7 +82,8 @@ export const ROUTES = [
   },
 
   // Authenticated only (all roles)
-  { path: "/control-tower", element: <ControlTower />, access: AuthAccess.AUTHENTICATED, nav: false },
+  // The old mock control tower; its real data lives in each role's trip list.
+  { path: "/control-tower", element: <ControlTowerRedirect />, access: AuthAccess.AUTHENTICATED, nav: false },
   { path: "/profile", element: <Profile />, access: AuthAccess.AUTHENTICATED, nav: false },
   {
     path: "/partner-network",
