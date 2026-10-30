@@ -7,6 +7,8 @@
  * fields (itinerary, deadlines, budget/toll, and the linked product items).
  */
 
+import { TRANSPORT_ENVIRONMENT } from "./products.js"
+
 /** Segment lifecycle wire values (see backend `SegmentEnumMappings`). */
 export const SEGMENT_STATUS = {
   AVAILABLE: "AVAILABLE",
@@ -63,16 +65,81 @@ export function cargoClassName(cargoClass) {
 
 /**
  * Why a segment can't join the route being selected, or null when it can. `selectedClass` is the
- * class of the segments already ticked (null when none is).
+ * class of the segments already ticked (null when none is); `selectedRange` is the temperature
+ * range every ticked segment tolerates (null when none is ticked).
  */
-export function cargoSelectionBlock(segment, selectedClass) {
+export function cargoSelectionBlock(segment, selectedClass, selectedRange = null) {
   if (segment.cargoClass === CARGO_CLASS.MISTA) {
     return "Este trecho mistura classes de carga. Edite o trecho e remova os produtos de outra classe antes de ofertá-lo."
   }
   if (selectedClass && segment.cargoClass !== selectedClass) {
     return `Uma rota não pode misturar ${cargoClassName(selectedClass)} com ${cargoClassName(segment.cargoClass)}.`
   }
+  const segmentRange = segmentTemperatureRange(segment)
+  if (selectedRange && segmentRange && isEmptyRange(intersectTemperatureRanges([selectedRange, segmentRange]))) {
+    return `Uma rota precisa viajar a uma única temperatura: este trecho exige ${formatTemperatureRange(segmentRange)} e os trechos selecionados, ${formatTemperatureRange(selectedRange)}.`
+  }
   return null
+}
+
+/**
+ * Same rule as the API's TemperatureCompatibility: a compartment runs at a single temperature, so
+ * a route only joins segments whose ranges overlap. Dry products travel at ambient temperature.
+ */
+const AMBIENT_RANGE = { min: 0, max: 35 }
+
+function productTemperatureRange(item) {
+  if (!item.transportEnvironment || item.transportEnvironment === TRANSPORT_ENVIRONMENT.DRY) {
+    return AMBIENT_RANGE
+  }
+  return { min: item.tempMin ?? -Infinity, max: item.tempMax ?? Infinity }
+}
+
+export function intersectTemperatureRanges(ranges) {
+  const present = ranges.filter(Boolean)
+  if (present.length === 0) return null
+  return {
+    min: Math.max(...present.map((range) => range.min)),
+    max: Math.min(...present.map((range) => range.max)),
+  }
+}
+
+const isEmptyRange = (range) => Boolean(range) && range.min > range.max
+
+/** Temperature range every product of the segment tolerates, or null when it has no products. */
+export function segmentTemperatureRange(segment) {
+  return intersectTemperatureRanges((segment?.items ?? []).map(productTemperatureRange))
+}
+
+const degreesFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 })
+const degrees = (value) => `${degreesFormat.format(value)} °C`
+
+/** "-18 °C a -12 °C", "a partir de 2 °C", "até 8 °C" or "qualquer temperatura". */
+export function formatTemperatureRange(range) {
+  if (!range) return "qualquer temperatura"
+  const hasMin = Number.isFinite(range.min)
+  const hasMax = Number.isFinite(range.max)
+  if (hasMin && hasMax) return `${degrees(range.min)} a ${degrees(range.max)}`
+  if (hasMin) return `a partir de ${degrees(range.min)}`
+  if (hasMax) return `até ${degrees(range.max)}`
+  return "qualquer temperatura"
+}
+
+/**
+ * What still fits the route being selected, e.g. "Para compor esta rota, selecione apenas trechos
+ * de carga frágil que possam viajar entre 2 °C e 8 °C."
+ */
+export function selectionCompatibilityHint(selectedClass, selectedRange) {
+  if (!selectedClass) return null
+  const hasMin = Number.isFinite(selectedRange?.min)
+  const hasMax = Number.isFinite(selectedRange?.max)
+  const temperature =
+    hasMin && hasMax
+      ? ` que possam viajar entre ${degrees(selectedRange.min)} e ${degrees(selectedRange.max)}`
+      : hasMin || hasMax
+        ? ` que possam viajar ${formatTemperatureRange(selectedRange)}`
+        : ""
+  return `Para compor esta rota, selecione apenas trechos de ${cargoClassName(selectedClass)}${temperature}.`
 }
 
 /**

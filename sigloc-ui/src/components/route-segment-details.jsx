@@ -5,19 +5,17 @@ import {
   Flag,
   MapPin,
   Route as RouteIcon,
-  Snowflake,
-  Thermometer,
   Truck,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { HANDLING, itemHandlingKeys } from "@/components/cargo-handling"
 import { formatDeadline } from "@/lib/deadline-formatters"
 import {
   CARGO_CLASS_BADGES,
   segmentShortId,
 } from "@/constants/route-segments"
 import {
-  TRANSPORT_ENVIRONMENT,
   categoryLabel,
   environmentLabel,
   packagingLabel,
@@ -36,11 +34,6 @@ const formatCurrency = (value) => (value != null ? currencyFormat.format(value) 
 const CARGO_CLASS_LABEL = {
   COMUM: { label: "Comum", className: "bg-slate-100 text-slate-600" },
   ...CARGO_CLASS_BADGES,
-}
-
-const ENVIRONMENT_BADGE = {
-  [TRANSPORT_ENVIRONMENT.CHILLED]: { label: "Refrigerado", className: "bg-sky-50 text-sky-700", Icon: Thermometer },
-  [TRANSPORT_ENVIRONMENT.FROZEN]: { label: "Congelado", className: "bg-indigo-50 text-indigo-700", Icon: Snowflake },
 }
 
 function formatTemperatureRange(min, max) {
@@ -73,24 +66,20 @@ function InfoField({ icon: Icon, label, children, className = "" }) {
 }
 
 function ProductHandlingBadges({ item }) {
-  const environment = ENVIRONMENT_BADGE[item.transportEnvironment]
-  const hasAny = item.dangerous || item.fragile || environment
-  if (!hasAny) {
+  const keys = itemHandlingKeys(item)
+  if (keys.length === 0) {
     return <span className="text-[11px] text-slate-400">Sem manuseio especial</span>
   }
   return (
     <div className="flex flex-wrap items-center gap-1">
-      {item.dangerous && (
-        <SmallBadge className={CARGO_CLASS_BADGES.PERIGOSA.className}>Perigosa</SmallBadge>
-      )}
-      {item.fragile && (
-        <SmallBadge className={CARGO_CLASS_BADGES.FRAGIL.className}>Frágil</SmallBadge>
-      )}
-      {environment && (
-        <SmallBadge className={`inline-flex items-center gap-1 ${environment.className}`}>
-          <environment.Icon size={10} /> {environment.label}
-        </SmallBadge>
-      )}
+      {keys.map((key) => {
+        const { label, description, Icon, badgeClassName } = HANDLING[key]
+        return (
+          <SmallBadge key={key} title={description} className={`inline-flex items-center gap-1 ${badgeClassName}`}>
+            <Icon size={10} /> {label}
+          </SmallBadge>
+        )
+      })}
     </div>
   )
 }

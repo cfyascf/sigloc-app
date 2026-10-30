@@ -16,6 +16,7 @@ import {
   Archive,
   SlidersHorizontal,
   ChevronDown,
+  Info,
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 
@@ -26,6 +27,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FormAlert } from "@/components/auth/FormAlert"
 import RouteSegmentDetails from "@/components/route-segment-details"
+import { SegmentHandlingIcons } from "@/components/cargo-handling"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { useInfiniteList } from "@/hooks/use-infinite-list"
 import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel"
@@ -45,6 +47,9 @@ import {
   segmentStatusLabel,
   isPickupOverdue,
   cargoSelectionBlock,
+  intersectTemperatureRanges,
+  segmentTemperatureRange,
+  selectionCompatibilityHint,
   SEGMENT_STATUS,
   mapRouteSegmentFieldErrors,
 } from "@/constants/route-segments"
@@ -62,8 +67,6 @@ const HISTORY_STATUSES = [
 ]
 
 const numberFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 })
-const formatWeight = (value) => `${numberFormat.format(value ?? 0)} kg`
-const formatVolume = (value) => `${numberFormat.format(value ?? 0)} m³`
 const formatDistance = (value) => `${numberFormat.format(value ?? 0)} km`
 const formatCurrency = (value) =>
   new Intl.NumberFormat("pt-BR", {
@@ -230,8 +233,19 @@ export default function RouteSegmentManagement() {
     previewAction.reset()
   }
 
-  // Class of the segments already ticked: only segments of the same class can join them.
-  const selectedCargoClass = segments.find((segment) => selectedSegmentIds.includes(segment.id))?.cargoClass ?? null
+  // Class and temperature range of the segments already ticked: only segments that share the class
+  // and overlap the range can join them (the API enforces the same rules when previewing the route).
+  const selectedSegments = segments.filter((segment) => selectedSegmentIds.includes(segment.id))
+  const selectedCargoClass = selectedSegments[0]?.cargoClass ?? null
+  const selectedTemperatureRange = intersectTemperatureRanges(selectedSegments.map(segmentTemperatureRange))
+  const compatibilityBlocksOthers =
+    selectedSegments.length > 0 &&
+    visibleSegments.some(
+      (segment) =>
+        !selectedSegmentIds.includes(segment.id) &&
+        isSegmentEditable(segment.status) &&
+        cargoSelectionBlock(segment, selectedCargoClass, selectedTemperatureRange)
+    )
 
   const handleProceedToWorkspace = async () => {
     const result = await previewAction.run(selectedSegmentIds)
@@ -362,7 +376,8 @@ export default function RouteSegmentManagement() {
 
         {/* BANNER CONTEXTUAL */}
         {isSelectionMode && selectedSegmentIds.length > 0 && (
-          <div className="animate-in fade-in flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 p-3 px-4 text-sm duration-200">
+          <div className="animate-in fade-in rounded-xl border border-blue-100 bg-blue-50 p-3 px-4 text-sm duration-200">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5 text-blue-900">
               <span className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-600 text-[10px] font-black tracking-wider text-white">
                 {selectedSegmentIds.length}
@@ -384,6 +399,16 @@ export default function RouteSegmentManagement() {
               Avançar para Criar Leilão{" "}
               <ArrowRight size={14} className="animate-pulse" />
             </button>
+          </div>
+          {compatibilityBlocksOthers && (
+            <p role="status" className="mt-2 flex items-start gap-2 border-t border-blue-100 pt-2 text-xs font-medium text-blue-800">
+              <Info size={14} className="mt-px shrink-0" />
+              <span>
+                {selectionCompatibilityHint(selectedCargoClass, selectedTemperatureRange)} Os trechos
+                incompatíveis ficam desabilitados; passe o mouse sobre a caixa de seleção para ver o motivo.
+              </span>
+            </p>
+          )}
           </div>
         )}
 
@@ -428,7 +453,9 @@ export default function RouteSegmentManagement() {
               const isExpandedThis = expandedId === segment.id && !isEditingThis
               const editable = isSegmentEditable(segment.status)
               const pickupOverdue = isPickupOverdue(segment)
-              const cargoBlock = isChecked ? null : cargoSelectionBlock(segment, selectedCargoClass)
+              const cargoBlock = isChecked
+                ? null
+                : cargoSelectionBlock(segment, selectedCargoClass, selectedTemperatureRange)
               const selectable = editable && !pickupOverdue && !cargoBlock
 
               if (isDeletingThis) {
@@ -555,10 +582,15 @@ export default function RouteSegmentManagement() {
                       </div>
 
                       <div className="flex items-center justify-end gap-3 text-xs font-bold whitespace-nowrap">
-                        <div className="flex gap-1 text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                          <span>{formatWeight(segment.calculatedTotals.totalWeightKg)}</span>
-                          <span className="text-slate-300">•</span>
-                          <span>{formatVolume(segment.calculatedTotals.totalVolumeM3)}</span>
+                        {/* Fades out while the hover actions overlay this corner of the row. */}
+                        <div
+                          className={
+                            !isSelectionMode && !isEditingThis
+                              ? "transition-opacity duration-200 group-hover:opacity-0 group-focus-within:opacity-0"
+                              : undefined
+                          }
+                        >
+                          <SegmentHandlingIcons segment={segment} />
                         </div>
                         <div className="text-right min-w-[85px]">
                           <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">
