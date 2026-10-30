@@ -779,6 +779,14 @@ public class AuctionService : IAuctionService
                 "Overbooking: o veículo já possui uma viagem ativa que se sobrepõe à janela desta rota.");
         }
 
+        // --- 6. Temporal trava: reaching the first pickup from the previous trip ---
+        var unreachable = await EvaluatePickupReachabilityAsync(dto.VeiculoId, detail.Segments, cancellationToken);
+        if (unreachable is not null)
+        {
+            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Sla, cancellationToken);
+            throw unreachable;
+        }
+
         // --- All travas passed: upsert the bid ----------------------------------
         // A carrier holds a single bid per auction, so re-bidding overwrites the previous
         // one (value, vehicle, toll, total, timestamp) instead of stacking new rows.
@@ -859,6 +867,41 @@ public class AuctionService : IAuctionService
 
         var occupiedWindows = await _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, cancellationToken);
         return occupiedWindows.Any(w => w.Start <= windowEnd && windowStart <= w.End);
+    }
+
+    // Rejects the bid when the vehicle, leaving the place of its last delivery before this route
+    // at that delivery deadline, cannot drive to the route's first pickup by its deadline.
+    // Returns null when the pickup is reachable or the vehicle has no previous delivery.
+    private async Task<BidRejectedException?> EvaluatePickupReachabilityAsync(
+        Guid vehicleId,
+        IReadOnlyCollection<RouteSegment> segments,
+        CancellationToken cancellationToken)
+    {
+        if (segments.Count == 0)
+        {
+            return null;
+        }
+
+        var firstPickup = segments.MinBy(s => s.PickupDeadline)!;
+        var previous = await _tripRepository.GetLastDeliveryUntilAsync(vehicleId, firstPickup.PickupDeadline, cancellationToken);
+        if (previous is null || previous.DestinationCoordinate == firstPickup.OriginCoordinate)
+        {
+            return null;
+        }
+
+        var leg = await _geocodingService.ComputeLegAsync(previous.DestinationCoordinate, firstPickup.OriginCoordinate, cancellationToken);
+        var availableHours = (firstPickup.PickupDeadline - previous.DeliveryDeadline).TotalHours;
+        if (leg.EstimatedTimeHours <= availableHours)
+        {
+            return null;
+        }
+
+        return new BidRejectedException(
+            BidRejectionCode.PickupUnreachable,
+            $"Coleta inalcançável: o veículo termina a entrega anterior em {previous.DestinationPlace} em "
+            + $"{BrasiliaTime.Format(previous.DeliveryDeadline)} e leva {FormatHours(leg.EstimatedTimeHours)} até a coleta em "
+            + $"{firstPickup.OriginPlace}, mas só há {FormatHours(availableHours)} até o prazo de coleta "
+            + $"({BrasiliaTime.Format(firstPickup.PickupDeadline)}).");
     }
 
     private Task LogBlockedAttemptAsync(

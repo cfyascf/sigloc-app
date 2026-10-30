@@ -214,6 +214,39 @@ public class RoutePreviewServiceTests
     }
 
     [Fact]
+    public async Task PreviewAsync_rejects_segments_without_a_common_temperature()
+    {
+        var dry = Segment(Guid.NewGuid(), TestData.Product(name: "Arroz"), quantity: 1);
+        var frozen = Segment(Guid.NewGuid(), TestData.Refrigerated(TransportEnvironment.Frozen, -25, -18, name: "Sorvete"), quantity: 1);
+        _repository
+            .GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), false, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { dry, frozen });
+
+        var act = () => _service.PreviewAsync(_contractorId, new RoutePreviewRequestDto(new[] { dry.Id, frozen.Id }));
+
+        var error = (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Single();
+        error.Field.Should().Be("segmentIds");
+        error.Reason.Should().Contain($"Arroz (ambiente, 0 °C a 35 °C) no trecho {dry.Id.ToString("N")[^8..]}")
+            .And.Contain($"Sorvete (-25 °C a -18 °C) no trecho {frozen.Id.ToString("N")[^8..]}");
+        await _geocoding.DidNotReceive().ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PreviewAsync_accepts_dry_and_chilled_segments_on_one_route()
+    {
+        var dry = Segment(Guid.NewGuid(), TestData.Product(), quantity: 1);
+        var chilled = Segment(Guid.NewGuid(), TestData.Refrigerated(TransportEnvironment.Chilled, 2, 8), quantity: 1);
+        _repository
+            .GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), false, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { dry, chilled });
+        _geocoding.ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new RouteLeg(10, 0.2));
+
+        var result = await _service.PreviewAsync(_contractorId, new RoutePreviewRequestDto(new[] { dry.Id, chilled.Id }));
+
+        result.ConsolidatedVehicleRequirement.MinRefrigerationLevel.Should().Be("Resfriado");
+    }
+
+    [Fact]
     public async Task PreviewAsync_accepts_segments_of_the_same_class_and_treats_dangerous_fragile_as_dangerous()
     {
         var first = Segment(Guid.NewGuid(), Flagged(dangerous: true), quantity: 1);

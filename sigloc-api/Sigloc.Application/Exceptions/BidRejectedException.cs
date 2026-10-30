@@ -22,7 +22,13 @@ public enum BidRejectionCode
     EquipmentMismatch,
 
     /// <summary>The vehicle already has an active trip overlapping the route window.</summary>
-    Overbooked
+    Overbooked,
+
+    /// <summary>
+    /// The vehicle cannot drive from the end of its previous trip to the route's first pickup
+    /// before the pickup deadline.
+    /// </summary>
+    PickupUnreachable
 }
 
 /// <summary>

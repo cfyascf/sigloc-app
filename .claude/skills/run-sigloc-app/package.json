@@ -1,0 +1,9 @@
+{
+  "name": "run-sigloc-app-driver",
+  "private": true,
+  "type": "module",
+  "description": "Headless-Chrome driver for the local Sigloc UI (agent tooling, not product code).",
+  "dependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}
