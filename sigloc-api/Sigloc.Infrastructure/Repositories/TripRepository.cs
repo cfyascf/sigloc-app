@@ -42,6 +42,26 @@ public class TripRepository : ITripRepository
         return windows;
     }
 
+    public async Task<VehicleDelivery?> GetLastDeliveryUntilAsync(
+        Guid vehicleId,
+        DateTimeOffset until,
+        CancellationToken cancellationToken = default)
+    {
+        // Delivered trips count too: their last delivery is where the vehicle was left.
+        return await (
+            from trip in _dbContext.Trips.AsNoTracking()
+            where trip.VehicleId == vehicleId && trip.Status != TripStatus.Cancelled
+            join segment in _dbContext.RouteSegments.AsNoTracking()
+                on trip.RouteId equals segment.RouteId
+            where segment.DeliveryDeadline <= until
+            orderby segment.DeliveryDeadline descending
+            select new VehicleDelivery(
+                segment.DeliveryDeadline,
+                segment.DestinationCoordinate,
+                segment.DestinationCity ?? segment.DestinationAddress))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<Dictionary<Guid, int>> CountActiveByCarrierForContractorAsync(
         Guid contractorId,
         IReadOnlyCollection<Guid> carrierIds,

@@ -1216,6 +1216,94 @@ public class AuctionServiceTests
             Arg.Is<BlockedBidAttempt>(b => b.Reason == BlockedReason.Sla), Arg.Any<CancellationToken>());
     }
 
+    // Offer whose first pickup (Curitiba, "-49.27,-25.42") is due at the given time, bid with a
+    // vehicle of the carrier that has no overlapping trip.
+    private (CarrierAuctionWithRoute Offer, Guid VehicleId) ReachabilityScenario(DateTimeOffset firstPickup)
+    {
+        var route = Route(ceiling: 5000m, weightKg: 100, volumeM3: 5);
+        var auction = Auction(routeId: route.Id);
+        var first = Segment(pickup: firstPickup, delivery: firstPickup.AddDays(1), products: TestData.Product());
+        var second = Segment(pickup: firstPickup.AddHours(12), delivery: firstPickup.AddDays(2), products: TestData.Product());
+        second.OriginCoordinate = "-46.63,-23.55";
+        var offer = new CarrierAuctionWithRoute(auction, route, new[] { second, first }, "C");
+
+        _auctionRepository.GetAvailableForCarrierAsync(auction.Id, _carrierId, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(offer);
+        var vehicleId = Guid.NewGuid();
+        _vehicleRepository.GetByIdAsync(vehicleId, _carrierId, Arg.Any<CancellationToken>())
+            .Returns(TestData.Vehicle(carrierId: _carrierId));
+        _tripRepository.GetActiveWindowsForVehicleAsync(vehicleId, Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<TripScheduleWindow>());
+        _bidRepository.GetTrackedByCarrierAndAuctionAsync(_carrierId, auction.Id, Arg.Any<CancellationToken>())
+            .Returns((Bid?)null);
+
+        return (offer, vehicleId);
+    }
+
+    [Fact]
+    public async Task PlaceBidAsync_pickup_unreachable_from_previous_delivery_rejected_and_logs_blocked_attempt()
+    {
+        var firstPickup = DateTimeOffset.UtcNow.AddDays(3);
+        var (offer, vehicleId) = ReachabilityScenario(firstPickup);
+        // Previous delivery in Porto Alegre 10 h before the pickup, but the drive takes 12 h.
+        _tripRepository.GetLastDeliveryUntilAsync(vehicleId, firstPickup, Arg.Any<CancellationToken>())
+            .Returns(new VehicleDelivery(firstPickup.AddHours(-10), "-51.23,-30.03", "Porto Alegre, RS"));
+        _geocodingService.ComputeLegAsync("-51.23,-30.03", "-49.27,-25.42", Arg.Any<CancellationToken>())
+            .Returns(new RouteLeg(DistanceKm: 710, EstimatedTimeHours: 12));
+
+        var act = () => _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(100m, vehicleId));
+
+        var ex = (await act.Should().ThrowAsync<BidRejectedException>()).Which;
+        ex.Code.Should().Be(BidRejectionCode.PickupUnreachable);
+        ex.Message.Should().Contain("Porto Alegre, RS").And.Contain("12 h").And.Contain("10 h");
+        await _blockedBidAttemptRepository.Received(1).AddAsync(
+            Arg.Is<BlockedBidAttempt>(b => b.Reason == BlockedReason.Sla), Arg.Any<CancellationToken>());
+        await _bidRepository.DidNotReceive().AddAsync(Arg.Any<Bid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlaceBidAsync_pickup_reachable_from_previous_delivery_is_accepted()
+    {
+        var firstPickup = DateTimeOffset.UtcNow.AddDays(3);
+        var (offer, vehicleId) = ReachabilityScenario(firstPickup);
+        _tripRepository.GetLastDeliveryUntilAsync(vehicleId, firstPickup, Arg.Any<CancellationToken>())
+            .Returns(new VehicleDelivery(firstPickup.AddHours(-12), "-51.23,-30.03", "Porto Alegre, RS"));
+        _geocodingService.ComputeLegAsync("-51.23,-30.03", "-49.27,-25.42", Arg.Any<CancellationToken>())
+            .Returns(new RouteLeg(DistanceKm: 710, EstimatedTimeHours: 12));
+
+        await _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(100m, vehicleId));
+
+        await _bidRepository.Received(1).AddAsync(Arg.Any<Bid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlaceBidAsync_without_previous_delivery_skips_the_reachability_check()
+    {
+        var firstPickup = DateTimeOffset.UtcNow.AddDays(3);
+        var (offer, vehicleId) = ReachabilityScenario(firstPickup);
+        _tripRepository.GetLastDeliveryUntilAsync(vehicleId, firstPickup, Arg.Any<CancellationToken>())
+            .Returns((VehicleDelivery?)null);
+
+        await _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(100m, vehicleId));
+
+        await _geocodingService.DidNotReceive().ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _bidRepository.Received(1).AddAsync(Arg.Any<Bid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PlaceBidAsync_previous_delivery_at_the_pickup_location_needs_no_routing()
+    {
+        var firstPickup = DateTimeOffset.UtcNow.AddDays(3);
+        var (offer, vehicleId) = ReachabilityScenario(firstPickup);
+        _tripRepository.GetLastDeliveryUntilAsync(vehicleId, firstPickup, Arg.Any<CancellationToken>())
+            .Returns(new VehicleDelivery(firstPickup, "-49.27,-25.42", "Curitiba, PR"));
+
+        await _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(100m, vehicleId));
+
+        await _geocodingService.DidNotReceive().ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _bidRepository.Received(1).AddAsync(Arg.Any<Bid>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task PlaceBidAsync_happy_path_creates_new_bid()
     {

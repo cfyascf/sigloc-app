@@ -175,6 +175,55 @@ public class TripRepositoryTests : IDisposable
         windows.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(TripStatus.InTransit)]
+    [InlineData(TripStatus.Delivered)]
+    public async Task GetLastDeliveryUntilAsync_returns_the_latest_delivery_up_to_the_cutoff(TripStatus status)
+    {
+        var seedCtx = _db.CreateContext();
+        var trip = await SeedTripAsync(seedCtx, status);
+        var basis = DateTimeOffset.UtcNow;
+
+        var ctx = _db.CreateContext();
+        ctx.Trips.Add(trip);
+        var earlier = RouteSegmentOnRoute(trip.RouteId, basis.AddHours(1), basis.AddHours(5));
+        var latest = RouteSegmentOnRoute(trip.RouteId, basis.AddHours(6), basis.AddHours(10));
+        latest.DestinationAddress = "Rua A, 100, Campinas";
+        latest.DestinationCity = "Campinas, SP";
+        latest.DestinationCoordinate = "-47.06,-22.90";
+        var afterCutoff = RouteSegmentOnRoute(trip.RouteId, basis.AddHours(11), basis.AddHours(30));
+        ctx.RouteSegments.AddRange(earlier, latest, afterCutoff);
+        await ctx.SaveChangesAsync();
+
+        var delivery = await new TripRepository(_db.CreateContext())
+            .GetLastDeliveryUntilAsync(trip.VehicleId, basis.AddHours(20));
+
+        delivery.Should().NotBeNull();
+        delivery!.DeliveryDeadline.Should().BeCloseTo(basis.AddHours(10), TimeSpan.FromSeconds(1));
+        delivery.DestinationCoordinate.Should().Be("-47.06,-22.90");
+        delivery.DestinationPlace.Should().Be("Campinas, SP");
+    }
+
+    [Fact]
+    public async Task GetLastDeliveryUntilAsync_ignores_cancelled_trips_and_other_vehicles()
+    {
+        var seedCtx = _db.CreateContext();
+        var cancelled = await SeedTripAsync(seedCtx, TripStatus.Cancelled);
+        var otherVehicle = await SeedTripAsync(seedCtx, TripStatus.InTransit);
+        var basis = DateTimeOffset.UtcNow;
+
+        var ctx = _db.CreateContext();
+        ctx.Trips.AddRange(cancelled, otherVehicle);
+        ctx.RouteSegments.Add(RouteSegmentOnRoute(cancelled.RouteId, basis.AddHours(1), basis.AddHours(5)));
+        ctx.RouteSegments.Add(RouteSegmentOnRoute(otherVehicle.RouteId, basis.AddHours(1), basis.AddHours(5)));
+        await ctx.SaveChangesAsync();
+
+        var delivery = await new TripRepository(_db.CreateContext())
+            .GetLastDeliveryUntilAsync(cancelled.VehicleId, basis.AddHours(20));
+
+        delivery.Should().BeNull();
+    }
+
     [Fact]
     public async Task GetActiveWindowsForVehicleAsync_returns_empty_for_unknown_vehicle()
     {
