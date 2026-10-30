@@ -26,14 +26,25 @@ public record RouteSegmentQueryDto(
     int Page = 1,
     int PageSize = 20);
 
-/// <summary>Resolved product line returned with computed physical subtotals.</summary>
+/// <summary>
+/// Resolved product line returned with computed physical subtotals and the product's handling
+/// profile (category, environment, temperature range, packaging and special-handling flags).
+/// </summary>
 public record RouteSegmentItemDto(
     Guid ProductId,
     string Sku,
     string Name,
     int Quantity,
     double WeightSubtotal,
-    double VolumeSubtotal);
+    double VolumeSubtotal,
+    string? Category = null,
+    string? TransportEnvironment = null,
+    double? TempMin = null,
+    double? TempMax = null,
+    string? PackagingType = null,
+    bool Dangerous = false,
+    bool Fragile = false,
+    string? HandlingRestriction = null);
 
 /// <summary>Real-time physical totals of the whole segment.</summary>
 public record CalculatedTotalsDto(

@@ -15,6 +15,7 @@ import {
   Loader2,
   Archive,
   SlidersHorizontal,
+  ChevronDown,
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FormAlert } from "@/components/auth/FormAlert"
+import RouteSegmentDetails from "@/components/route-segment-details"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { useInfiniteList } from "@/hooks/use-infinite-list"
 import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel"
@@ -42,7 +44,6 @@ import {
   segmentShortId,
   segmentStatusLabel,
   isPickupOverdue,
-  CARGO_CLASS_BADGES,
   cargoSelectionBlock,
   SEGMENT_STATUS,
   mapRouteSegmentFieldErrors,
@@ -135,6 +136,7 @@ export default function RouteSegmentManagement() {
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
 
   const saveAction = useAsyncAction(({ id, payload }) =>
     updateRouteSegment(id, payload)
@@ -204,6 +206,7 @@ export default function RouteSegmentManagement() {
     setEditingId(null)
     setEditForm(null)
     setDeletingId(null)
+    setExpandedId(null)
     setIsSelectionMode(false)
     setSelectedSegmentIds([])
     setFilters(NO_FILTERS)
@@ -241,6 +244,7 @@ export default function RouteSegmentManagement() {
 
   const startEditing = (segment) => {
     setEditingId(segment.id)
+    setExpandedId(null)
     setEditForm({
       origin: segment.origin,
       destination: segment.destination,
@@ -421,11 +425,11 @@ export default function RouteSegmentManagement() {
               const isChecked = selectedSegmentIds.includes(segment.id)
               const isEditingThis = editingId === segment.id
               const isDeletingThis = deletingId === segment.id
+              const isExpandedThis = expandedId === segment.id && !isEditingThis
               const editable = isSegmentEditable(segment.status)
               const pickupOverdue = isPickupOverdue(segment)
               const cargoBlock = isChecked ? null : cargoSelectionBlock(segment, selectedCargoClass)
               const selectable = editable && !pickupOverdue && !cargoBlock
-              const cargoBadge = CARGO_CLASS_BADGES[segment.cargoClass]
 
               if (isDeletingThis) {
                 return (
@@ -477,7 +481,7 @@ export default function RouteSegmentManagement() {
                   }`}
                 >
                   {/* LINHA PRINCIPAL VISÍVEL */}
-                  <div className="flex items-center w-full p-3.5 text-left">
+                  <div className="relative flex items-center w-full p-3.5 text-left">
                     {isSelectionMode && !isEditingThis && (
                       <div className="flex items-center justify-center pl-1 mr-4">
                         <input
@@ -512,15 +516,6 @@ export default function RouteSegmentManagement() {
                           >
                             {pickupOverdue ? "Coleta vencida" : segmentStatusLabel(segment.status)}
                           </Badge>
-                          {cargoBadge && (
-                            <Badge
-                              variant="secondary"
-                              title="Trechos só podem formar uma rota com outros da mesma classe de carga."
-                              className={`text-[10px] font-bold uppercase tracking-wide border-none px-1.5 py-0 ${cargoBadge.className}`}
-                            >
-                              {cargoBadge.label}
-                            </Badge>
-                          )}
                         </div>
                       </div>
 
@@ -579,31 +574,51 @@ export default function RouteSegmentManagement() {
                     </div>
 
                     {/* AÇÕES */}
-                    {!isSelectionMode && !isEditingThis && editable && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 bg-white pl-2 transition-opacity duration-200">
+                    {!isSelectionMode && !isEditingThis && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 bg-white pl-2 transition-opacity duration-200">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => startEditing(segment)}
-                          aria-label={`Editar trecho ${segmentShortId(segment.id)}`}
-                          title="Editar trecho"
-                          className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0 transition-colors"
+                          onClick={() => setExpandedId(isExpandedThis ? null : segment.id)}
+                          aria-expanded={isExpandedThis}
+                          aria-label={`${isExpandedThis ? "Recolher" : "Expandir"} detalhes do trecho ${segmentShortId(segment.id)}`}
+                          title={isExpandedThis ? "Recolher detalhes" : "Ver detalhes"}
+                          className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-slate-100 shrink-0 transition-colors"
                         >
-                          <Pencil size={14} />
+                          <ChevronDown
+                            size={14}
+                            className={`transition-transform duration-200 ${isExpandedThis ? "rotate-180" : ""}`}
+                          />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeletingId(segment.id)}
-                          aria-label={`Excluir trecho ${segmentShortId(segment.id)}`}
-                          title="Excluir trecho"
-                          className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
+                        {editable && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => startEditing(segment)}
+                              aria-label={`Editar trecho ${segmentShortId(segment.id)}`}
+                              title="Editar trecho"
+                              className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0 transition-colors"
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletingId(segment.id)}
+                              aria-label={`Excluir trecho ${segmentShortId(segment.id)}`}
+                              title="Excluir trecho"
+                              className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
+
+                  {isExpandedThis && <RouteSegmentDetails segment={segment} />}
 
                   {/* FORMULÁRIO DE EDIÇÃO INLINE */}
                   {isEditingThis && editForm && (

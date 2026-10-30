@@ -82,6 +82,14 @@ function toItem(dto) {
     quantity: dto.quantity ?? 0,
     weightSubtotal: dto.weightSubtotal ?? 0,
     volumeSubtotal: dto.volumeSubtotal ?? 0,
+    category: dto.category ?? null,
+    transportEnvironment: dto.transportEnvironment ?? null,
+    tempMin: dto.tempMin ?? null,
+    tempMax: dto.tempMax ?? null,
+    packagingType: dto.packagingType ?? null,
+    dangerous: Boolean(dto.dangerous),
+    fragile: Boolean(dto.fragile),
+    handlingRestriction: dto.handlingRestriction ?? null,
   }
 }
 
