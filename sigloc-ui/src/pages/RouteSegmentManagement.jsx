@@ -15,6 +15,8 @@ import {
   Loader2,
   Archive,
   SlidersHorizontal,
+  ChevronDown,
+  Info,
 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 
@@ -24,6 +26,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FormAlert } from "@/components/auth/FormAlert"
+import RouteSegmentDetails from "@/components/route-segment-details"
+import { SegmentHandlingIcons } from "@/components/cargo-handling"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { useInfiniteList } from "@/hooks/use-infinite-list"
 import { InfiniteScrollSentinel } from "@/components/infinite-scroll-sentinel"
@@ -42,8 +46,10 @@ import {
   segmentShortId,
   segmentStatusLabel,
   isPickupOverdue,
-  CARGO_CLASS_BADGES,
   cargoSelectionBlock,
+  intersectTemperatureRanges,
+  segmentTemperatureRange,
+  selectionCompatibilityHint,
   SEGMENT_STATUS,
   mapRouteSegmentFieldErrors,
 } from "@/constants/route-segments"
@@ -61,8 +67,6 @@ const HISTORY_STATUSES = [
 ]
 
 const numberFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 })
-const formatWeight = (value) => `${numberFormat.format(value ?? 0)} kg`
-const formatVolume = (value) => `${numberFormat.format(value ?? 0)} m³`
 const formatDistance = (value) => `${numberFormat.format(value ?? 0)} km`
 const formatCurrency = (value) =>
   new Intl.NumberFormat("pt-BR", {
@@ -135,6 +139,7 @@ export default function RouteSegmentManagement() {
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
 
   const saveAction = useAsyncAction(({ id, payload }) =>
     updateRouteSegment(id, payload)
@@ -204,6 +209,7 @@ export default function RouteSegmentManagement() {
     setEditingId(null)
     setEditForm(null)
     setDeletingId(null)
+    setExpandedId(null)
     setIsSelectionMode(false)
     setSelectedSegmentIds([])
     setFilters(NO_FILTERS)
@@ -227,8 +233,19 @@ export default function RouteSegmentManagement() {
     previewAction.reset()
   }
 
-  // Class of the segments already ticked: only segments of the same class can join them.
-  const selectedCargoClass = segments.find((segment) => selectedSegmentIds.includes(segment.id))?.cargoClass ?? null
+  // Class and temperature range of the segments already ticked: only segments that share the class
+  // and overlap the range can join them (the API enforces the same rules when previewing the route).
+  const selectedSegments = segments.filter((segment) => selectedSegmentIds.includes(segment.id))
+  const selectedCargoClass = selectedSegments[0]?.cargoClass ?? null
+  const selectedTemperatureRange = intersectTemperatureRanges(selectedSegments.map(segmentTemperatureRange))
+  const compatibilityBlocksOthers =
+    selectedSegments.length > 0 &&
+    visibleSegments.some(
+      (segment) =>
+        !selectedSegmentIds.includes(segment.id) &&
+        isSegmentEditable(segment.status) &&
+        cargoSelectionBlock(segment, selectedCargoClass, selectedTemperatureRange)
+    )
 
   const handleProceedToWorkspace = async () => {
     const result = await previewAction.run(selectedSegmentIds)
@@ -241,6 +258,7 @@ export default function RouteSegmentManagement() {
 
   const startEditing = (segment) => {
     setEditingId(segment.id)
+    setExpandedId(null)
     setEditForm({
       origin: segment.origin,
       destination: segment.destination,
@@ -358,7 +376,8 @@ export default function RouteSegmentManagement() {
 
         {/* BANNER CONTEXTUAL */}
         {isSelectionMode && selectedSegmentIds.length > 0 && (
-          <div className="animate-in fade-in flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 p-3 px-4 text-sm duration-200">
+          <div className="animate-in fade-in rounded-xl border border-blue-100 bg-blue-50 p-3 px-4 text-sm duration-200">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5 text-blue-900">
               <span className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-600 text-[10px] font-black tracking-wider text-white">
                 {selectedSegmentIds.length}
@@ -380,6 +399,16 @@ export default function RouteSegmentManagement() {
               Avançar para Criar Leilão{" "}
               <ArrowRight size={14} className="animate-pulse" />
             </button>
+          </div>
+          {compatibilityBlocksOthers && (
+            <p role="status" className="mt-2 flex items-start gap-2 border-t border-blue-100 pt-2 text-xs font-medium text-blue-800">
+              <Info size={14} className="mt-px shrink-0" />
+              <span>
+                {selectionCompatibilityHint(selectedCargoClass, selectedTemperatureRange)} Os trechos
+                incompatíveis ficam desabilitados; passe o mouse sobre a caixa de seleção para ver o motivo.
+              </span>
+            </p>
+          )}
           </div>
         )}
 
@@ -421,11 +450,13 @@ export default function RouteSegmentManagement() {
               const isChecked = selectedSegmentIds.includes(segment.id)
               const isEditingThis = editingId === segment.id
               const isDeletingThis = deletingId === segment.id
+              const isExpandedThis = expandedId === segment.id && !isEditingThis
               const editable = isSegmentEditable(segment.status)
               const pickupOverdue = isPickupOverdue(segment)
-              const cargoBlock = isChecked ? null : cargoSelectionBlock(segment, selectedCargoClass)
+              const cargoBlock = isChecked
+                ? null
+                : cargoSelectionBlock(segment, selectedCargoClass, selectedTemperatureRange)
               const selectable = editable && !pickupOverdue && !cargoBlock
-              const cargoBadge = CARGO_CLASS_BADGES[segment.cargoClass]
 
               if (isDeletingThis) {
                 return (
@@ -477,7 +508,7 @@ export default function RouteSegmentManagement() {
                   }`}
                 >
                   {/* LINHA PRINCIPAL VISÍVEL */}
-                  <div className="flex items-center w-full p-3.5 text-left">
+                  <div className="relative flex items-center w-full p-3.5 text-left">
                     {isSelectionMode && !isEditingThis && (
                       <div className="flex items-center justify-center pl-1 mr-4">
                         <input
@@ -512,15 +543,6 @@ export default function RouteSegmentManagement() {
                           >
                             {pickupOverdue ? "Coleta vencida" : segmentStatusLabel(segment.status)}
                           </Badge>
-                          {cargoBadge && (
-                            <Badge
-                              variant="secondary"
-                              title="Trechos só podem formar uma rota com outros da mesma classe de carga."
-                              className={`text-[10px] font-bold uppercase tracking-wide border-none px-1.5 py-0 ${cargoBadge.className}`}
-                            >
-                              {cargoBadge.label}
-                            </Badge>
-                          )}
                         </div>
                       </div>
 
@@ -560,10 +582,15 @@ export default function RouteSegmentManagement() {
                       </div>
 
                       <div className="flex items-center justify-end gap-3 text-xs font-bold whitespace-nowrap">
-                        <div className="flex gap-1 text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                          <span>{formatWeight(segment.calculatedTotals.totalWeightKg)}</span>
-                          <span className="text-slate-300">•</span>
-                          <span>{formatVolume(segment.calculatedTotals.totalVolumeM3)}</span>
+                        {/* Fades out while the hover actions overlay this corner of the row. */}
+                        <div
+                          className={
+                            !isSelectionMode && !isEditingThis
+                              ? "transition-opacity duration-200 group-hover:opacity-0 group-focus-within:opacity-0"
+                              : undefined
+                          }
+                        >
+                          <SegmentHandlingIcons segment={segment} />
                         </div>
                         <div className="text-right min-w-[85px]">
                           <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">
@@ -579,31 +606,51 @@ export default function RouteSegmentManagement() {
                     </div>
 
                     {/* AÇÕES */}
-                    {!isSelectionMode && !isEditingThis && editable && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 bg-white pl-2 transition-opacity duration-200">
+                    {!isSelectionMode && !isEditingThis && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 bg-white pl-2 transition-opacity duration-200">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => startEditing(segment)}
-                          aria-label={`Editar trecho ${segmentShortId(segment.id)}`}
-                          title="Editar trecho"
-                          className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0 transition-colors"
+                          onClick={() => setExpandedId(isExpandedThis ? null : segment.id)}
+                          aria-expanded={isExpandedThis}
+                          aria-label={`${isExpandedThis ? "Recolher" : "Expandir"} detalhes do trecho ${segmentShortId(segment.id)}`}
+                          title={isExpandedThis ? "Recolher detalhes" : "Ver detalhes"}
+                          className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-slate-100 shrink-0 transition-colors"
                         >
-                          <Pencil size={14} />
+                          <ChevronDown
+                            size={14}
+                            className={`transition-transform duration-200 ${isExpandedThis ? "rotate-180" : ""}`}
+                          />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeletingId(segment.id)}
-                          aria-label={`Excluir trecho ${segmentShortId(segment.id)}`}
-                          title="Excluir trecho"
-                          className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
+                        {editable && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => startEditing(segment)}
+                              aria-label={`Editar trecho ${segmentShortId(segment.id)}`}
+                              title="Editar trecho"
+                              className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0 transition-colors"
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletingId(segment.id)}
+                              aria-label={`Excluir trecho ${segmentShortId(segment.id)}`}
+                              title="Excluir trecho"
+                              className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
+
+                  {isExpandedThis && <RouteSegmentDetails segment={segment} />}
 
                   {/* FORMULÁRIO DE EDIÇÃO INLINE */}
                   {isEditingThis && editForm && (

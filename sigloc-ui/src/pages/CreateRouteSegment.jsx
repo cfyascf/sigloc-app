@@ -283,8 +283,10 @@ export default function CreateRouteSegment() {
                     />
                   </div>
 
-                  {/* Catálogo clicável (mesmo estilo de /product-management). md:h-0 keeps a long catalog from stretching the grid rows. */}
-                  <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-200 md:h-0">
+                  {/* Catálogo clicável (mesmo estilo de /product-management). The list is absolutely positioned so
+                      its length never feeds into the grid's row sizing; it fills the card and scrolls instead. */}
+                  <div className="relative mt-3 min-h-[280px] flex-1">
+                  <div className="absolute inset-0 overflow-y-auto rounded-lg border border-slate-200">
                     {filteredProductOptions.length === 0 ? (
                       <div className="flex h-full items-center justify-center p-4 text-center text-xs text-slate-500">
                         Nenhum produto encontrado.
@@ -300,6 +302,7 @@ export default function CreateRouteSegment() {
                         />
                       ))
                     )}
+                  </div>
                   </div>
 
                   {/* Quantidades dos itens selecionados */}

@@ -357,7 +357,15 @@ public class RouteSegmentService : IRouteSegmentService
                 product.Name,
                 link.Quantity,
                 weightSubtotal,
-                volumeSubtotal));
+                volumeSubtotal,
+                product.Category.ToWire(),
+                product.TransportEnvironment.ToWire(),
+                product.TempMin,
+                product.TempMax,
+                product.PackagingType?.ToWire(),
+                product.Dangerous,
+                product.Fragile,
+                product.HandlingRestriction));
         }
 
         var requirement = ConsolidatedVehicleRequirement.From(carriedProducts);
