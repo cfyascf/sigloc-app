@@ -208,6 +208,22 @@ public class AuctionServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_segments_without_a_common_temperature_are_not_consolidated()
+    {
+        var dry = Segment(contractorId: _contractorId, products: TestData.Product());
+        var frozen = Segment(contractorId: _contractorId, products: TestData.Refrigerated(TransportEnvironment.Frozen, -25, -18));
+        _segmentRepository.GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), true, Arg.Any<CancellationToken>())
+            .Returns(new[] { dry, frozen });
+
+        var act = () => _service.CreateAsync(_contractorId,
+            new CreateAuctionRequestDto(SegmentIds: new[] { dry.Id, frozen.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddHours(12), AutomaticAward: false));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == "segmentIds");
+        dry.RouteId.Should().BeNull();
+        await _routeRepository.DidNotReceive().AddAsync(Arg.Any<ConsolidatedRoute>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CreateAsync_deadline_window_shorter_than_route_time_throws_Validation()
     {
         var pickup = DateTimeOffset.UtcNow.AddDays(1);

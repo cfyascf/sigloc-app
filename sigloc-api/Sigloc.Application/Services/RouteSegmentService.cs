@@ -205,6 +205,15 @@ public class RouteSegmentService : IRouteSegmentService
                 "Não foi possível salvar o trecho.");
         }
 
+        if (TemperatureCompatibility.FindConflict(byId.Values) is (Product warmest, Product coldest))
+        {
+            throw new ValidationException(
+                [new ValidationError("items",
+                    $"Produtos com temperaturas incompatíveis não podem ir no mesmo trecho: {TemperatureCompatibility.Describe(warmest)} e "
+                    + $"{TemperatureCompatibility.Describe(coldest)}. Crie um trecho para cada faixa de temperatura.")],
+                "Não foi possível salvar o trecho.");
+        }
+
         return byId;
     }
 

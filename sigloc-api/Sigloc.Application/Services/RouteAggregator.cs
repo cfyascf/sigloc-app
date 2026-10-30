@@ -71,6 +71,7 @@ internal static class RouteAggregator
         }
 
         EnsureSingleCargoClass(ordered);
+        EnsureCompatibleTemperatures(ordered);
 
         // Inter-segment legs: destination of one segment → origin of the next.
         for (var i = 0; i < ordered.Count - 1; i++)
@@ -130,6 +131,30 @@ internal static class RouteAggregator
         });
         throw new ValidationException(
             [new ValidationError("segmentIds", $"Trechos com classes de carga diferentes não podem formar a mesma rota: {string.Join(" e ", parts)}.")],
+            "Não foi possível consolidar a rota.");
+    }
+
+    /// <summary>
+    /// The route travels at a single temperature, so every product on it must tolerate it. Checked
+    /// over every product, so an older segment that already mixes temperatures is caught too.
+    /// </summary>
+    private static void EnsureCompatibleTemperatures(IReadOnlyList<RouteSegment> segments)
+    {
+        var carried = segments
+            .SelectMany(s => s.Items.Where(i => i.Product is not null).Select(i => (Segment: s, Product: i.Product!)))
+            .ToList();
+        if (TemperatureCompatibility.FindConflict(carried.Select(x => x.Product)) is not (Product warmest, Product coldest))
+        {
+            return;
+        }
+
+        string SegmentOf(Product product) => ShortId(carried.First(x => x.Product == product).Segment.Id);
+
+        // "Arroz (ambiente, 0 °C a 35 °C) no trecho 1a2b3c4d e Sorvete (-25 °C a -18 °C) no trecho 5e6f7a8b"
+        throw new ValidationException(
+            [new ValidationError("segmentIds",
+                $"Trechos com temperaturas incompatíveis não podem formar a mesma rota: {TemperatureCompatibility.Describe(warmest)} "
+                + $"no trecho {SegmentOf(warmest)} e {TemperatureCompatibility.Describe(coldest)} no trecho {SegmentOf(coldest)}.")],
             "Não foi possível consolidar a rota.");
     }
 

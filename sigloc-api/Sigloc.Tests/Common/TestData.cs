@@ -28,6 +28,21 @@ public static class TestData
         DefaultVolume = volume,
     };
 
+    /// <summary>A chilled or frozen product kept within [tempMin, tempMax] °C.</summary>
+    public static Product Refrigerated(
+        TransportEnvironment environment,
+        double? tempMin,
+        double? tempMax,
+        Guid? contractorId = null,
+        string name = "Produto Refrigerado")
+    {
+        var product = Product(contractorId: contractorId, name: name);
+        product.TransportEnvironment = environment;
+        product.TempMin = tempMin;
+        product.TempMax = tempMax;
+        return product;
+    }
+
     public static Vehicle Vehicle(
         Guid? carrierId = null,
         string plate = "ABC1D23",

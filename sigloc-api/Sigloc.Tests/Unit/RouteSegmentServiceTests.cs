@@ -203,6 +203,34 @@ public class RouteSegmentServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_products_without_a_common_temperature_in_a_segment_are_rejected()
+    {
+        var dry = TestData.Product(contractorId: _contractorId, name: "Arroz");
+        var frozen = TestData.Refrigerated(TransportEnvironment.Frozen, -25, -18, _contractorId, name: "Sorvete");
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { dry, frozen });
+
+        var act = () => _service.CreateAsync(_contractorId, ValidDto(items: new[] { Item(dry.Id), Item(frozen.Id) }));
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().ContainSingle(e => e.Field == "items" && e.Reason.Contains("Arroz") && e.Reason.Contains("Sorvete"));
+        await _repository.DidNotReceive().AddAsync(Arg.Any<RouteSegment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_dry_and_chilled_products_can_share_a_segment()
+    {
+        var dry = TestData.Product(contractorId: _contractorId);
+        var chilled = TestData.Refrigerated(TransportEnvironment.Chilled, 2, 8, _contractorId);
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { dry, chilled });
+
+        await _service.CreateAsync(_contractorId, ValidDto(items: new[] { Item(dry.Id), Item(chilled.Id) }));
+
+        await _repository.Received(1).AddAsync(Arg.Any<RouteSegment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CreateAsync_reports_the_cargo_class_of_the_segment()
     {
         var product = TestData.Product(contractorId: _contractorId);
