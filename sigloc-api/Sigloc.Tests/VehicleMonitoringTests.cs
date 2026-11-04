@@ -39,7 +39,7 @@ public class VehicleMonitoringTests
         Assert.Null(repo.Item);
     }
 
-    private static CreateVehicleDto Request() => new("ABC1D23", "Truck", 2, 1000, 20, default, default, false, false, "Driver", "City");
+    private static CreateVehicleDto Request() => new("ABC1D23", "Truck", 2, 1000, 20, Sigloc.Domain.Enums.VehicleBodyType.Bau, default, false, false, "Driver", "City");
     private sealed class VehicleRepository : IVehicleRepository
     {
         public Vehicle? Item { get; private set; }

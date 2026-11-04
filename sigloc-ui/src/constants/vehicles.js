@@ -8,13 +8,36 @@
  * and label -> int when sending updates.
  */
 
-/** VehicleBodyType (backend enum, 1-based). */
+/** Body type labels (the backend `VehicleBodyType` [Description]s). */
+export const BODY_TYPE = {
+  BAU: "Baú",
+  SIDER: "Sider",
+  GRADE_BAIXA: "Grade Baixa",
+  REFRIGERATED: "Baú Refrigerado",
+  CACAMBA: "Caçamba",
+  GRANELEIRO: "Graneleiro",
+  PRANCHA: "Prancha",
+  TANQUE: "Tanque",
+  CEGONHEIRO: "Cegonheiro",
+  PORTA_CONTEINER: "Porta-Contêiner",
+  SILO: "Silo",
+  GAIOLA: "Gaiola / Boiadeiro",
+}
+
+/** VehicleBodyType (backend enum, 1-based). Values never change; new body types are appended. */
 export const BODY_TYPE_BY_VALUE = {
-  1: "Carga Seca",
-  2: "Baú Sider",
-  3: "Grade Baixa",
-  4: "Frigorífico",
-  5: "Carreta Prancha",
+  1: BODY_TYPE.BAU,
+  2: BODY_TYPE.SIDER,
+  3: BODY_TYPE.GRADE_BAIXA,
+  4: BODY_TYPE.REFRIGERATED,
+  5: BODY_TYPE.CACAMBA,
+  6: BODY_TYPE.GRANELEIRO,
+  7: BODY_TYPE.PRANCHA,
+  8: BODY_TYPE.TANQUE,
+  9: BODY_TYPE.CEGONHEIRO,
+  10: BODY_TYPE.PORTA_CONTEINER,
+  11: BODY_TYPE.SILO,
+  12: BODY_TYPE.GAIOLA,
 }
 
 /** RefrigerationLevel (backend enum, 0-based). */

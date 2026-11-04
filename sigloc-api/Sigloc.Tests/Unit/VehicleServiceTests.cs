@@ -243,6 +243,66 @@ public class VehicleServiceTests
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(VehicleBodyType.Sider, RefrigerationLevel.Congelado, true, "refrigerationLevel")]
+    [InlineData(VehicleBodyType.Frigorifico, RefrigerationLevel.Nenhuma, true, "refrigerationLevel")]
+    [InlineData(VehicleBodyType.Tanque, RefrigerationLevel.Congelado, true, "refrigerationLevel")]
+    [InlineData(VehicleBodyType.Prancha, RefrigerationLevel.Nenhuma, false, "hasCargoSecuring")]
+    [InlineData((VehicleBodyType)99, RefrigerationLevel.Nenhuma, true, "bodyType")]
+    public async Task CreateAsync_rejects_equipment_the_body_type_does_not_allow(
+        VehicleBodyType bodyType, RefrigerationLevel refrigeration, bool hasCargoSecuring, string field)
+    {
+        var dto = NewVehicleDto() with { BodyType = bodyType, RefrigerationLevel = refrigeration, HasCargoSecuring = hasCargoSecuring };
+
+        var act = () => _service.CreateAsync(_carrierId, dto);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == field);
+        await _repository.DidNotReceive().AddAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(VehicleBodyType.Tanque, RefrigerationLevel.Resfriado)]
+    [InlineData(VehicleBodyType.PortaConteiner, RefrigerationLevel.Congelado)]
+    [InlineData(VehicleBodyType.Gaiola, RefrigerationLevel.Nenhuma)]
+    public async Task CreateAsync_accepts_new_body_types(VehicleBodyType bodyType, RefrigerationLevel refrigeration)
+    {
+        var result = await _service.CreateAsync(_carrierId, NewVehicleDto() with { BodyType = bodyType, RefrigerationLevel = refrigeration });
+
+        result.BodyType.Should().Be(bodyType);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_changing_the_body_checks_the_kept_refrigeration()
+    {
+        var vehicle = TestData.Vehicle(_carrierId, bodyType: VehicleBodyType.Frigorifico, refrigerationLevel: RefrigerationLevel.Congelado);
+        _repository.GetByIdAsync(vehicle.Id, _carrierId, Arg.Any<CancellationToken>()).Returns(vehicle);
+        var dto = new UpdateVehicleDto(
+            Model: null, AxleCount: null, CapacityWeight: null, CapacityVolume: null,
+            BodyType: VehicleBodyType.Sider, RefrigerationLevel: null, HasMopp: null, HasCargoSecuring: null,
+            Driver: null, CurrentLocation: null, Status: null);
+
+        var act = () => _service.UpdateAsync(_carrierId, vehicle.Id, dto);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == "refrigerationLevel");
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_status_only_change_keeps_an_older_vehicle_editable()
+    {
+        // Saved before refrigeration was tied to the body type.
+        var vehicle = TestData.Vehicle(_carrierId, bodyType: VehicleBodyType.Sider, refrigerationLevel: RefrigerationLevel.Congelado);
+        _repository.GetByIdAsync(vehicle.Id, _carrierId, Arg.Any<CancellationToken>()).Returns(vehicle);
+        var dto = new UpdateVehicleDto(
+            Model: null, AxleCount: null, CapacityWeight: null, CapacityVolume: null,
+            BodyType: null, RefrigerationLevel: null, HasMopp: null, HasCargoSecuring: null,
+            Driver: null, CurrentLocation: null, Status: OperationalStatus.MANUTENCAO);
+
+        await _service.UpdateAsync(_carrierId, vehicle.Id, dto);
+
+        vehicle.Status.Should().Be(OperationalStatus.MANUTENCAO);
+    }
+
     [Fact]
     public async Task UpdateAsync_rejects_setting_in_transit_by_hand()
     {

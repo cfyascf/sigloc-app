@@ -26,6 +26,7 @@ import { useProductOptions } from "@/hooks/use-product-options"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { createRouteSegment } from "@/services/route-segment-service"
 import { cargoClassName, cargoClassOfProduct, CARGO_CLASS, mapRouteSegmentFieldErrors } from "@/constants/route-segments"
+import { isSingleProductCategory } from "@/constants/cargo-compatibility"
 import {
   categoryLabel,
   environmentLabel,
@@ -157,13 +158,23 @@ export default function CreateRouteSegment() {
     [selectedProducts]
   )
 
-  // A segment carries a single cargo class: once a product is in, only products of its class
-  // (dangerous, fragile or common) can be added.
+  // A segment carries a single product category (each needs its own body type) and a single cargo
+  // class (dangerous, fragile or common): once a product is in, only products matching both can be added.
+  const loadCategory = selectedProducts[0]?.category ?? null
   const loadClass = selectedProducts.length > 0 ? cargoClassOfProduct(selectedProducts[0]) : null
-  const blockedReasonFor = (product) =>
-    loadClass && !selectedValues.has(product.value) && cargoClassOfProduct(product) !== loadClass
-      ? `Não pode ir junto com ${cargoClassName(loadClass)}: crie outro trecho para ${cargoClassName(cargoClassOfProduct(product))}.`
-      : null
+  const blockedReasonFor = (product) => {
+    if (!loadClass || selectedValues.has(product.value)) return null
+    if (loadCategory && product.category !== loadCategory) {
+      return `Não pode ir junto com a categoria ${categoryLabel(loadCategory)}: cada categoria exige outro tipo de carroceria. Crie outro trecho para ${categoryLabel(product.category)}.`
+    }
+    if (isSingleProductCategory(loadCategory)) {
+      return `${categoryLabel(loadCategory)} leva um único produto por trecho: crie outro trecho para ${product.name}.`
+    }
+    if (cargoClassOfProduct(product) !== loadClass) {
+      return `Não pode ir junto com ${cargoClassName(loadClass)}: crie outro trecho para ${cargoClassName(cargoClassOfProduct(product))}.`
+    }
+    return null
+  }
 
   const handleToggleProduct = (productId) => {
     setSelectedProducts((current) => {

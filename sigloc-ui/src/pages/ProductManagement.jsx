@@ -13,7 +13,6 @@ import {
   Snowflake,
   Tag,
   Trash2,
-  Truck,
   X,
 } from "lucide-react"
 
@@ -34,7 +33,9 @@ import {
   TRANSPORT_ENVIRONMENT,
 } from "@/constants/products"
 
-const weightFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 })
+const weightFormat = new Intl.NumberFormat("pt-BR", {
+  maximumFractionDigits: 2,
+})
 const SEARCH_DEBOUNCE_MS = 350
 
 function ListItem({ product, selected, onSelect }) {
@@ -54,14 +55,17 @@ function ListItem({ product, selected, onSelect }) {
       />
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex items-center gap-2">
-          <span title={product.sku} className="min-w-0 truncate font-mono text-xs font-bold text-slate-500">
+          <span
+            title={product.sku}
+            className="min-w-0 truncate font-mono text-xs font-bold text-slate-500"
+          >
             {product.sku}
           </span>
           <div className="flex shrink-0 gap-1">
             {product.dangerous && (
               <Badge
                 variant="secondary"
-                className="flex items-center border-none bg-amber-100 px-1.5 py-0 text-[9px] font-black uppercase tracking-wider text-amber-700"
+                className="flex items-center border-none bg-amber-100 px-1.5 py-0 text-[9px] font-black tracking-wider text-amber-700 uppercase"
               >
                 <Flame size={10} className="mr-1" /> Hazmat
               </Badge>
@@ -69,7 +73,7 @@ function ListItem({ product, selected, onSelect }) {
             {isChilled && (
               <Badge
                 variant="secondary"
-                className="flex items-center border-none bg-sky-100 px-1.5 py-0 text-[9px] font-black uppercase tracking-wider text-sky-700"
+                className="flex items-center border-none bg-sky-100 px-1.5 py-0 text-[9px] font-black tracking-wider text-sky-700 uppercase"
               >
                 <Snowflake size={10} className="mr-1" />
                 {environmentLabel(product.transportEnvironment)}
@@ -78,7 +82,7 @@ function ListItem({ product, selected, onSelect }) {
             {product.fragile && (
               <Badge
                 variant="secondary"
-                className="border-none bg-rose-50 px-1.5 py-0 text-[9px] font-black uppercase tracking-wider text-rose-600"
+                className="border-none bg-rose-50 px-1.5 py-0 text-[9px] font-black tracking-wider text-rose-600 uppercase"
               >
                 Frágil
               </Badge>
@@ -88,7 +92,9 @@ function ListItem({ product, selected, onSelect }) {
         <h3
           title={product.name}
           className={`truncate text-sm ${
-            selected ? "font-bold text-blue-900" : "font-semibold text-slate-800"
+            selected
+              ? "font-bold text-blue-900"
+              : "font-semibold text-slate-800"
           }`}
         >
           {product.name}
@@ -99,40 +105,6 @@ function ListItem({ product, selected, onSelect }) {
         </p>
       </div>
     </button>
-  )
-}
-
-function VehicleRequirementCard({ requirement }) {
-  if (!requirement) {
-    return null
-  }
-
-  const rows = [
-    ["Carroceria base", requirement.baseBodyworkType],
-    ["Refrigeração mínima", requirement.minRefrigerationLevel],
-    ["Exige MOPP", requirement.requiresMopp ? "Sim" : "Não"],
-    ["Fixação de carga", requirement.requiresCargoFixing ? "Sim" : "Não"],
-  ]
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/50 md:col-span-2">
-      <div className="flex h-[52px] items-center gap-2 rounded-t-xl border-b border-slate-100 px-5">
-        <Truck size={16} className="text-slate-600" />
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-          Requisito de Veículo (calculado)
-        </h2>
-      </div>
-      <div className="grid grid-cols-2 gap-4 p-5">
-        {rows.map(([label, value]) => (
-          <div key={label} className="space-y-1">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              {label}
-            </p>
-            <p className="text-sm font-semibold text-slate-800">{value}</p>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -149,7 +121,9 @@ export default function ProductManagement() {
   const [detail, setDetail] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
 
-  const listAction = useAsyncAction((query) => productService.listProducts(query))
+  const listAction = useAsyncAction((query) =>
+    productService.listProducts(query)
+  )
   const detailAction = useAsyncAction((id) => productService.getProduct(id))
   const saveAction = useAsyncAction(({ id, payload }) =>
     productService.updateProduct(id, payload)
@@ -286,7 +260,7 @@ export default function ProductManagement() {
               </Button>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" />
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -362,7 +336,7 @@ export default function ProductManagement() {
               <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4">
                 <div className="flex items-center gap-2">
                   <Box size={16} className="text-blue-600" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                  <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase">
                     Raio-X do Produto
                   </h2>
                   {!isEditing && (
@@ -387,7 +361,9 @@ export default function ProductManagement() {
                   )}
                   {confirmingDeleteId === selectedId ? (
                     <>
-                      <span className="text-[11px] font-semibold text-rose-600">Excluir este produto?</span>
+                      <span className="text-[11px] font-semibold text-rose-600">
+                        Excluir este produto?
+                      </span>
                       <Button
                         variant="outline"
                         size="sm"
@@ -415,7 +391,10 @@ export default function ProductManagement() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => { setConfirmingDeleteId(selectedId); deleteAction.reset() }}
+                      onClick={() => {
+                        setConfirmingDeleteId(selectedId)
+                        deleteAction.reset()
+                      }}
                       className="h-8 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                     >
                       <Trash2 size={14} className="mr-1.5" />
@@ -445,18 +424,10 @@ export default function ProductManagement() {
                   showPackaging={showPackaging}
                   disabled={!isEditing}
                 />
-
-                {!isEditing && (
-                  <div className="mt-6">
-                    <VehicleRequirementCard
-                      requirement={detail.vehicleRequirement}
-                    />
-                  </div>
-                )}
               </div>
 
               {isEditing && (
-                <div className="flex shrink-0 items-center justify-between border-t border-slate-100 bg-blue-50/50 p-4 duration-300 animate-in slide-in-from-bottom-4">
+                <div className="flex shrink-0 animate-in items-center justify-between border-t border-slate-100 bg-blue-50/50 p-4 duration-300 slide-in-from-bottom-4">
                   <div className="flex items-center gap-1.5 text-[10px] font-semibold text-blue-600">
                     <Info size={14} /> Modo de Edição Ativo
                   </div>

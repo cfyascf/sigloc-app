@@ -5,11 +5,10 @@ import { Link, useNavigate } from "react-router-dom"
 import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { BodyTypeField, EquipmentChecks, RefrigerationField } from "@/components/vehicles/VehicleEquipmentFields"
 import VehicleForm from "@/pages/VehicleForm"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { vehicleService } from "@/services/vehicle-service"
-import { BODY_TYPE_OPTIONS, REFRIGERATION_BY_VALUE } from "@/constants/vehicles"
 import { VEHICLE_LIMITS, mapVehicleFieldErrors, validateVehicle } from "@/lib/vehicle-validation"
 
 const FieldError = ({ message }) =>
@@ -105,18 +104,15 @@ export default function RegisterVehicle() {
                       <FieldError message={errors.model} />
                     </div>
 
-                    <div className="space-y-2 sm:col-span-2">
-                      <label className="text-xs font-bold text-slate-600">Tipo de Carroceria</label>
-                      <Select value={formData.bodyType} onValueChange={(v) => setFormData({...formData, bodyType: v})}>
-                        <SelectTrigger aria-invalid={Boolean(errors.bodyType)} className="h-10 w-full border-slate-200 text-sm focus:ring-blue-500 data-[size=default]:h-10">
-                          <SelectValue placeholder="Selecione o implemento..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BODY_TYPE_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <FieldError message={errors.bodyType} />
-                    </div>
+                    <BodyTypeField
+                      value={formData}
+                      onChange={setFormData}
+                      errors={errors}
+                      disabled={saveAction.pending}
+                      className="sm:col-span-2"
+                      labelClassName="text-xs font-bold text-slate-600"
+                      triggerClassName="h-10 w-full border-slate-200 text-sm focus:ring-blue-500 data-[size=default]:h-10"
+                    />
                   </div>
                 </div>
 
@@ -133,12 +129,15 @@ export default function RegisterVehicle() {
                       <FieldError message={errors.axleCount} />
                     </div>
 
-                    <div className="space-y-2">
-                      <label htmlFor="refrigeration" className="block text-xs font-bold text-slate-600">Refrigeração</label>
-                      <select id="refrigeration" value={formData.refrigerationLevel} onChange={(event) => setFormData({ ...formData, refrigerationLevel: Number(event.target.value) })} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm">
-                        {Object.entries(REFRIGERATION_BY_VALUE).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                      </select>
-                    </div>
+                    <RefrigerationField
+                      value={formData}
+                      onChange={setFormData}
+                      errors={errors}
+                      disabled={saveAction.pending}
+                      idPrefix="register"
+                      labelClassName="block text-xs font-bold text-slate-600"
+                      selectClassName="h-10"
+                    />
 
                     <div className="space-y-2">
                       <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
@@ -176,22 +175,14 @@ export default function RegisterVehicle() {
                       <FieldError message={errors.volumeM3} />
                     </div>
 
-                    <div className="grid gap-4 border-t border-slate-100 pt-4 sm:col-span-2 sm:grid-cols-2">
-                      <label className="flex items-start gap-2 text-xs text-slate-600">
-                        <input type="checkbox" className="mt-0.5" aria-describedby="mopp-help" checked={formData.hasMopp} onChange={(event) => setFormData({ ...formData, hasMopp: event.target.checked })} />
-                        <span>
-                          <span className="block font-medium">Possui MOPP</span>
-                          <span id="mopp-help" className="block text-[11px] text-slate-500">Habilita o transporte de produtos perigosos.</span>
-                        </span>
-                      </label>
-                      <label className="flex items-start gap-2 text-xs text-slate-600">
-                        <input type="checkbox" className="mt-0.5" aria-describedby="cargo-securing-help" checked={formData.hasCargoSecuring} onChange={(event) => setFormData({ ...formData, hasCargoSecuring: event.target.checked })} />
-                        <span>
-                          <span className="block font-medium">Possui fixação de carga</span>
-                          <span id="cargo-securing-help" className="block text-[11px] text-slate-500">Habilita o transporte de produtos frágeis.</span>
-                        </span>
-                      </label>
-                    </div>
+                    <EquipmentChecks
+                      value={formData}
+                      onChange={setFormData}
+                      errors={errors}
+                      disabled={saveAction.pending}
+                      idPrefix="register"
+                      className="border-t border-slate-100 pt-4 sm:col-span-2"
+                    />
                   </div>
                 </div>
               </div>

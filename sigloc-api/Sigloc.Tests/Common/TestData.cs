@@ -46,17 +46,21 @@ public static class TestData
     public static Vehicle Vehicle(
         Guid? carrierId = null,
         string plate = "ABC1D23",
-        OperationalStatus status = OperationalStatus.LIVRE) => new(
+        OperationalStatus status = OperationalStatus.LIVRE,
+        VehicleBodyType bodyType = VehicleBodyType.Bau,
+        RefrigerationLevel refrigerationLevel = RefrigerationLevel.Nenhuma,
+        bool hasMopp = false,
+        bool hasCargoSecuring = true) => new(
             transportadoraId: carrierId ?? Guid.NewGuid(),
             plate: plate,
             model: "Volvo FH",
             axleCount: 3,
             capacityWeight: 20000m,
             capacityVolume: 80m,
-            bodyType: VehicleBodyType.Bau,
-            refrigerationLevel: RefrigerationLevel.Nenhuma,
-            hasMopp: false,
-            hasCargoSecuring: true,
+            bodyType: bodyType,
+            refrigerationLevel: refrigerationLevel,
+            hasMopp: hasMopp,
+            hasCargoSecuring: hasCargoSecuring,
             driver: "João",
             currentLocation: "Curitiba, PR",
             status: status);

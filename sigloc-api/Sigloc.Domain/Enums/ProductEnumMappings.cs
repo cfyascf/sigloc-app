@@ -11,7 +11,22 @@ public static class ProductEnumMappings
     {
         [ProductCategory.General] = "Geral",
         [ProductCategory.SolidBulk] = "GranelSolido",
-        [ProductCategory.LiquidBulk] = "GranelLiquido"
+        [ProductCategory.LiquidBulk] = "GranelLiquido",
+        [ProductCategory.PressurizedBulk] = "GranelPressurizado",
+        [ProductCategory.Containerized] = "Conteinerizada",
+        [ProductCategory.NeoBulk] = "Neogranel",
+        [ProductCategory.LiveCargo] = "CargaViva"
+    };
+
+    private static readonly Dictionary<ProductCategory, string> CategoryToLabel = new()
+    {
+        [ProductCategory.General] = "Geral",
+        [ProductCategory.SolidBulk] = "Granel Sólido",
+        [ProductCategory.LiquidBulk] = "Granel Líquido",
+        [ProductCategory.PressurizedBulk] = "Granel Pressurizado",
+        [ProductCategory.Containerized] = "Conteinerizada",
+        [ProductCategory.NeoBulk] = "Neogranel",
+        [ProductCategory.LiveCargo] = "Carga Viva"
     };
 
     private static readonly Dictionary<TransportEnvironment, string> EnvironmentToWire = new()
@@ -30,6 +45,12 @@ public static class ProductEnumMappings
 
     public static string ToWire(this ProductCategory value) => CategoryToWire[value];
 
+    /// <summary>User-facing name, e.g. "Granel Sólido".</summary>
+    public static string ToLabel(this ProductCategory value) => CategoryToLabel[value];
+
+    /// <summary>"'Geral', 'GranelSolido' ou 'CargaViva'": every accepted wire value, for error messages.</summary>
+    public static string CategoryWireValues() => JoinQuoted(CategoryToWire.Values);
+
     public static string ToWire(this TransportEnvironment value) => EnvironmentToWire[value];
 
     public static string ToWire(this PackagingType value) => PackagingToWire[value];
@@ -42,6 +63,12 @@ public static class ProductEnumMappings
 
     public static bool TryParsePackaging(string? value, out PackagingType result)
         => TryParseWire(PackagingToWire, value, out result);
+
+    private static string JoinQuoted(IEnumerable<string> values)
+    {
+        var quoted = values.Select(v => $"'{v}'").ToList();
+        return quoted.Count == 1 ? quoted[0] : $"{string.Join(", ", quoted[..^1])} ou {quoted[^1]}";
+    }
 
     private static bool TryParseWire<TEnum>(Dictionary<TEnum, string> map, string? value, out TEnum result)
         where TEnum : struct, Enum

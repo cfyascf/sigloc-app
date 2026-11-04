@@ -205,6 +205,25 @@ public class RouteSegmentService : IRouteSegmentService
                 "Não foi possível salvar o trecho.");
         }
 
+        var categories = byId.Values.Select(p => p.Category).Distinct().Order().ToList();
+        if (categories.Count > 1)
+        {
+            throw new ValidationException(
+                [new ValidationError("items",
+                    $"Produtos de categorias diferentes não podem ir no mesmo trecho ({string.Join(" e ", categories.Select(c => c.ToLabel()))}): "
+                    + "cada categoria exige outro tipo de carroceria. Crie um trecho para cada categoria.")],
+                "Não foi possível salvar o trecho.");
+        }
+
+        if (categories.Count == 1 && CargoCompatibility.IsSingleProduct(categories[0]) && byId.Count > 1)
+        {
+            throw new ValidationException(
+                [new ValidationError("items",
+                    $"{categories[0].ToLabel()} leva um único produto por trecho: produtos diferentes dividiriam o mesmo "
+                    + "tanque, compartimento ou gaiola. Crie um trecho para cada produto.")],
+                "Não foi possível salvar o trecho.");
+        }
+
         if (TemperatureCompatibility.FindConflict(byId.Values) is (Product warmest, Product coldest))
         {
             throw new ValidationException(
@@ -390,6 +409,7 @@ public class RouteSegmentService : IRouteSegmentService
             new CalculatedTotalsDto(totalWeight, totalVolume),
             new ConsolidatedVehicleRequirementDto(
                 requirement.BaseBodyworkType,
+                requirement.AcceptedBodyTypes.Select(b => b.ToLabel()).ToList(),
                 requirement.MinRefrigerationLevel,
                 requirement.RequiresMopp,
                 requirement.RequiresCargoFixing),

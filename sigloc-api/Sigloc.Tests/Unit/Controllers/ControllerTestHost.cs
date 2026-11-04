@@ -139,7 +139,7 @@ internal static class ControllerDtoFactory
         DefaultWeight: 10,
         DefaultVolume: 1,
         HandlingRestriction: null,
-        VehicleRequirement: new VehicleRequirementDto("Bau", "Nenhuma", false, false),
+        VehicleRequirement: new VehicleRequirementDto("Baú", ["Baú"], "Nenhuma", false, false),
         CreatedAt: DateTimeOffset.UtcNow,
         UpdatedAt: DateTimeOffset.UtcNow);
 
@@ -158,7 +158,7 @@ internal static class ControllerDtoFactory
         Status: "Draft",
         Items: Array.Empty<RouteSegmentItemDto>(),
         CalculatedTotals: new CalculatedTotalsDto(0, 0),
-        ConsolidatedVehicleRequirement: new ConsolidatedVehicleRequirementDto("Bau", "Nenhuma", false, false),
+        ConsolidatedVehicleRequirement: new ConsolidatedVehicleRequirementDto("Baú", ["Baú"], "Nenhuma", false, false),
         CreatedAt: DateTimeOffset.UtcNow,
         RiskIndicator: "NORMAL");
 

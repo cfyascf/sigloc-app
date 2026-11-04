@@ -6,6 +6,7 @@ import {
   requiresPackaging,
   requiresTemperature,
 } from "@/constants/products"
+import { normalizeProductForm } from "@/constants/cargo-compatibility"
 
 /** The empty form model, aligned with `ProductRequestDto`. */
 export const EMPTY_PRODUCT_FORM = {
@@ -55,8 +56,9 @@ export function productToForm(product) {
 export function useProductForm(initial) {
   const [form, setForm] = useState(() => productToForm(initial))
 
+  // Changing the category drops the environment and flags it can't have.
   const setField = useCallback((field, value) => {
-    setForm((current) => ({ ...current, [field]: value }))
+    setForm((current) => normalizeProductForm({ ...current, [field]: value }))
   }, [])
 
   const reset = useCallback((next) => {
