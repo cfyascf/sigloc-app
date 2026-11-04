@@ -5,17 +5,20 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using Sigloc.Application.Contracts;
 using Sigloc.Application.Exceptions;
+using Sigloc.Domain.Entities;
 
 namespace Sigloc.Infrastructure.Routing;
 
 /// <summary>
 /// <see cref="IRouteGeocodingService"/> backed by OpenRouteService. Geocodes addresses
-/// through the Pelias search endpoint and computes distance/duration through the
-/// driving-hgv matrix endpoint. All calls are asynchronous.
+/// through the Pelias search endpoint (a coordinate text skips it and only looks up its city
+/// through Pelias reverse) and computes distance/duration through the driving-hgv matrix
+/// endpoint. All calls are asynchronous.
 /// </summary>
 public class OpenRouteServiceGeocodingService : IRouteGeocodingService
 {
     private const string GeocodePath = "/pelias/v1/search";
+    private const string ReverseGeocodePath = "/pelias/v1/reverse";
     private const string MatrixPath = "/openrouteservice/v2/matrix/driving-hgv";
     private const double MetersPerKilometer = 1000d;
     private const double SecondsPerHour = 3600d;
@@ -48,7 +51,8 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
         var origin = await originGeocodeTask;
         var destination = await destinationGeocodeTask;
 
-        var matrix = await ComputeMatrixAsync(origin.Coordinate, destination.Coordinate, cancellationToken);
+        var matrix = await ComputeMatrixAsync(origin.Coordinate, destination.Coordinate, cancellationToken)
+            ?? throw new RouteNotFoundException();
 
         return new RouteGeometry(
             OriginCoordinate: FormatCoordinate(origin.Coordinate),
@@ -67,7 +71,9 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
         var from = ParseCoordinate(fromCoordinate);
         var to = ParseCoordinate(toCoordinate);
 
-        var matrix = await ComputeMatrixAsync(from, to, cancellationToken);
+        // Both ends were routable when their segments were saved, so a missing leg is a provider problem.
+        var matrix = await ComputeMatrixAsync(from, to, cancellationToken)
+            ?? throw new GeocodingException("O serviço de rotas não encontrou caminho entre os trechos.");
 
         return new RouteLeg(
             DistanceKm: Math.Round(matrix.DistanceMeters / MetersPerKilometer, 2),
@@ -90,6 +96,12 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
 
     private async Task<(double[] Coordinate, string? Place)> GeocodeAsync(string address, CancellationToken cancellationToken)
     {
+        if (GeoPoint.TryParse(address, out var point))
+        {
+            // OpenRouteService always works in [longitude, latitude] order.
+            return (new[] { point.Longitude, point.Latitude }, await ReverseGeocodeAsync(point, cancellationToken));
+        }
+
         var url = $"{GeocodePath}?text={Uri.EscapeDataString(address)}";
 
         GeocodeResponse? response;
@@ -111,6 +123,26 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
 
         // OpenRouteService always works in [longitude, latitude] order.
         return (new[] { coordinates[0], coordinates[1] }, FormatPlace(feature!.Properties));
+    }
+
+    /// <summary>
+    /// "City, UF" of a coordinate, for lists and cards. Null when the provider has no city there or
+    /// fails: the point itself is already known, so this never blocks saving the segment.
+    /// </summary>
+    private async Task<string?> ReverseGeocodeAsync(GeoPoint point, CancellationToken cancellationToken)
+    {
+        var url = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{ReverseGeocodePath}?point.lat={point.Latitude}&point.lon={point.Longitude}&size=1");
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<GeocodeResponse>(url, SerializerOptions, cancellationToken);
+            return FormatPlace(response?.Features?.FirstOrDefault()?.Properties);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -159,7 +191,8 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
     private static string? FirstText(params string?[] values) =>
         values.Select(v => v?.Trim()).FirstOrDefault(v => !string.IsNullOrEmpty(v));
 
-    private async Task<(double DistanceMeters, double DurationSeconds)> ComputeMatrixAsync(
+    /// <summary>Outbound distance and duration; null when the provider finds no road route between the points.</summary>
+    private async Task<(double DistanceMeters, double DurationSeconds)?> ComputeMatrixAsync(
         double[] origin,
         double[] destination,
         CancellationToken cancellationToken)
@@ -174,6 +207,12 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
         try
         {
             using var httpResponse = await _httpClient.PostAsJsonAsync(MatrixPath, request, SerializerOptions, cancellationToken);
+            // OpenRouteService answers 404 when a point can't be matched to a road.
+            if (httpResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
             httpResponse.EnsureSuccessStatusCode();
             response = await httpResponse.Content.ReadFromJsonAsync<MatrixResponse>(SerializerOptions, cancellationToken);
         }
@@ -182,14 +221,14 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
             throw new GeocodingException("Não foi possível calcular a distância e a duração da rota.", ex);
         }
 
-        // The outbound leg (origin → destination) is at [0][1] of each matrix.
+        // The outbound leg (origin → destination) is at [0][1] of each matrix; null means no route.
         var distance = ReadOutboundValue(response?.Distances, "distance");
         var duration = ReadOutboundValue(response?.Durations, "duration");
 
-        return (distance, duration);
+        return distance is double meters && duration is double seconds ? (meters, seconds) : null;
     }
 
-    private static double ReadOutboundValue(double[][]? matrix, string metric)
+    private static double? ReadOutboundValue(double?[][]? matrix, string metric)
     {
         if (matrix is not { Length: >= 1 } || matrix[0] is not { Length: >= 2 })
         {
@@ -259,9 +298,9 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
     private sealed class MatrixResponse
     {
         [JsonPropertyName("distances")]
-        public double[][]? Distances { get; init; }
+        public double?[][]? Distances { get; init; }
 
         [JsonPropertyName("durations")]
-        public double[][]? Durations { get; init; }
+        public double?[][]? Durations { get; init; }
     }
 }

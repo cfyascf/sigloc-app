@@ -35,6 +35,13 @@ public class RouteSegmentService : IRouteSegmentService
             var field = string.Equals(ex.Address, origin, StringComparison.Ordinal) ? "origin" : "destination";
             throw new ValidationException(new[] { new ValidationError(field, ex.Message) }, "Não foi possível salvar o trecho.");
         }
+        catch (RouteNotFoundException ex)
+        {
+            // The provider doesn't say which end is off the road network, so both fields show it.
+            throw new ValidationException(
+                new[] { new ValidationError("origin", ex.Message), new ValidationError("destination", ex.Message) },
+                "Não foi possível salvar o trecho.");
+        }
     }
 
     public async Task<RouteSegmentResponseDto> CreateAsync(Guid contractorId, RouteSegmentRequestDto dto, CancellationToken cancellationToken = default)
@@ -236,21 +243,58 @@ public class RouteSegmentService : IRouteSegmentService
         return byId;
     }
 
+    /// <summary>
+    /// The address text of one end: what was typed, or the coordinate in its text form
+    /// ("-25.428400, -49.273300"), which the geocoder routes from directly. A typed text in that
+    /// form is checked as a coordinate too.
+    /// </summary>
+    private static string? ValidateLocation(string field, string? address, GeoPointDto? coordinate, List<ValidationError> errors)
+    {
+        if (coordinate is not null)
+        {
+            if (coordinate.Latitude is not double latitude || coordinate.Longitude is not double longitude)
+            {
+                errors.Add(new ValidationError(field, "Informe a latitude e a longitude."));
+                return null;
+            }
+
+            var point = new GeoPoint(latitude, longitude);
+            if (point.Problem() is string problem)
+            {
+                errors.Add(new ValidationError(field, problem));
+                return null;
+            }
+
+            return point.ToText();
+        }
+
+        var text = address?.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            errors.Add(new ValidationError(field, "Campo obrigatório."));
+            return null;
+        }
+
+        if (GeoPoint.TryParse(text, out var typed))
+        {
+            if (typed.Problem() is string problem)
+            {
+                errors.Add(new ValidationError(field, problem));
+                return null;
+            }
+
+            return typed.ToText();
+        }
+
+        return text;
+    }
+
     private static ValidatedSegment Validate(RouteSegmentRequestDto dto)
     {
         var errors = new List<ValidationError>();
 
-        var origin = dto.Origin?.Trim();
-        if (string.IsNullOrWhiteSpace(origin))
-        {
-            errors.Add(new ValidationError("origin", "Campo obrigatório."));
-        }
-
-        var destination = dto.Destination?.Trim();
-        if (string.IsNullOrWhiteSpace(destination))
-        {
-            errors.Add(new ValidationError("destination", "Campo obrigatório."));
-        }
+        var origin = ValidateLocation("origin", dto.Origin, dto.OriginCoordinate, errors);
+        var destination = ValidateLocation("destination", dto.Destination, dto.DestinationCoordinate, errors);
 
         if (dto.PickupDeadline is null)
         {
