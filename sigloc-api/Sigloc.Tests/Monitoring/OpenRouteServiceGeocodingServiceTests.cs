@@ -33,6 +33,58 @@ public class OpenRouteServiceGeocodingServiceTests
     }
 
     [Fact]
+    public async Task A_coordinate_skips_the_address_search_and_looks_up_its_city()
+    {
+        var paths = new List<string>();
+        var handler = new FakeHttpHandler((request, _) =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            paths.Add(path);
+            return Task.FromResult(path.EndsWith("/reverse")
+                ? Json("""{"features":[{"geometry":{"coordinates":[-49.27,-25.43]},"properties":{"locality":"Curitiba","region_a":"PR"}}]}""")
+                : path.EndsWith("/search")
+                    ? Json("""{"features":[{"geometry":{"coordinates":[-46.63,-23.55]},"properties":{"locality":"São Paulo","region_a":"SP"}}]}""")
+                    : Json("""{"distances":[[0,400000]],"durations":[[0,21600]]}"""));
+        });
+        var service = new OpenRouteServiceGeocodingService(new HttpClient(handler) { BaseAddress = new Uri("https://ors.example.invalid") });
+
+        var geometry = await service.ResolveAsync("-25.428400, -49.273300", "São Paulo, SP");
+
+        Assert.Equal("-49.2733,-25.4284", geometry.OriginCoordinate);
+        Assert.Equal("Curitiba, PR", geometry.OriginPlace);
+        Assert.Equal(1, paths.Count(p => p.EndsWith("/search")));
+        Assert.Equal(1, paths.Count(p => p.EndsWith("/reverse")));
+    }
+
+    [Fact]
+    public async Task A_coordinate_without_a_city_still_resolves()
+    {
+        var handler = new FakeHttpHandler((request, _) => Task.FromResult(request.RequestUri!.AbsolutePath.Contains("pelias")
+            ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            : Json("""{"distances":[[0,1000]],"durations":[[0,60]]}""")));
+        var service = new OpenRouteServiceGeocodingService(new HttpClient(handler) { BaseAddress = new Uri("https://ors.example.invalid") });
+
+        var geometry = await service.ResolveAsync("-25.428400, -49.273300", "-25.500000, -49.300000");
+
+        Assert.Null(geometry.OriginPlace);
+        Assert.Equal(1, geometry.DistanceKm);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.OK, """{"distances":[[0,null]],"durations":[[0,null]]}""")]
+    [InlineData(HttpStatusCode.NotFound, """{"error":{"code":6099,"message":"Unable to compute a distance/duration matrix."}}""")]
+    public async Task No_road_route_between_the_points_is_reported_as_such(HttpStatusCode status, string matrixBody)
+    {
+        var handler = new FakeHttpHandler((request, _) => Task.FromResult(request.RequestUri!.AbsolutePath.Contains("pelias")
+            ? Json("""{"features":[]}""")
+            : new HttpResponseMessage(status) { Content = new StringContent(matrixBody, Encoding.UTF8, "application/json") }));
+        var service = new OpenRouteServiceGeocodingService(new HttpClient(handler) { BaseAddress = new Uri("https://ors.example.invalid") });
+
+        await Assert.ThrowsAsync<Sigloc.Application.Exceptions.RouteNotFoundException>(
+            () => service.ResolveAsync("-25.000000, -40.000000", "-25.428400, -49.273300"));
+    }
+
+    [Fact]
     public async Task A_result_without_a_city_leaves_the_place_empty()
     {
         var service = Service(_ => """{"features":[{"geometry":{"coordinates":[-51.0,-24.0]},"properties":{"region":"Paraná","region_a":"PR"}}]}""");

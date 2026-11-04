@@ -69,6 +69,52 @@ public class RouteSegmentServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_routes_from_a_coordinate_sent_instead_of_an_address()
+    {
+        var product = TestData.Product(contractorId: _contractorId);
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { product });
+        var dto = ValidDto(origin: null, items: new[] { Item(product.Id) })
+            with { OriginCoordinate = new GeoPointDto(-25.4284, -49.2733) };
+
+        var result = await _service.CreateAsync(_contractorId, dto);
+
+        result.Origin.Should().Be("-25.428400, -49.273300");
+        await _geocoding.Received(1).ResolveAsync("-25.428400, -49.273300", "São Paulo, SP", Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(-49.2733, -25.4284, "invertidas")]
+    [InlineData(40.71, -74.0, "fora do Brasil")]
+    [InlineData(null, -49.2733, "latitude e a longitude")]
+    public async Task CreateAsync_rejects_an_unusable_coordinate_on_its_field(double? latitude, double? longitude, string reason)
+    {
+        var dto = ValidDto(destination: null, items: new[] { Item(Guid.NewGuid()) })
+            with { DestinationCoordinate = new GeoPointDto(latitude, longitude) };
+
+        var act = () => _service.CreateAsync(_contractorId, dto);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors
+            .Should().ContainSingle(e => e.Field == "destination" && e.Reason.Contains(reason));
+        await _geocoding.DidNotReceive().ResolveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_reports_a_point_without_road_route_on_both_fields()
+    {
+        var product = TestData.Product(contractorId: _contractorId);
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { product });
+        _geocoding.ResolveAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns<RouteGeometry>(_ => throw new RouteNotFoundException());
+
+        var act = () => _service.CreateAsync(_contractorId, ValidDto(origin: "-25.0, -40.0", items: new[] { Item(product.Id) }));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors
+            .Select(e => e.Field).Should().BeEquivalentTo("origin", "destination");
+    }
+
+    [Fact]
     public async Task CreateAsync_stores_the_geocoded_cities_of_a_street_address()
     {
         var product = TestData.Product(contractorId: _contractorId);

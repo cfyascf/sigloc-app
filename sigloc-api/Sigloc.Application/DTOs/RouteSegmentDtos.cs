@@ -16,7 +16,15 @@ public record RouteSegmentRequestDto(
     decimal? EstimatedTollCost,
     DateTimeOffset? PickupDeadline,
     DateTimeOffset? DeliveryDeadline,
-    IReadOnlyList<RouteSegmentItemRequestDto>? Items);
+    IReadOnlyList<RouteSegmentItemRequestDto>? Items,
+    GeoPointDto? OriginCoordinate = null,
+    GeoPointDto? DestinationCoordinate = null);
+
+/// <summary>
+/// A pickup or delivery point given by coordinates, for places without an address. When sent, it
+/// replaces the address text of that end.
+/// </summary>
+public record GeoPointDto(double? Latitude, double? Longitude);
 
 /// <summary>Query parameters for the list endpoint.</summary>
 public record RouteSegmentQueryDto(

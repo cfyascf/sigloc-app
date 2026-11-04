@@ -23,6 +23,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { FormAlert } from "@/components/auth/FormAlert"
 import { useProductOptions } from "@/hooks/use-product-options"
+import { LocationField } from "@/components/route-segments/LocationField"
+import { emptyLocation } from "@/lib/locations"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { createRouteSegment } from "@/services/route-segment-service"
 import { cargoClassName, cargoClassOfProduct, CARGO_CLASS, mapRouteSegmentFieldErrors } from "@/constants/route-segments"
@@ -122,8 +124,8 @@ export default function CreateRouteSegment() {
 
   const { options: productOptions } = useProductOptions()
 
-  const [origin, setOrigin] = useState("")
-  const [destination, setDestination] = useState("")
+  const [origin, setOrigin] = useState(emptyLocation)
+  const [destination, setDestination] = useState(emptyLocation)
   const [pickupDeadline, setPickupDeadline] = useState("")
   const [deliveryDeadline, setDeliveryDeadline] = useState("")
   const [budgetCeiling, setBudgetCeiling] = useState("")
@@ -415,40 +417,32 @@ export default function CreateRouteSegment() {
                   <div className="relative space-y-4">
                     <div className="absolute top-8 bottom-5 left-3.5 w-px border-l-2 border-dashed border-slate-200" />
 
-                    <div className="relative space-y-2 pl-8">
-                      <span className="absolute top-2.5 left-1.5 h-4 w-4 rounded-full border-[3px] border-white bg-slate-800" />
-                      <label className="text-xs font-bold text-slate-600">
-                        Local de Coleta (Origem)
-                      </label>
-                      <Input
+                    <div className="relative pl-8">
+                      <span className="absolute top-0.5 left-1.5 h-4 w-4 rounded-full border-[3px] border-white bg-slate-800" />
+                      <LocationField
+                        id="segment-origin"
+                        label="Local de Coleta (Origem)"
+                        labelClassName="text-xs font-bold text-slate-600"
                         value={origin}
-                        onChange={(event) => setOrigin(event.target.value)}
+                        onChange={setOrigin}
+                        error={mappedFieldErrors.origin}
                         placeholder="Ex: Curitiba, PR"
-                        className="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        inputClassName="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500"
                       />
-                      {mappedFieldErrors.origin ? (
-                        <p className="text-[11px] font-medium text-rose-600">
-                          {mappedFieldErrors.origin}
-                        </p>
-                      ) : null}
                     </div>
 
-                    <div className="relative space-y-2 pl-8">
-                      <span className="absolute top-2.5 left-1.5 h-4 w-4 rounded-full border-[3px] border-white bg-emerald-500" />
-                      <label className="text-xs font-bold text-slate-600">
-                        Local de Entrega (Destino)
-                      </label>
-                      <Input
+                    <div className="relative pl-8">
+                      <span className="absolute top-0.5 left-1.5 h-4 w-4 rounded-full border-[3px] border-white bg-emerald-500" />
+                      <LocationField
+                        id="segment-destination"
+                        label="Local de Entrega (Destino)"
+                        labelClassName="text-xs font-bold text-slate-600"
                         value={destination}
-                        onChange={(event) => setDestination(event.target.value)}
+                        onChange={setDestination}
+                        error={mappedFieldErrors.destination}
                         placeholder="Ex: São Paulo, SP"
-                        className="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        inputClassName="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500"
                       />
-                      {mappedFieldErrors.destination ? (
-                        <p className="text-[11px] font-medium text-rose-600">
-                          {mappedFieldErrors.destination}
-                        </p>
-                      ) : null}
                     </div>
                   </div>
 

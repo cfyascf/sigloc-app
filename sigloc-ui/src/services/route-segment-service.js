@@ -11,6 +11,7 @@
  */
 
 import { apiClient } from "@/lib/api-client"
+import { toLocationRequest } from "@/lib/locations"
 
 const BASE = "/api/route-segments"
 
@@ -57,9 +58,14 @@ export function toDateTimeLocal(value) {
  * fields are sent; computed values are never submitted.
  */
 export function toRequestDto(form) {
+  // Each end is an address or a coordinate (see lib/locations).
+  const origin = toLocationRequest(form.origin)
+  const destination = toLocationRequest(form.destination)
   return {
-    origin: form.origin?.trim() || null,
-    destination: form.destination?.trim() || null,
+    origin: origin.text,
+    destination: destination.text,
+    originCoordinate: origin.coordinate,
+    destinationCoordinate: destination.coordinate,
     budgetCeiling: toNumber(form.budgetCeiling),
     // The API requires a toll value (>= 0); a blank optional field means "no toll".
     estimatedTollCost: toNumber(form.estimatedTollCost) ?? 0,

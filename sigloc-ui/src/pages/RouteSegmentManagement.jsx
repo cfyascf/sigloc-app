@@ -55,6 +55,8 @@ import {
   mapRouteSegmentFieldErrors,
 } from "@/constants/route-segments"
 import { categoryLabel } from "@/constants/products"
+import { LocationField } from "@/components/route-segments/LocationField"
+import { locationFromText } from "@/lib/locations"
 import { isSingleProductCategory } from "@/constants/cargo-compatibility"
 
 const SEARCH_DEBOUNCE_MS = 350
@@ -264,8 +266,8 @@ export default function RouteSegmentManagement() {
     setEditingId(segment.id)
     setExpandedId(null)
     setEditForm({
-      origin: segment.origin,
-      destination: segment.destination,
+      origin: locationFromText(segment.origin),
+      destination: locationFromText(segment.destination),
       budgetCeiling: segment.budgetCeiling ?? "",
       estimatedTollCost: segment.estimatedTollCost ?? "",
       pickupDeadline: toDateTimeLocal(segment.pickupDeadline),
@@ -666,43 +668,26 @@ export default function RouteSegmentManagement() {
                       ) : null}
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5 mb-6">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                            Local de Coleta (Origem)
-                          </label>
-                          <Input
-                            value={editForm.origin}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, origin: e.target.value })
-                            }
-                            className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
-                          />
-                          {mappedFieldErrors.origin ? (
-                            <p className="text-[10px] font-medium text-rose-600">
-                              {mappedFieldErrors.origin}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                            Local de Entrega (Destino)
-                          </label>
-                          <Input
-                            value={editForm.destination}
-                            onChange={(e) =>
-                              setEditForm({
-                                ...editForm,
-                                destination: e.target.value,
-                              })
-                            }
-                            className="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
-                          />
-                          {mappedFieldErrors.destination ? (
-                            <p className="text-[10px] font-medium text-rose-600">
-                              {mappedFieldErrors.destination}
-                            </p>
-                          ) : null}
-                        </div>
+                        <LocationField
+                          id={`segment-${segment.id}-origin`}
+                          label="Local de Coleta (Origem)"
+                          labelClassName="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                          value={editForm.origin}
+                          onChange={(origin) => setEditForm({ ...editForm, origin })}
+                          error={mappedFieldErrors.origin}
+                          errorClassName="text-[10px] font-medium text-rose-600"
+                          inputClassName="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
+                        />
+                        <LocationField
+                          id={`segment-${segment.id}-destination`}
+                          label="Local de Entrega (Destino)"
+                          labelClassName="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                          value={editForm.destination}
+                          onChange={(destination) => setEditForm({ ...editForm, destination })}
+                          error={mappedFieldErrors.destination}
+                          errorClassName="text-[10px] font-medium text-rose-600"
+                          inputClassName="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
+                        />
                         <div className="space-y-1.5">
                           <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                             <DollarSign size={12} className="text-emerald-500" />{" "}
