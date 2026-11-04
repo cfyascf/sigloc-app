@@ -75,7 +75,7 @@ public class ProductService : IProductService
             {
                 throw new ValidationException(new[]
                 {
-                    new ValidationError("categoria", "Valor inválido. Use 'Geral', 'GranelSolido' ou 'GranelLiquido'.")
+                    new ValidationError("categoria", $"Valor inválido. Use {ProductEnumMappings.CategoryWireValues()}.")
                 });
             }
 
@@ -169,13 +169,19 @@ public class ProductService : IProductService
         var categoryParsed = ProductEnumMappings.TryParseCategory(dto.Category, out var category);
         if (!categoryParsed)
         {
-            errors.Add(new ValidationError("categoria", "Obrigatório. Use 'Geral', 'GranelSolido' ou 'GranelLiquido'."));
+            errors.Add(new ValidationError("categoria", $"Obrigatório. Use {ProductEnumMappings.CategoryWireValues()}."));
         }
 
         var environmentParsed = ProductEnumMappings.TryParseEnvironment(dto.TransportEnvironment, out var environment);
         if (!environmentParsed)
         {
             errors.Add(new ValidationError("ambienteTransporte", "Obrigatório. Use 'Seco', 'Resfriado' ou 'Congelado'."));
+        }
+
+        // The category's body types bound how cold, fragile or dangerous the product can be.
+        if (categoryParsed)
+        {
+            ValidateAgainstCategory(category, environmentParsed ? environment : null, dto, errors);
         }
 
         // Temperature range: required when environment is not Dry; zeroed/ignored when Dry.
@@ -244,6 +250,31 @@ public class ProductService : IProductService
             dto.DefaultVolume!.Value);
     }
 
+    private static void ValidateAgainstCategory(
+        ProductCategory category, TransportEnvironment? environment, ProductRequestDto dto, List<ValidationError> errors)
+    {
+        var label = category.ToLabel();
+
+        var environments = CargoCompatibility.EnvironmentsFor(category);
+        if (environment is TransportEnvironment env && !environments.Contains(env))
+        {
+            var allowed = string.Join(" ou ", environments.Select(e => $"'{e.ToWire()}'"));
+            errors.Add(new ValidationError("ambienteTransporte",
+                $"Indisponível para a categoria {label}: as carrocerias que a transportam "
+                + $"({CargoCompatibility.Describe(CargoCompatibility.BodiesFor(category))}) não chegam a '{env.ToWire()}'. Use {allowed}."));
+        }
+
+        if (dto.Fragile && !CargoCompatibility.AllowsFragile(category))
+        {
+            errors.Add(new ValidationError("fragil", $"Indisponível para a categoria {label}: só cargas Geral ou Conteinerizada podem ser frágeis."));
+        }
+
+        if (dto.Dangerous && !CargoCompatibility.AllowsDangerous(category))
+        {
+            errors.Add(new ValidationError("perigoso", $"Indisponível para a categoria {label}: animais vivos não são carga perigosa."));
+        }
+    }
+
     private static ProductResponseDto MapToResponse(Product product)
     {
         var requirement = VehicleRequirement.From(product);
@@ -266,6 +297,7 @@ public class ProductService : IProductService
             product.HandlingRestriction,
             new VehicleRequirementDto(
                 requirement.BaseBodyworkType,
+                requirement.AcceptedBodyTypes.Select(b => b.ToLabel()).ToList(),
                 requirement.MinRefrigerationLevel,
                 requirement.RequiresMopp,
                 requirement.RequiresCargoFixing),

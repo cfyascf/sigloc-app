@@ -8,72 +8,38 @@ namespace Sigloc.Domain.Entities;
 /// most restrictive requirement among all products is adopted for the whole trip.
 /// </summary>
 public sealed record ConsolidatedVehicleRequirement(
-    string BaseBodyworkType,
+    IReadOnlyList<VehicleBodyType> AcceptedBodyTypes,
     string MinRefrigerationLevel,
     bool RequiresMopp,
     bool RequiresCargoFixing)
 {
+    /// <summary>Accepted body types as display text ("Baú, Sider ou Grade Baixa").</summary>
+    public string BaseBodyworkType => CargoCompatibility.Describe(AcceptedBodyTypes);
+
     /// <summary>
     /// Consolidates the vehicle requirement from all products carried on a segment.
-    /// Refrigeration escalates Frozen &gt; Chilled &gt; Dry; bodywork adopts the most
-    /// sensitive one; MOPP and cargo fixing become required if any single product
+    /// Refrigeration escalates Frozen &gt; Chilled &gt; Dry; the accepted body types are the
+    /// ones every product accepts at that refrigeration (empty when the load mixes categories
+    /// no single body carries); MOPP and cargo fixing become required if any single product
     /// demands them.
     /// </summary>
     public static ConsolidatedVehicleRequirement From(IEnumerable<Product> products)
     {
-        var environment = TransportEnvironment.Dry;
-        var category = ProductCategory.General;
-        var hasCategory = false;
-        var requiresMopp = false;
-        var requiresCargoFixing = false;
+        var list = products.ToList();
+        var environment = list.Count == 0 ? TransportEnvironment.Dry : list.Max(p => p.TransportEnvironment);
+        var fragile = list.Any(p => p.Fragile);
 
-        foreach (var product in products)
-        {
-            if (product.TransportEnvironment > environment)
-            {
-                environment = product.TransportEnvironment;
-            }
-
-            if (!hasCategory || IsMoreSensitiveBodywork(product.Category, category))
-            {
-                category = product.Category;
-                hasCategory = true;
-            }
-
-            requiresMopp |= product.Dangerous;
-            requiresCargoFixing |= product.Fragile;
-        }
+        IReadOnlyList<VehicleBodyType> accepted = list.Count == 0
+            ? CargoCompatibility.AcceptedBodies(ProductCategory.General, environment, fragile)
+            : list.Select(p => p.Category).Distinct()
+                .Select(category => CargoCompatibility.AcceptedBodies(category, environment, fragile).AsEnumerable())
+                .Aggregate((acc, next) => acc.Intersect(next))
+                .ToList();
 
         return new ConsolidatedVehicleRequirement(
-            BaseBodyworkType: ResolveBodywork(category),
-            MinRefrigerationLevel: ResolveRefrigeration(environment),
-            RequiresMopp: requiresMopp,
-            RequiresCargoFixing: requiresCargoFixing);
+            AcceptedBodyTypes: accepted,
+            MinRefrigerationLevel: CargoCompatibility.RequiredRefrigeration(environment).ToString(),
+            RequiresMopp: list.Any(p => p.Dangerous),
+            RequiresCargoFixing: fragile);
     }
-
-    private static bool IsMoreSensitiveBodywork(ProductCategory candidate, ProductCategory current)
-        => BodyworkSensitivity(candidate) > BodyworkSensitivity(current);
-
-    private static int BodyworkSensitivity(ProductCategory category) => category switch
-    {
-        ProductCategory.LiquidBulk => 2,
-        ProductCategory.SolidBulk => 1,
-        _ => 0
-    };
-
-    private static string ResolveBodywork(ProductCategory category) => category switch
-    {
-        ProductCategory.General => "Baú / Sider",
-        ProductCategory.SolidBulk => "Graneleiro / Basculante",
-        ProductCategory.LiquidBulk => "Tanque",
-        _ => "Baú / Sider"
-    };
-
-    private static string ResolveRefrigeration(TransportEnvironment environment) => environment switch
-    {
-        TransportEnvironment.Dry => "Nenhuma",
-        TransportEnvironment.Chilled => "Resfriado",
-        TransportEnvironment.Frozen => "Congelado",
-        _ => "Nenhuma"
-    };
 }

@@ -175,9 +175,9 @@ export default function RouteSegmentDetails({ segment }) {
             <Truck size={12} className="text-slate-400" /> Requisito de veículo
           </div>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <InfoField label="Carroceria base">{requirement.baseBodyworkType || "—"}</InfoField>
+            <InfoField label="Carrocerias aceitas">{requirement.baseBodyworkType || "—"}</InfoField>
             <InfoField label="Refrigeração mínima">{requirement.minRefrigerationLevel || "—"}</InfoField>
-            <InfoField label="Exige MOPP">{requirement.requiresMopp ? "Sim" : "Não"}</InfoField>
+            <InfoField label="Motorista com MOPP">{requirement.requiresMopp ? "Exigido" : "Não exigido"}</InfoField>
             <InfoField label="Fixação de carga">{requirement.requiresCargoFixing ? "Sim" : "Não"}</InfoField>
           </div>
         </div>

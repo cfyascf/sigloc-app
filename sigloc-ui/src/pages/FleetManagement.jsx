@@ -14,6 +14,8 @@ import { ListFilters, filtersLabel } from "@/components/list-filters"
 import { VEHICLE_LIMITS, mapVehicleFieldErrors, validateVehicle } from "@/lib/vehicle-validation"
 import { shortId } from "@/lib/utils"
 import VehicleForm from "@/pages/VehicleForm"
+import { BodyTypeField, EquipmentChecks, RefrigerationField } from "@/components/vehicles/VehicleEquipmentFields"
+import { normalizeVehicleEquipment } from "@/constants/cargo-compatibility"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`
@@ -101,7 +103,8 @@ export default function FleetManagement() {
   const startEditing = (vehicle) => {
     setEditingId(vehicle.id)
     // A record still holding the retired manual "in transit" status is edited as Livre.
-    setEditForm({ ...vehicle, status: vehicle.status === ON_TRIP_LABEL ? "Livre" : vehicle.status })
+    // Vehicles saved before refrigeration was tied to the body type open already corrected.
+    setEditForm(normalizeVehicleEquipment({ ...vehicle, status: vehicle.status === ON_TRIP_LABEL ? "Livre" : vehicle.status }))
     setEditErrors({})
     setDeletingId(null)
     saveAction.reset()
@@ -350,19 +353,25 @@ export default function FleetManagement() {
                         <Input id={`vehicle-${vehicle.id}-axles`} type="number" step="1" value={editForm.axleCount ?? ""} onChange={(e) => setEditForm({...editForm, axleCount: e.target.value})} aria-invalid={Boolean(editErrors.axleCount || saveAction.fieldErrors.axleCount)} className="h-9 border-slate-200 text-xs bg-white focus:border-blue-500 focus:ring-blue-500" />
                         <FieldError message={editErrors.axleCount ?? saveAction.fieldErrors.axleCount} />
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tipo de Carroceria</label>
-                        <Select value={editForm.bodyType} onValueChange={(v) => setEditForm({...editForm, bodyType: v})}>
-                          <SelectTrigger className="h-9 border-slate-200 text-xs bg-white focus:border-blue-500 focus:ring-blue-500">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {BODY_TYPE_OPTIONS.map((option) => (
-                              <SelectItem key={option} value={option}>{option}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <BodyTypeField
+                        value={editForm}
+                        onChange={setEditForm}
+                        errors={{ ...mapVehicleFieldErrors(saveAction.fieldErrors), ...editErrors }}
+                        disabled={saveAction.pending}
+                        className="space-y-1.5"
+                        labelClassName="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                        triggerClassName="h-9 border-slate-200 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
+                      />
+                      <RefrigerationField
+                        value={editForm}
+                        onChange={setEditForm}
+                        errors={mapVehicleFieldErrors(saveAction.fieldErrors)}
+                        disabled={saveAction.pending}
+                        idPrefix={`vehicle-${vehicle.id}`}
+                        className="space-y-1.5"
+                        labelClassName="block text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                        selectClassName="h-9 text-xs"
+                      />
 
                       {/* LINHA 3: Status e Localização */}
                       <div className="space-y-1.5 md:col-span-2">
@@ -384,6 +393,14 @@ export default function FleetManagement() {
                           </SelectContent>
                         </Select>
                       </div>
+                      <EquipmentChecks
+                        value={editForm}
+                        onChange={setEditForm}
+                        errors={mapVehicleFieldErrors(saveAction.fieldErrors)}
+                        disabled={saveAction.pending}
+                        idPrefix={`vehicle-${vehicle.id}`}
+                        className="border-t border-slate-100 pt-4 md:col-span-3"
+                      />
                     </div>
                     
                     <div className="flex items-center justify-between border-t border-slate-200 pt-4">

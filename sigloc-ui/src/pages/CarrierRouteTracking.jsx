@@ -287,7 +287,7 @@ export default function CarrierRouteTracking() {
               <dl className="grid grid-cols-2 gap-3">
                 <Spec label="Ambiente" value={cargo.environment} />
                 <Spec label="Temperatura" value={temperatureRange(cargo)} mono />
-                <Spec label="Carroceria" value={cargo.bodywork} />
+                <Spec label="Carrocerias aceitas" value={cargo.bodywork} />
                 <Spec label="Embalagens" value={cargo.packagings.join(", ")} />
                 <Spec label="Peso Total" value={formatTripNumber(cargo.totalWeightKg, " kg")} mono />
                 <Spec label="Volume Total" value={formatTripNumber(cargo.totalVolumeM3, " m³")} mono />

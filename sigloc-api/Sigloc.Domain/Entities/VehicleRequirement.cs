@@ -7,33 +7,17 @@ namespace Sigloc.Domain.Entities;
 /// transport a product. Derived purely from the product's own attributes.
 /// </summary>
 public sealed record VehicleRequirement(
-    string BaseBodyworkType,
+    IReadOnlyList<VehicleBodyType> AcceptedBodyTypes,
     string MinRefrigerationLevel,
     bool RequiresMopp,
     bool RequiresCargoFixing)
 {
-    public static VehicleRequirement From(Product product)
-    {
-        var bodywork = product.Category switch
-        {
-            ProductCategory.General => "Baú / Sider",
-            ProductCategory.SolidBulk => "Graneleiro / Basculante",
-            ProductCategory.LiquidBulk => "Tanque",
-            _ => "Baú / Sider"
-        };
+    /// <summary>Accepted body types as display text ("Baú, Sider ou Grade Baixa").</summary>
+    public string BaseBodyworkType => CargoCompatibility.Describe(AcceptedBodyTypes);
 
-        var refrigeration = product.TransportEnvironment switch
-        {
-            TransportEnvironment.Dry => "Nenhuma",
-            TransportEnvironment.Chilled => "Resfriado",
-            TransportEnvironment.Frozen => "Congelado",
-            _ => "Nenhuma"
-        };
-
-        return new VehicleRequirement(
-            BaseBodyworkType: bodywork,
-            MinRefrigerationLevel: refrigeration,
-            RequiresMopp: product.Dangerous,
-            RequiresCargoFixing: product.Fragile);
-    }
+    public static VehicleRequirement From(Product product) => new(
+        AcceptedBodyTypes: CargoCompatibility.AcceptedBodies(product.Category, product.TransportEnvironment, product.Fragile),
+        MinRefrigerationLevel: CargoCompatibility.RequiredRefrigeration(product.TransportEnvironment).ToString(),
+        RequiresMopp: product.Dangerous,
+        RequiresCargoFixing: product.Fragile);
 }

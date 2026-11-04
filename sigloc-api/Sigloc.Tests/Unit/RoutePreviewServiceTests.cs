@@ -86,7 +86,7 @@ public class RoutePreviewServiceTests
     public async Task PreviewAsync_maps_consolidated_vehicle_requirement()
     {
         var product = TestData.Product(contractorId: _contractorId, category: ProductCategory.LiquidBulk);
-        product.TransportEnvironment = TransportEnvironment.Frozen;
+        product.TransportEnvironment = TransportEnvironment.Chilled;
         product.Dangerous = true;
         product.Fragile = true;
         var id = Guid.NewGuid();
@@ -98,7 +98,8 @@ public class RoutePreviewServiceTests
         var result = await _service.PreviewAsync(_contractorId, new RoutePreviewRequestDto(new[] { id }));
 
         result.ConsolidatedVehicleRequirement.BaseBodyworkType.Should().Be("Tanque");
-        result.ConsolidatedVehicleRequirement.MinRefrigerationLevel.Should().Be("Congelado");
+        result.ConsolidatedVehicleRequirement.AcceptedBodyTypes.Should().Equal("Tanque");
+        result.ConsolidatedVehicleRequirement.MinRefrigerationLevel.Should().Be("Resfriado");
         result.ConsolidatedVehicleRequirement.RequiresMopp.Should().BeTrue();
         result.ConsolidatedVehicleRequirement.RequiresCargoFixing.Should().BeTrue();
     }
@@ -211,6 +212,55 @@ public class RoutePreviewServiceTests
         error.Field.Should().Be("segmentIds");
         error.Reason.Should().Contain(first.Id.ToString("N")[^8..]).And.Contain(second.Id.ToString("N")[^8..]);
         await _geocoding.DidNotReceive().ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PreviewAsync_rejects_segments_of_different_product_categories()
+    {
+        var general = Segment(Guid.NewGuid(), TestData.Product(), quantity: 1);
+        var cattle = Segment(Guid.NewGuid(), TestData.Product(category: ProductCategory.LiveCargo), quantity: 1);
+        _repository
+            .GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), false, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { general, cattle });
+
+        var act = () => _service.PreviewAsync(_contractorId, new RoutePreviewRequestDto(new[] { general.Id, cattle.Id }));
+
+        var error = (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Single();
+        error.Field.Should().Be("segmentIds");
+        error.Reason.Should().Contain($"Geral (trecho {general.Id.ToString("N")[^8..]})")
+            .And.Contain($"Carga Viva (trecho {cattle.Id.ToString("N")[^8..]})");
+        await _geocoding.DidNotReceive().ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PreviewAsync_offers_a_bulk_segment_only_on_its_own_even_with_the_same_product()
+    {
+        var milk = TestData.Product(name: "Leite", category: ProductCategory.LiquidBulk);
+        var farmA = Segment(Guid.NewGuid(), milk, quantity: 1);
+        var farmB = Segment(Guid.NewGuid(), milk, quantity: 1);
+        _repository
+            .GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), false, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { farmA, farmB });
+
+        var act = () => _service.PreviewAsync(_contractorId, new RoutePreviewRequestDto(new[] { farmA.Id, farmB.Id }));
+
+        var error = (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Single();
+        error.Field.Should().Be("segmentIds");
+        error.Reason.Should().Contain("ofertado sozinho");
+        await _geocoding.DidNotReceive().ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PreviewAsync_accepts_a_bulk_segment_alone()
+    {
+        var cattle = Segment(Guid.NewGuid(), TestData.Product(category: ProductCategory.LiveCargo), quantity: 30);
+        _repository
+            .GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), false, Arg.Any<CancellationToken>())
+            .Returns(new List<RouteSegment> { cattle });
+
+        var result = await _service.PreviewAsync(_contractorId, new RoutePreviewRequestDto(new[] { cattle.Id }));
+
+        result.ConsolidatedVehicleRequirement.AcceptedBodyTypes.Should().Equal("Gaiola / Boiadeiro");
     }
 
     [Fact]

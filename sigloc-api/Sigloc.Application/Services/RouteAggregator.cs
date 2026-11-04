@@ -1,6 +1,7 @@
 using Sigloc.Application.Contracts;
 using Sigloc.Application.Exceptions;
 using Sigloc.Domain.Entities;
+using Sigloc.Domain.Enums;
 
 namespace Sigloc.Application.Services;
 
@@ -71,6 +72,8 @@ internal static class RouteAggregator
         }
 
         EnsureSingleCargoClass(ordered);
+        EnsureSingleCategory(ordered);
+        EnsureSingleProductSegmentsAlone(ordered);
         EnsureCompatibleTemperatures(ordered);
 
         // Inter-segment legs: destination of one segment → origin of the next.
@@ -132,6 +135,66 @@ internal static class RouteAggregator
         throw new ValidationException(
             [new ValidationError("segmentIds", $"Trechos com classes de carga diferentes não podem formar a mesma rota: {string.Join(" e ", parts)}.")],
             "Não foi possível consolidar a rota.");
+    }
+
+    /// <summary>
+    /// Each product category needs its own body type, so a route carries a single category. Checked
+    /// over every product, so an older segment that already mixes categories is caught too.
+    /// </summary>
+    private static void EnsureSingleCategory(IReadOnlyList<RouteSegment> segments)
+    {
+        var bySegment = segments
+            .Select(s => (Segment: s, Categories: s.Items.Where(i => i.Product is not null).Select(i => i.Product!.Category).ToHashSet()))
+            .ToList();
+        var categories = bySegment.SelectMany(x => x.Categories).Distinct().Order().ToList();
+        if (categories.Count <= 1)
+        {
+            return;
+        }
+
+        // "Geral (trechos 1a2b3c4d, 5e6f7a8b) e Granel Sólido (trecho 9c8d7e6f)"
+        var parts = categories.Select(category =>
+        {
+            var ids = bySegment.Where(x => x.Categories.Contains(category)).Select(x => ShortId(x.Segment.Id)).ToList();
+            return $"{category.ToLabel()} ({(ids.Count == 1 ? "trecho" : "trechos")} {string.Join(", ", ids)})";
+        });
+        throw new ValidationException(
+            [new ValidationError("segmentIds", $"Trechos com categorias de carga diferentes não podem formar a mesma rota: {string.Join(" e ", parts)}.")],
+            "Não foi possível consolidar a rota.");
+    }
+
+    /// <summary>
+    /// Bulk and live cargo fill the whole vehicle with one product: such a segment is offered on its
+    /// own, and must carry a single product (an older segment may still hold more).
+    /// </summary>
+    private static void EnsureSingleProductSegmentsAlone(IReadOnlyList<RouteSegment> segments)
+    {
+        foreach (var segment in segments)
+        {
+            var products = segment.Items.Where(i => i.Product is not null).Select(i => i.Product!).ToList();
+            var single = products.FirstOrDefault(p => CargoCompatibility.IsSingleProduct(p.Category));
+            if (single is null)
+            {
+                continue;
+            }
+
+            if (products.Select(p => p.Id).Distinct().Count() > 1)
+            {
+                throw new ValidationException(
+                    [new ValidationError("segmentIds",
+                        $"O trecho {ShortId(segment.Id)} leva mais de um produto {single.Category.ToLabel()}: edite o trecho e deixe um único produto antes de ofertá-lo.")],
+                    "Não foi possível consolidar a rota.");
+            }
+
+            if (segments.Count > 1)
+            {
+                throw new ValidationException(
+                    [new ValidationError("segmentIds",
+                        $"O trecho {ShortId(segment.Id)} ({single.Category.ToLabel()}) deve ser ofertado sozinho: cargas a granel e carga viva "
+                        + "ocupam o veículo inteiro e não se combinam com outros trechos.")],
+                    "Não foi possível consolidar a rota.");
+            }
+        }
     }
 
     /// <summary>

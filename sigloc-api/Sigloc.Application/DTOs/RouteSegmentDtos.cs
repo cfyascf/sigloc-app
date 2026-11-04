@@ -54,6 +54,7 @@ public record CalculatedTotalsDto(
 /// <summary>Consolidated vehicle requirement across every product on the segment.</summary>
 public record ConsolidatedVehicleRequirementDto(
     string BaseBodyworkType,
+    IReadOnlyList<string> AcceptedBodyTypes,
     string MinRefrigerationLevel,
     bool RequiresMopp,
     bool RequiresCargoFixing);

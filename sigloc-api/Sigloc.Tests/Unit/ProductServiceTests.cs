@@ -145,6 +145,38 @@ public class ProductServiceTests
         await act.Should().ThrowAsync<ValidationException>();
     }
 
+    [Theory]
+    [InlineData("GranelSolido", "Resfriado", false, false, "ambienteTransporte")]  // no refrigerated bulk body
+    [InlineData("GranelLiquido", "Congelado", false, false, "ambienteTransporte")] // insulated tanks only chill
+    [InlineData("CargaViva", "Seco", false, true, "fragil")]                     // only unit loads are fragile
+    [InlineData("CargaViva", "Seco", true, false, "perigoso")]                   // animals are not hazmat
+    public async Task CreateAsync_rejects_what_the_category_bodies_cannot_carry(
+        string category, string environment, bool dangerous, bool fragile, string field)
+    {
+        var dto = ValidDto(category: category, environment: environment, packaging: null, tempMin: 2, tempMax: 8)
+            with { Dangerous = dangerous, Fragile = fragile };
+
+        var act = () => _service.CreateAsync(_contractorId, dto);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == field);
+        await _repository.DidNotReceive().AddAsync(Arg.Any<Product>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("CargaViva", "Seco", "Gaiola / Boiadeiro")]
+    [InlineData("GranelLiquido", "Resfriado", "Tanque")]
+    [InlineData("Conteinerizada", "Congelado", "Porta-Contêiner")]
+    [InlineData("Neogranel", "Seco", "Grade Baixa", "Prancha", "Cegonheiro")]
+    public async Task CreateAsync_new_categories_list_their_accepted_bodies(string category, string environment, params string[] bodies)
+    {
+        var dto = ValidDto(category: category, environment: environment, packaging: null, tempMin: -20, tempMax: 8);
+
+        var result = await _service.CreateAsync(_contractorId, dto);
+
+        result.Category.Should().Be(category);
+        result.VehicleRequirement.AcceptedBodyTypes.Should().Equal(bodies);
+    }
+
     [Fact]
     public async Task GetByIdAsync_not_found_throws()
     {

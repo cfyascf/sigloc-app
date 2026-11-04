@@ -22,6 +22,7 @@ public record ProductRequestDto(
 /// <summary>Calculated vehicle requirement (never stored, always returned).</summary>
 public record VehicleRequirementDto(
     string BaseBodyworkType,
+    IReadOnlyList<string> AcceptedBodyTypes,
     string MinRefrigerationLevel,
     bool RequiresMopp,
     bool RequiresCargoFixing);

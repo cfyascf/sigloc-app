@@ -400,7 +400,7 @@ public class AuctionService : IAuctionService
                     HasActiveInsurancePolicy: r.Carrier.HasActiveInsurancePolicy),
                 Vehicle: new BidRankingVehicleDto(
                     Plate: r.Vehicle.Plate,
-                    BodyType: BodyTypeLabel(r.Vehicle.BodyType)),
+                    BodyType: r.Vehicle.BodyType.ToLabel()),
                 Financials: new BidRankingFinancialsDto(
                     TotalValue: r.Bid.TotalValue,
                     NetFreightValue: r.Bid.NetFreightValue,
@@ -988,11 +988,12 @@ public class AuctionService : IAuctionService
     /// <summary>Specification tags of a vehicle shown in the fleet dropdown.</summary>
     private static IReadOnlyList<string> BuildVehicleSpecifications(Vehicle vehicle)
     {
-        var specs = new List<string> { BodyTypeLabel(vehicle.BodyType) };
+        var specs = new List<string> { vehicle.BodyType.ToLabel() };
 
-        if (vehicle.RefrigerationLevel != RefrigerationLevel.Nenhuma)
+        var refrigeration = CargoCompatibility.EffectiveRefrigeration(vehicle);
+        if (refrigeration != RefrigerationLevel.Nenhuma)
         {
-            specs.Add(vehicle.RefrigerationLevel.ToString());
+            specs.Add(refrigeration.ToString());
         }
 
         if (vehicle.HasMopp)
@@ -1056,18 +1057,6 @@ public class AuctionService : IAuctionService
     {
         var comma = cityState.IndexOf(',');
         return (comma >= 0 ? cityState[..comma] : cityState).Trim();
-    }
-
-    /// <summary>Human-friendly label of a vehicle body type, from its [Description] attribute.</summary>
-    private static string BodyTypeLabel(VehicleBodyType bodyType)
-    {
-        var field = typeof(VehicleBodyType).GetField(bodyType.ToString());
-        var description = field?
-            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
-            .Cast<System.ComponentModel.DescriptionAttribute>()
-            .FirstOrDefault();
-
-        return description?.Description ?? bodyType.ToString();
     }
 
     /// <summary>Condenses the consolidated vehicle requirement into a single display string.</summary>

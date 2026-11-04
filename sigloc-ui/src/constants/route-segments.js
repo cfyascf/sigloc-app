@@ -7,7 +7,8 @@
  * fields (itinerary, deadlines, budget/toll, and the linked product items).
  */
 
-import { TRANSPORT_ENVIRONMENT } from "./products.js"
+import { TRANSPORT_ENVIRONMENT, categoryLabel } from "./products.js"
+import { isSingleProductCategory } from "./cargo-compatibility.js"
 
 /** Segment lifecycle wire values (see backend `SegmentEnumMappings`). */
 export const SEGMENT_STATUS = {
@@ -64,13 +65,39 @@ export function cargoClassName(cargoClass) {
 }
 
 /**
+ * Product categories (wire values) carried by the segment. Each category needs its own body type
+ * (same rule as the API), so a segment and a route hold a single one; older segments may hold more.
+ */
+export function segmentCategories(segment) {
+  return [...new Set((segment?.items ?? []).map((item) => item.category).filter(Boolean))]
+}
+
+/**
  * Why a segment can't join the route being selected, or null when it can. `selectedClass` is the
  * class of the segments already ticked (null when none is); `selectedRange` is the temperature
- * range every ticked segment tolerates (null when none is ticked).
+ * range every ticked segment tolerates (null when none is ticked); `selectedCategory` is their
+ * product category.
  */
-export function cargoSelectionBlock(segment, selectedClass, selectedRange = null) {
+export function cargoSelectionBlock(segment, selectedClass, selectedRange = null, selectedCategory = null) {
   if (segment.cargoClass === CARGO_CLASS.MISTA) {
     return "Este trecho mistura classes de carga. Edite o trecho e remova os produtos de outra classe antes de ofertá-lo."
+  }
+  const categories = segmentCategories(segment)
+  if (categories.length > 1) {
+    return "Este trecho mistura categorias de produto. Edite o trecho e remova os produtos de outra categoria antes de ofertá-lo."
+  }
+  if (isSingleProductCategory(categories[0]) && new Set(segment.items.map((item) => item.productId)).size > 1) {
+    return `Este trecho leva mais de um produto ${categoryLabel(categories[0])}. Edite o trecho e deixe um único produto antes de ofertá-lo.`
+  }
+  // Bulk and live cargo fill the whole vehicle: those segments are offered on their own.
+  if (selectedCategory && isSingleProductCategory(selectedCategory)) {
+    return `O trecho selecionado é de ${categoryLabel(selectedCategory)}: cargas a granel e carga viva são ofertadas sozinhas.`
+  }
+  if (selectedCategory && isSingleProductCategory(categories[0])) {
+    return `Trecho de ${categoryLabel(categories[0])}: é ofertado sozinho, sem combinar com outros trechos.`
+  }
+  if (selectedCategory && categories.length === 1 && categories[0] !== selectedCategory) {
+    return `Uma rota não pode misturar as categorias ${categoryLabel(selectedCategory)} e ${categoryLabel(categories[0])}: cada categoria exige outro tipo de carroceria.`
   }
   if (selectedClass && segment.cargoClass !== selectedClass) {
     return `Uma rota não pode misturar ${cargoClassName(selectedClass)} com ${cargoClassName(segment.cargoClass)}.`
@@ -127,10 +154,13 @@ export function formatTemperatureRange(range) {
 
 /**
  * What still fits the route being selected, e.g. "Para compor esta rota, selecione apenas trechos
- * de carga frágil que possam viajar entre 2 °C e 8 °C."
+ * de carga frágil da categoria Geral que possam viajar entre 2 °C e 8 °C."
  */
-export function selectionCompatibilityHint(selectedClass, selectedRange) {
+export function selectionCompatibilityHint(selectedClass, selectedRange, selectedCategory = null) {
   if (!selectedClass) return null
+  if (isSingleProductCategory(selectedCategory)) {
+    return `Trechos de ${categoryLabel(selectedCategory)} são ofertados sozinhos: avance para criar o leilão deste trecho.`
+  }
   const hasMin = Number.isFinite(selectedRange?.min)
   const hasMax = Number.isFinite(selectedRange?.max)
   const temperature =
@@ -139,7 +169,8 @@ export function selectionCompatibilityHint(selectedClass, selectedRange) {
       : hasMin || hasMax
         ? ` que possam viajar ${formatTemperatureRange(selectedRange)}`
         : ""
-  return `Para compor esta rota, selecione apenas trechos de ${cargoClassName(selectedClass)}${temperature}.`
+  const category = selectedCategory ? ` da categoria ${categoryLabel(selectedCategory)}` : ""
+  return `Para compor esta rota, selecione apenas trechos de ${cargoClassName(selectedClass)}${category}${temperature}.`
 }
 
 /**

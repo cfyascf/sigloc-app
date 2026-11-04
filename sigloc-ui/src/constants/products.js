@@ -12,12 +12,21 @@ export const PRODUCT_CATEGORY = {
   GENERAL: "Geral",
   SOLID_BULK: "GranelSolido",
   LIQUID_BULK: "GranelLiquido",
+  PRESSURIZED_BULK: "GranelPressurizado",
+  CONTAINERIZED: "Conteinerizada",
+  NEO_BULK: "Neogranel",
+  LIVE_CARGO: "CargaViva",
 }
 
+/** `hint` is shown under the select so the contractor knows what each category means. */
 export const PRODUCT_CATEGORY_OPTIONS = [
-  { value: PRODUCT_CATEGORY.GENERAL, label: "Geral" },
-  { value: PRODUCT_CATEGORY.SOLID_BULK, label: "Granel Sólido" },
-  { value: PRODUCT_CATEGORY.LIQUID_BULK, label: "Granel Líquido" },
+  { value: PRODUCT_CATEGORY.GENERAL, label: "Geral", hint: "Volumes contáveis e identificados: caixas, paletes, sacarias, máquinas." },
+  { value: PRODUCT_CATEGORY.SOLID_BULK, label: "Granel Sólido", hint: "Grãos, fertilizantes, areia, brita e minérios, sem embalagem." },
+  { value: PRODUCT_CATEGORY.LIQUID_BULK, label: "Granel Líquido", hint: "Líquidos sem embalagem: combustíveis, leite, sucos, químicos." },
+  { value: PRODUCT_CATEGORY.PRESSURIZED_BULK, label: "Granel Pressurizado", hint: "Pós descarregados por pressão: cimento, farinha, cal." },
+  { value: PRODUCT_CATEGORY.CONTAINERIZED, label: "Conteinerizada", hint: "Carga que viaja dentro de contêineres." },
+  { value: PRODUCT_CATEGORY.NEO_BULK, label: "Neogranel", hint: "Lotes de itens iguais sem embalagem: veículos, bobinas, toras, vergalhões." },
+  { value: PRODUCT_CATEGORY.LIVE_CARGO, label: "Carga Viva", hint: "Animais vivos: bovinos, suínos, aves." },
 ]
 
 /** Transport environment wire values (`ambienteTransporte`). */
@@ -80,6 +89,8 @@ export const PRODUCT_FIELD_MAP = {
   pesoPadrao: "defaultWeight",
   volumePadrao: "defaultVolume",
   restricaoManuseio: "handlingRestriction",
+  perigoso: "dangerous",
+  fragil: "fragile",
 }
 
 /**

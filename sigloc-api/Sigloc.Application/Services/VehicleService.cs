@@ -34,6 +34,7 @@ public class VehicleService : IVehicleService
 
         ValidateFields(dto.Model, dto.AxleCount, dto.CapacityWeight, dto.CapacityVolume, dto.Driver, dto.CurrentLocation,
             requireModel: true, "Não foi possível cadastrar o veículo.");
+        ValidateEquipment(dto.BodyType, dto.RefrigerationLevel, dto.HasCargoSecuring, "Não foi possível cadastrar o veículo.");
 
         // 3. Criação da Entidade
         var vehicle = new Vehicle(
@@ -95,6 +96,15 @@ public class VehicleService : IVehicleService
 
         ValidateFields(dto.Model, dto.AxleCount, dto.CapacityWeight, dto.CapacityVolume, dto.Driver, dto.CurrentLocation,
             requireModel: false, "Não foi possível atualizar o veículo.");
+        // Partial updates that don't touch the equipment leave older vehicles (saved before these rules) editable.
+        if (dto.BodyType.HasValue || dto.RefrigerationLevel.HasValue || dto.HasCargoSecuring.HasValue)
+        {
+            ValidateEquipment(
+                dto.BodyType ?? vehicle.BodyType,
+                dto.RefrigerationLevel ?? vehicle.RefrigerationLevel,
+                dto.HasCargoSecuring ?? vehicle.HasCargoSecuring,
+                "Não foi possível atualizar o veículo.");
+        }
         ValidateMonitoringFields(dto.TraccarDeviceId, dto.DriverPhone);
         if (dto.TraccarDeviceId.HasValue) vehicle.TraccarDeviceId = dto.TraccarDeviceId;
         if (dto.DriverPhone != null) vehicle.DriverPhone = NormalizePhone(dto.DriverPhone);
@@ -159,6 +169,25 @@ public class VehicleService : IVehicleService
         if (capacityVolume > MaxCapacityVolumeM3) errors.Add(new("capacityVolume", $"A capacidade de volume deve ser no máximo 500 m³."));
         if (driver?.Trim().Length > MaxDriverLength) errors.Add(new("driver", $"O nome do motorista deve ter no máximo {MaxDriverLength} caracteres."));
         if (currentLocation?.Trim().Length > MaxLocationLength) errors.Add(new("currentLocation", $"A localização deve ter no máximo {MaxLocationLength} caracteres."));
+        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, summary);
+    }
+
+    // The body type decides which refrigeration the vehicle can have and whether cargo securing is mandatory.
+    private static void ValidateEquipment(VehicleBodyType bodyType, RefrigerationLevel refrigeration, bool hasCargoSecuring, string summary)
+    {
+        var errors = new List<Sigloc.Application.Exceptions.ValidationError>();
+        if (!Enum.IsDefined(bodyType))
+        {
+            errors.Add(new("bodyType", "Selecione um tipo de carroceria válido."));
+        }
+        else
+        {
+            var levels = CargoCompatibility.RefrigerationLevelsFor(bodyType);
+            if (!levels.Contains(refrigeration))
+                errors.Add(new("refrigerationLevel", $"A carroceria {bodyType.ToLabel()} aceita apenas a refrigeração {string.Join(" ou ", levels)}."));
+            if (CargoCompatibility.RequiresCargoSecuring(bodyType) && !hasCargoSecuring)
+                errors.Add(new("hasCargoSecuring", $"Obrigatória na carroceria {bodyType.ToLabel()}: a carga deve ser amarrada (CONTRAN Res. 945/2022)."));
+        }
         if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, summary);
     }
 

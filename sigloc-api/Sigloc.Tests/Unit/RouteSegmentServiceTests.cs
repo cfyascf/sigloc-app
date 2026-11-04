@@ -203,6 +203,49 @@ public class RouteSegmentServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_mixing_product_categories_in_a_segment_is_rejected()
+    {
+        var general = TestData.Product(contractorId: _contractorId);
+        var grain = TestData.Product(contractorId: _contractorId, category: ProductCategory.SolidBulk);
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { general, grain });
+
+        var act = () => _service.CreateAsync(_contractorId, ValidDto(items: new[] { Item(general.Id), Item(grain.Id) }));
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().ContainSingle(e => e.Field == "items" && e.Reason.Contains("Geral e Granel Sólido"));
+        await _repository.DidNotReceive().AddAsync(Arg.Any<RouteSegment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_two_bulk_products_in_a_segment_are_rejected()
+    {
+        var soy = TestData.Product(contractorId: _contractorId, sku: "SOJA", category: ProductCategory.SolidBulk);
+        var corn = TestData.Product(contractorId: _contractorId, sku: "MILHO", category: ProductCategory.SolidBulk);
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { soy, corn });
+
+        var act = () => _service.CreateAsync(_contractorId, ValidDto(items: new[] { Item(soy.Id), Item(corn.Id) }));
+
+        var ex = (await act.Should().ThrowAsync<ValidationException>()).Which;
+        ex.Errors.Should().ContainSingle(e => e.Field == "items" && e.Reason.Contains("único produto"));
+        await _repository.DidNotReceive().AddAsync(Arg.Any<RouteSegment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_two_general_products_can_share_a_segment()
+    {
+        var boxes = TestData.Product(contractorId: _contractorId, sku: "CX");
+        var bags = TestData.Product(contractorId: _contractorId, sku: "SC");
+        _repository.GetProductsByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<Product> { boxes, bags });
+
+        await _service.CreateAsync(_contractorId, ValidDto(items: new[] { Item(boxes.Id), Item(bags.Id) }));
+
+        await _repository.Received(1).AddAsync(Arg.Any<RouteSegment>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task CreateAsync_products_without_a_common_temperature_in_a_segment_are_rejected()
     {
         var dry = TestData.Product(contractorId: _contractorId, name: "Arroz");

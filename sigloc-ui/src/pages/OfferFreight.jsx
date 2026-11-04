@@ -313,7 +313,7 @@ export default function OfferFreight() {
                 <div className="space-y-4 p-5">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Equipamento Exigido
+                      Carrocerias aceitas
                     </p>
                     <p className="mt-1 text-sm font-bold text-slate-800">
                       {requirement?.baseBodyworkType || "—"}

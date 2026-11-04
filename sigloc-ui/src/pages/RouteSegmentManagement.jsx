@@ -47,12 +47,15 @@ import {
   segmentStatusLabel,
   isPickupOverdue,
   cargoSelectionBlock,
+  segmentCategories,
   intersectTemperatureRanges,
   segmentTemperatureRange,
   selectionCompatibilityHint,
   SEGMENT_STATUS,
   mapRouteSegmentFieldErrors,
 } from "@/constants/route-segments"
+import { categoryLabel } from "@/constants/products"
+import { isSingleProductCategory } from "@/constants/cargo-compatibility"
 
 const SEARCH_DEBOUNCE_MS = 350
 const PAGE_SIZE = 20
@@ -237,6 +240,7 @@ export default function RouteSegmentManagement() {
   // and overlap the range can join them (the API enforces the same rules when previewing the route).
   const selectedSegments = segments.filter((segment) => selectedSegmentIds.includes(segment.id))
   const selectedCargoClass = selectedSegments[0]?.cargoClass ?? null
+  const selectedCategory = selectedSegments.flatMap(segmentCategories)[0] ?? null
   const selectedTemperatureRange = intersectTemperatureRanges(selectedSegments.map(segmentTemperatureRange))
   const compatibilityBlocksOthers =
     selectedSegments.length > 0 &&
@@ -244,7 +248,7 @@ export default function RouteSegmentManagement() {
       (segment) =>
         !selectedSegmentIds.includes(segment.id) &&
         isSegmentEditable(segment.status) &&
-        cargoSelectionBlock(segment, selectedCargoClass, selectedTemperatureRange)
+        cargoSelectionBlock(segment, selectedCargoClass, selectedTemperatureRange, selectedCategory)
     )
 
   const handleProceedToWorkspace = async () => {
@@ -404,7 +408,7 @@ export default function RouteSegmentManagement() {
             <p role="status" className="mt-2 flex items-start gap-2 border-t border-blue-100 pt-2 text-xs font-medium text-blue-800">
               <Info size={14} className="mt-px shrink-0" />
               <span>
-                {selectionCompatibilityHint(selectedCargoClass, selectedTemperatureRange)} Os trechos
+                {selectionCompatibilityHint(selectedCargoClass, selectedTemperatureRange, selectedCategory)} Os trechos
                 incompatíveis ficam desabilitados; passe o mouse sobre a caixa de seleção para ver o motivo.
               </span>
             </p>
@@ -455,7 +459,7 @@ export default function RouteSegmentManagement() {
               const pickupOverdue = isPickupOverdue(segment)
               const cargoBlock = isChecked
                 ? null
-                : cargoSelectionBlock(segment, selectedCargoClass, selectedTemperatureRange)
+                : cargoSelectionBlock(segment, selectedCargoClass, selectedTemperatureRange, selectedCategory)
               const selectable = editable && !pickupOverdue && !cargoBlock
 
               if (isDeletingThis) {
@@ -809,6 +813,20 @@ export default function RouteSegmentManagement() {
                           <Box size={12} className="text-slate-400" /> Produtos do
                           trecho
                         </div>
+                        {segmentCategories(segment).length === 1 &&
+                          isSingleProductCategory(segmentCategories(segment)[0]) &&
+                          new Set(segment.items.map((item) => item.productId)).size > 1 && (
+                          <p className="mb-2 text-[11px] font-medium text-amber-700">
+                            {categoryLabel(segmentCategories(segment)[0])} leva um único produto por trecho.
+                            Remova os outros produtos para salvar.
+                          </p>
+                        )}
+                        {segmentCategories(segment).length > 1 && (
+                          <p className="mb-2 text-[11px] font-medium text-amber-700">
+                            Este trecho mistura categorias de produto ({segmentCategories(segment).map(categoryLabel).join(", ")}): cada uma exige outra carroceria.
+                            Remova os produtos de outra categoria para salvar.
+                          </p>
+                        )}
                         {segment.cargoClass === "MISTA" && (
                           <p className="mb-2 text-[11px] font-medium text-amber-700">
                             Este trecho mistura classes de carga (perigosa, frágil e comum não podem ir juntas).
@@ -862,7 +880,7 @@ export default function RouteSegmentManagement() {
                                       }}
                                       className="h-7 w-16 border-slate-200 text-center text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
                                     />
-                                    {/* Lets an older segment that mixes cargo classes be split back to one class. */}
+                                    {/* Lets an older segment that mixes cargo classes or categories be split back to one. */}
                                     {editForm.items.length > 1 && (
                                       <Button
                                         type="button"

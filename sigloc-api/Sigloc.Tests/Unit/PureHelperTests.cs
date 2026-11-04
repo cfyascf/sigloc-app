@@ -243,15 +243,12 @@ public class BrasiliaTimeTests
 public class VehicleBodyTypeDescriptionTests
 {
     [Theory]
+    [InlineData(VehicleBodyType.Bau, "Baú")]
     [InlineData(VehicleBodyType.GradeBaixa, "Grade Baixa")]
     [InlineData(VehicleBodyType.Frigorifico, "Baú Refrigerado")]
-    public void Description_matches_the_body_type(VehicleBodyType bodyType, string expected)
-    {
-        var description = typeof(VehicleBodyType).GetField(bodyType.ToString())!
-            .GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
-            .Cast<System.ComponentModel.DescriptionAttribute>()
-            .Single();
-
-        description.Description.Should().Be(expected);
-    }
+    [InlineData(VehicleBodyType.Cacamba, "Caçamba")]
+    [InlineData(VehicleBodyType.PortaConteiner, "Porta-Contêiner")]
+    [InlineData(VehicleBodyType.Gaiola, "Gaiola / Boiadeiro")]
+    public void Label_matches_the_body_type(VehicleBodyType bodyType, string expected)
+        => bodyType.ToLabel().Should().Be(expected);
 }

@@ -44,6 +44,7 @@ public class RoutePreviewService : IRoutePreviewService
             new RouteAggregatedTotalsDto(aggregate.TotalWeightKg, aggregate.TotalVolumeM3),
             new ConsolidatedVehicleRequirementDto(
                 aggregate.VehicleRequirement.BaseBodyworkType,
+                aggregate.VehicleRequirement.AcceptedBodyTypes.Select(b => b.ToLabel()).ToList(),
                 aggregate.VehicleRequirement.MinRefrigerationLevel,
                 aggregate.VehicleRequirement.RequiresMopp,
                 aggregate.VehicleRequirement.RequiresCargoFixing));
