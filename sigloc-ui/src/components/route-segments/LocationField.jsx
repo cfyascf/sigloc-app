@@ -77,7 +77,7 @@ export function LocationField({
               onClick={() => setMode(mode.value)}
               className={cn(
                 "rounded px-2 py-0.5 text-[10px] font-semibold transition-colors",
-                value.mode === mode.value ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                value.mode === mode.value ? "bg-white text-slate-800" : "text-slate-500 hover:text-slate-700"
               )}
             >
               {mode.label}
@@ -87,13 +87,10 @@ export function LocationField({
       </div>
 
       {coordinates ? (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            {coordinateInput("latitude", "Lat", "-25.4284")}
-            {coordinateInput("longitude", "Long", "-49.2733")}
-          </div>
-          <p className="text-[11px] text-slate-400">Cole as coordenadas do Google Maps, ex.: -25.4284, -49.2733.</p>
-        </>
+        <div className="grid grid-cols-2 gap-2">
+          {coordinateInput("latitude", "Lat", "-25.4284")}
+          {coordinateInput("longitude", "Long", "-49.2733")}
+        </div>
       ) : (
         <Input
           id={id}
