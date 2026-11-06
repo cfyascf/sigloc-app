@@ -65,6 +65,10 @@ public static class CargoCompatibility
         ProductCategory.SolidBulk, ProductCategory.LiquidBulk, ProductCategory.PressurizedBulk, ProductCategory.LiveCargo,
     ];
 
+    /// <summary>Bulk cargo, carried in a tank, silo or open hold. Dangerous bulk needs CIV/CIPP (ANTT Res. 5.998/2022).</summary>
+    public static bool IsBulk(ProductCategory category) =>
+        category is ProductCategory.SolidBulk or ProductCategory.LiquidBulk or ProductCategory.PressurizedBulk;
+
     /// <summary>True when a segment of this category holds one product and can't join other segments in a route.</summary>
     public static bool IsSingleProduct(ProductCategory category) => SingleProductCategories.Contains(category);
 

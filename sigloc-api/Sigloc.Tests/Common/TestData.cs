@@ -1,3 +1,4 @@
+using Sigloc.Application.DTOs;
 using Sigloc.Domain.Entities;
 using Sigloc.Domain.Enums;
 
@@ -64,6 +65,19 @@ public static class TestData
             driver: "João",
             currentLocation: "Curitiba, PR",
             status: status);
+
+    /// <summary>A valid, in-date document set: single truck under an autonomous driver's RNTRC.</summary>
+    public static VehicleDocumentsDto VehicleDocuments() => new(
+        Composition: VehicleComposition.Rigid,
+        RntrcSource: RntrcSource.ThirdParty,
+        RntrcNumber: "12345678",
+        RntrcCategory: RntrcCategory.TAC,
+        RntrcHolderName: "João da Silva",
+        RntrcHolderDocument: "52998224725",
+        RntrcValidUntil: DateOnly.FromDateTime(DateTime.UtcNow).AddYears(1),
+        DriverCnhCategory: CnhCategory.C,
+        DriverHasEar: true,
+        DriverToxicologicalExamValidUntil: DateOnly.FromDateTime(DateTime.UtcNow).AddYears(1));
 
     public static Contractor Contractor(
         Guid? id = null,

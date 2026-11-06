@@ -16,7 +16,10 @@ public record CompanyProfileDto(
     int? OnTimeDeliveryRate,
     string? LogisticsContactName = null,
     string? LogisticsContactPhone = null,
-    string? LogisticsContactEmail = null);
+    string? LogisticsContactEmail = null,
+    string? RntrcNumber = null,
+    Sigloc.Domain.Enums.RntrcCategory? RntrcCategory = null,
+    DateOnly? RntrcValidUntil = null);
 
 /// <summary>
 /// Request body for PUT /api/profile. Only the editable fields are accepted.
@@ -27,4 +30,8 @@ public record UpdateCompanyProfileDto(
     string? TradeName,
     string? LogisticsContactName = null,
     string? LogisticsContactPhone = null,
-    string? LogisticsContactEmail = null);
+    string? LogisticsContactEmail = null,
+    // Carrier only. Null keeps the stored RNTRC; a blank number clears it.
+    string? RntrcNumber = null,
+    Sigloc.Domain.Enums.RntrcCategory? RntrcCategory = null,
+    DateOnly? RntrcValidUntil = null);

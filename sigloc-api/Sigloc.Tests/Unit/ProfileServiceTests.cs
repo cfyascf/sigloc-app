@@ -172,6 +172,35 @@ public class ProfileServiceTests
     }
 
     [Fact]
+    public async Task UpdateAsync_stores_the_carrier_rntrc()
+    {
+        var carrier = TestData.Carrier(id: _companyId);
+        _carriers.GetTrackedByIdAsync(_companyId, Arg.Any<CancellationToken>()).Returns(carrier);
+        var due = new DateOnly(2027, 6, 30);
+
+        var result = await _service.UpdateAsync(_companyId, isCarrier: true,
+            new UpdateCompanyProfileDto("Transportadora", null, RntrcNumber: "012345678", RntrcCategory: Sigloc.Domain.Enums.RntrcCategory.ETC, RntrcValidUntil: due));
+
+        carrier.RntrcNumber.Should().Be("12345678");
+        result.RntrcCategory.Should().Be(Sigloc.Domain.Enums.RntrcCategory.ETC);
+        result.RntrcValidUntil.Should().Be(due);
+    }
+
+    [Theory]
+    [InlineData("1234", Sigloc.Domain.Enums.RntrcCategory.ETC, true, "rntrcNumber")]
+    [InlineData("12345678", Sigloc.Domain.Enums.RntrcCategory.TAC, true, "rntrcCategory")]
+    [InlineData("12345678", Sigloc.Domain.Enums.RntrcCategory.CTC, false, "rntrcValidUntil")]
+    public async Task UpdateAsync_rejects_an_invalid_carrier_rntrc(string number, Sigloc.Domain.Enums.RntrcCategory category, bool withDate, string field)
+    {
+        _carriers.GetTrackedByIdAsync(_companyId, Arg.Any<CancellationToken>()).Returns(TestData.Carrier(id: _companyId));
+
+        var act = () => _service.UpdateAsync(_companyId, isCarrier: true, new UpdateCompanyProfileDto("Transportadora", null,
+            RntrcNumber: number, RntrcCategory: category, RntrcValidUntil: withDate ? new DateOnly(2027, 1, 1) : null));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == field);
+    }
+
+    [Fact]
     public async Task UpdateAsync_updates_carrier_editable_fields()
     {
         var carrier = TestData.Carrier(id: _companyId);

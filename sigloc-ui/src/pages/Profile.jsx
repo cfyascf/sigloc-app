@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Building2, Headset, LoaderCircle, Save, ShieldCheck, Star, TrendingUp } from "lucide-react"
+import { Building2, FileBadge, Headset, LoaderCircle, Save, ShieldCheck, Star, TrendingUp } from "lucide-react"
 
 import AppShell from "@/components/app-shell"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { useAsyncAction } from "@/hooks/use-async-action"
 import { formatCnpj } from "@/lib/formatters"
 import { profileService } from "@/services/profile-service"
 import { ROLES } from "@/constants/roles"
+import { RNTRC_CATEGORY, RNTRC_CATEGORY_BY_VALUE } from "@/constants/vehicles"
 import { useAuth } from "@/contexts/AuthContext"
 
 function MetricTile({ icon: Icon, label, value }) {
@@ -31,6 +32,12 @@ const COMPANY_NAME_MAX_LENGTH = 150
 
 const EMPTY_CONTACT = { logisticsContactName: "", logisticsContactPhone: "", logisticsContactEmail: "" }
 
+const toRntrcForm = (profile) => ({
+  rntrcNumber: profile.rntrcNumber ?? "",
+  rntrcCategory: profile.rntrcCategory ?? "",
+  rntrcValidUntil: profile.rntrcValidUntil ?? "",
+})
+
 const toContactForm = (profile) => ({
   logisticsContactName: profile.logisticsContactName ?? "",
   logisticsContactPhone: profile.logisticsContactPhone ?? "",
@@ -48,6 +55,9 @@ export default function Profile() {
   const loadAction = useAsyncAction(profileService.getProfile)
   const saveAction = useAsyncAction(profileService.updateProfile)
   const contactAction = useAsyncAction(profileService.updateProfile)
+  const [rntrcForm, setRntrcForm] = useState(toRntrcForm({}))
+  const [rntrcSuccess, setRntrcSuccess] = useState("")
+  const rntrcAction = useAsyncAction(profileService.updateProfile)
 
   useEffect(() => {
     let active = true
@@ -60,6 +70,7 @@ export default function Profile() {
           tradeName: result.data.tradeName ?? "",
         })
         setContactForm(toContactForm(result.data))
+        setRntrcForm(toRntrcForm(result.data))
       }
     })
 
@@ -118,6 +129,25 @@ export default function Profile() {
       setProfile(result.data)
       setContactForm(toContactForm(result.data))
       setContactSuccess("Contato logístico atualizado.")
+    }
+  }
+
+  // Saves only the RNTRC: company fields are resent as stored, never the unsaved edits above.
+  const handleRntrcSubmit = async (event) => {
+    event.preventDefault()
+    if (rntrcAction.pending) return
+
+    setRntrcSuccess("")
+    const result = await rntrcAction.run({
+      companyName: profile.companyName,
+      tradeName: profile.tradeName,
+      rntrc: rntrcForm,
+    })
+
+    if (result.ok && result.data) {
+      setProfile(result.data)
+      setRntrcForm(toRntrcForm(result.data))
+      setRntrcSuccess("RNTRC atualizado.")
     }
   }
 
@@ -283,6 +313,86 @@ export default function Profile() {
                       ) : (
                         <>
                           <Save size={16} aria-hidden="true" /> Salvar Contato
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {isCarrier ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileBadge size={18} /> Registro ANTT (RNTRC)
+                  </CardTitle>
+                  <CardDescription>
+                    Obrigatório para o frete remunerado. Os veículos cadastrados com o RNTRC da transportadora usam estes dados.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form noValidate onSubmit={handleRntrcSubmit} className="space-y-4">
+                    {rntrcAction.error ? <FormAlert message={rntrcAction.error.message} /> : null}
+                    {rntrcSuccess ? (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                        {rntrcSuccess}
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <FormField
+                        id="rntrcNumber"
+                        label="Número do RNTRC"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="8 dígitos"
+                        className="font-mono"
+                        maxLength={11}
+                        value={rntrcForm.rntrcNumber}
+                        onChange={(event) => { setRntrcForm((prev) => ({ ...prev, rntrcNumber: event.target.value })); setRntrcSuccess("") }}
+                        error={rntrcAction.fieldErrors.rntrcNumber}
+                      />
+                      <div className="space-y-2">
+                        <label htmlFor="rntrcCategory" className="text-sm font-medium text-slate-700">Categoria</label>
+                        <select
+                          id="rntrcCategory"
+                          value={rntrcForm.rntrcCategory}
+                          aria-invalid={Boolean(rntrcAction.fieldErrors.rntrcCategory)}
+                          onChange={(event) => { setRntrcForm((prev) => ({ ...prev, rntrcCategory: event.target.value === "" ? "" : Number(event.target.value) })); setRntrcSuccess("") }}
+                          className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                        >
+                          <option value="">Selecione...</option>
+                          {[RNTRC_CATEGORY.ETC, RNTRC_CATEGORY.CTC].map((value) => (
+                            <option key={value} value={value}>{RNTRC_CATEGORY_BY_VALUE[value]}</option>
+                          ))}
+                        </select>
+                        {rntrcAction.fieldErrors.rntrcCategory ? (
+                          <p className="text-xs font-medium text-rose-600">{rntrcAction.fieldErrors.rntrcCategory}</p>
+                        ) : null}
+                      </div>
+                      <FormField
+                        id="rntrcValidUntil"
+                        label="Revalidar até"
+                        type="date"
+                        value={rntrcForm.rntrcValidUntil}
+                        onChange={(event) => { setRntrcForm((prev) => ({ ...prev, rntrcValidUntil: event.target.value })); setRntrcSuccess("") }}
+                        error={rntrcAction.fieldErrors.rntrcValidUntil}
+                      />
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={rntrcAction.pending}
+                      className="mt-2 w-full bg-slate-900 text-white hover:bg-slate-800"
+                    >
+                      {rntrcAction.pending ? (
+                        <>
+                          <LoaderCircle className="animate-spin" aria-hidden="true" /> Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} aria-hidden="true" /> Salvar RNTRC
                         </>
                       )}
                     </Button>

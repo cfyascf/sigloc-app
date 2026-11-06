@@ -25,6 +25,43 @@ namespace Sigloc.Domain.Entities;
         /// <summary>Optional driver contact, never substituted with the carrier phone.</summary>
         public string? DriverPhone { get; set; }
 
+        // Documents. Null on vehicles saved before they were asked for: the fleet shows a warning
+        // for each missing one, but only data that is known to be invalid blocks a bid.
+
+        /// <summary>Single truck or combination; combinations need a driver with CNH E.</summary>
+        public VehicleComposition? Composition { get; set; }
+
+        /// <summary>Whose RNTRC (ANTT) the vehicle runs under.</summary>
+        public RntrcSource? RntrcSource { get; set; }
+
+        /// <summary>Third-party RNTRC (8 digits). Null when the vehicle runs under the carrier's.</summary>
+        public string? RntrcNumber { get; set; }
+
+        public RntrcCategory? RntrcCategory { get; set; }
+
+        /// <summary>Holder of the third-party RNTRC: the autonomous driver or the cooperative.</summary>
+        public string? RntrcHolderName { get; set; }
+
+        /// <summary>CPF (TAC) or CNPJ (ETC/CTC) of the third-party holder, digits only.</summary>
+        public string? RntrcHolderDocument { get; set; }
+
+        /// <summary>Third-party RNTRC revalidation due date (annual, Lei 11.442/2007 as of Lei 15.485/2026).</summary>
+        public DateOnly? RntrcValidUntil { get; set; }
+
+        public CnhCategory? DriverCnhCategory { get; set; }
+
+        /// <summary>CNH carries the EAR remark (exerce atividade remunerada), required to drive for pay.</summary>
+        public bool? DriverHasEar { get; set; }
+
+        /// <summary>Toxicological exam due date (every 30 months for CNH C, D and E).</summary>
+        public DateOnly? DriverToxicologicalExamValidUntil { get; set; }
+
+        /// <summary>MOPP course validity; dangerous cargo needs it in date.</summary>
+        public DateOnly? MoppValidUntil { get; set; }
+
+        /// <summary>CIV + CIPP (Inmetro) validity; bulk dangerous cargo needs them in date.</summary>
+        public DateOnly? CivCippValidUntil { get; set; }
+
         // Used by EF Core when loading rows: materialising must not run the creation checks, or a
         // single invalid row already in the database breaks every query that reads it.
         private Vehicle()

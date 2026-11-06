@@ -32,7 +32,8 @@ public class VehicleServiceTests
             Driver: "João",
             CurrentLocation: "Curitiba, PR",
             TraccarDeviceId: traccarDeviceId,
-            DriverPhone: driverPhone);
+            DriverPhone: driverPhone,
+            Documents: TestData.VehicleDocuments());
 
     [Fact]
     public async Task CreateAsync_normalizes_plate_and_persists()
@@ -285,6 +286,107 @@ public class VehicleServiceTests
 
         (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == "refrigerationLevel");
         await _repository.DidNotReceive().UpdateAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("composition")]
+    [InlineData("rntrcSource")]
+    public async Task CreateAsync_requires_the_vehicle_documents(string field)
+    {
+        var documents = field == "composition"
+            ? TestData.VehicleDocuments() with { Composition = null }
+            : TestData.VehicleDocuments() with { RntrcSource = null };
+
+        var act = () => _service.CreateAsync(_carrierId, NewVehicleDto() with { Documents = documents });
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().Contain(e => e.Field == field);
+        await _repository.DidNotReceive().AddAsync(Arg.Any<Vehicle>(), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(RntrcCategory.TAC, "11222333000181", "rntrcHolderDocument")]
+    [InlineData(RntrcCategory.ETC, "52998224725", "rntrcHolderDocument")]
+    [InlineData(RntrcCategory.TAC, "52998224725", null)]
+    [InlineData(RntrcCategory.CTC, "11222333000181", null)]
+    public async Task CreateAsync_checks_the_third_party_rntrc_holder(RntrcCategory category, string document, string? field)
+    {
+        var dto = NewVehicleDto() with
+        {
+            Documents = TestData.VehicleDocuments() with { RntrcCategory = category, RntrcHolderDocument = document },
+        };
+
+        var act = () => _service.CreateAsync(_carrierId, dto);
+
+        if (field is null) await act.Should().NotThrowAsync();
+        else (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == field);
+    }
+
+    [Fact]
+    public async Task CreateAsync_under_the_carrier_rntrc_needs_it_on_the_profile()
+    {
+        var carriers = Substitute.For<ICarrierRepository>();
+        var service = new VehicleService(_repository, carriers);
+        var dto = NewVehicleDto() with { Documents = TestData.VehicleDocuments() with { RntrcSource = RntrcSource.Carrier } };
+        carriers.GetByIdAsync(_carrierId, Arg.Any<CancellationToken>()).Returns(TestData.Carrier(id: _carrierId));
+
+        var act = () => service.CreateAsync(_carrierId, dto);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors
+            .Should().ContainSingle(e => e.Field == "rntrcSource" && e.Reason.Contains("Perfil"));
+
+        var withRntrc = TestData.Carrier(id: _carrierId);
+        withRntrc.RntrcNumber = "87654321";
+        withRntrc.RntrcCategory = RntrcCategory.ETC;
+        withRntrc.RntrcValidUntil = DateOnly.FromDateTime(DateTime.UtcNow).AddYears(1);
+        carriers.GetByIdAsync(_carrierId, Arg.Any<CancellationToken>()).Returns(withRntrc);
+
+        var result = await service.CreateAsync(_carrierId, dto);
+
+        result.Documents!.RntrcNumber.Should().BeNull("the number lives on the carrier");
+        result.Compliance.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CreateAsync_a_combination_needs_a_driver_with_cnh_e()
+    {
+        var dto = NewVehicleDto() with
+        {
+            Documents = TestData.VehicleDocuments() with { Composition = VehicleComposition.Articulated, DriverCnhCategory = CnhCategory.C },
+        };
+
+        var act = () => _service.CreateAsync(_carrierId, dto);
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors
+            .Should().ContainSingle(e => e.Field == "driverCnhCategory" && e.Reason.Contains("CNH categoria E"));
+    }
+
+    [Fact]
+    public async Task GetAllAsync_reports_the_missing_documents_of_an_older_vehicle_as_warnings()
+    {
+        _repository.GetAllAsync(_carrierId, Arg.Any<CancellationToken>()).Returns(new List<Vehicle> { TestData.Vehicle(_carrierId) });
+        _repository.GetIdsOnActiveTripsAsync(_carrierId, Arg.Any<CancellationToken>()).Returns(new HashSet<Guid>());
+
+        var vehicle = (await _service.GetAllAsync(_carrierId)).Single();
+
+        vehicle.Compliance.Should().NotBeEmpty().And.OnlyContain(i => i.Severity == "WARNING");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_sending_documents_fills_them_in_on_an_older_vehicle()
+    {
+        var vehicle = TestData.Vehicle(_carrierId);
+        _repository.GetByIdAsync(vehicle.Id, _carrierId, Arg.Any<CancellationToken>()).Returns(vehicle);
+        var dto = new UpdateVehicleDto(
+            Model: null, AxleCount: null, CapacityWeight: null, CapacityVolume: null,
+            BodyType: null, RefrigerationLevel: null, HasMopp: null, HasCargoSecuring: null,
+            Driver: null, CurrentLocation: null, Status: null,
+            Documents: new VehicleDocumentsDto(Composition: VehicleComposition.Rigid, DriverCnhCategory: CnhCategory.E));
+
+        await _service.UpdateAsync(_carrierId, vehicle.Id, dto);
+
+        vehicle.Composition.Should().Be(VehicleComposition.Rigid);
+        vehicle.DriverCnhCategory.Should().Be(CnhCategory.E);
+        vehicle.RntrcSource.Should().BeNull("missing documents stay optional on edit");
     }
 
     [Fact]

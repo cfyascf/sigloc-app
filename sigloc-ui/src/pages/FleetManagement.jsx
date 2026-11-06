@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Plus, Search, Pencil, Trash2, X, Save, AlertCircle, Scale, Box, Truck, MapPin, User, Settings2, Loader2 } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, X, Save, AlertCircle, Scale, Box, Truck, MapPin, User, Settings2, Loader2, ChevronDown } from "lucide-react"
 import { Link } from "react-router-dom"
 
 import AppShell from "@/components/app-shell"
@@ -16,6 +16,8 @@ import { shortId } from "@/lib/utils"
 import VehicleForm from "@/pages/VehicleForm"
 import { BodyTypeField, EquipmentChecks, RefrigerationField } from "@/components/vehicles/VehicleEquipmentFields"
 import { normalizeVehicleEquipment } from "@/constants/cargo-compatibility"
+import { CivCippField, CompositionField, DriverDocumentFields, RntrcFields } from "@/components/vehicles/VehicleDocumentFields"
+import { BodyTypeIcon, ComplianceShield, EquipmentIcons, VehicleDetails } from "@/components/vehicles/fleet-row"
 
 const formatWeight = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} kg`
 const formatVolume = (value) => `${new Intl.NumberFormat("pt-BR").format(value)} m³`
@@ -64,6 +66,7 @@ export default function FleetManagement() {
   const [loadError, setLoadError] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
   const [editErrors, setEditErrors] = useState({})
   const [deletingId, setDeletingId] = useState(null)
 
@@ -132,6 +135,8 @@ export default function FleetManagement() {
     } : v))
     setEditingId(null)
     setEditForm(null)
+    // The document warnings are worked out by the API, so refresh them from it.
+    vehicleService.listVehicles().then(setVehicles).catch(() => {})
   }
 
   const confirmDelete = async (id) => {
@@ -199,6 +204,7 @@ export default function FleetManagement() {
         <div className="space-y-2">
           {visibleVehicles.map((vehicle) => {
             const isEditingThis = editingId === vehicle.id
+            const isExpandedThis = expandedId === vehicle.id && !isEditingThis
             const isDeletingThis = deletingId === vehicle.id
 
             if (isDeletingThis) {
@@ -230,80 +236,70 @@ export default function FleetManagement() {
                 }`}
               >
                 {/* LINHA PRINCIPAL VISÍVEL */}
-                <div className="flex items-center w-full p-3.5 text-left">
+                {/* Relative so the hover actions stay on this line when the details open below it. */}
+                <div className="relative flex w-full items-center p-3.5 text-left">
+                  <div className="grid min-w-0 flex-1 grid-cols-[36px_minmax(0,1.1fr)_minmax(0,1.3fr)_112px_96px_104px_28px] items-center gap-4 pl-1 pr-28">
+                    <BodyTypeIcon bodyType={vehicle.bodyType} />
 
-                  <div className="grid min-w-0 flex-1 grid-cols-[1fr_1fr_1fr_1fr_1fr_210px] items-center gap-5 pl-2 pr-20">
-                    {/* Col 1: ID e Status */}
-                    <div className="flex items-center gap-2">
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
-                      <div className="flex min-w-0 flex-col gap-1.5">
-                        <span className="font-mono text-[11px] font-semibold tracking-wider text-slate-400">#{shortId(vehicle.id)}</span>
-                        <span className={`inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${getStatusChipStyle(displayStatus(vehicle))}`}>
-                          {displayStatus(vehicle)}
-                        </span>
-                      </div>
+                    {/* Placa e modelo */}
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-sm font-black tracking-wide text-slate-800">{vehicle.plate}</p>
+                      <p className="truncate text-[11px] font-medium text-slate-400">{vehicle.model}</p>
                     </div>
 
-                    {/* Col 2: Placa e Modelo */}
+                    {/* Motorista e localização */}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-800 tracking-wide font-mono">{vehicle.plate}</p>
-                      <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                         <Truck size={12} className="text-slate-300"/> {vehicle.model}
-                      </span>
-                    </div>
-
-                    {/* Col 3: Tipo */}
-                    <div className="min-w-0">
-                      <Badge variant="secondary" className="w-fit text-[10px] bg-slate-100 text-slate-600 font-bold uppercase tracking-wide border-none px-1.5 py-0.5">
-                        {vehicle.bodyType}
-                      </Badge>
-                    </div>
-
-                    {/* Col 4: Motorista */}
-                    <div className="min-w-0">
-                      <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Motorista</span>
-                      <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5 mt-0.5">
-                        <User size={14} className="text-slate-400" /> {vehicle.driver}
+                      <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-700">
+                        <User size={13} className="shrink-0 text-slate-400" />
+                        <span className="truncate">{vehicle.driver || "Sem motorista"}</span>
+                      </p>
+                      <p className="flex items-center gap-1.5 truncate text-[11px] text-slate-400">
+                        <MapPin size={12} className="shrink-0" />
+                        <span className="truncate">{vehicle.location || "—"}</span>
                       </p>
                     </div>
 
-                    {/* Col 5: Localização */}
-                    <div className="min-w-0">
-                      <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Localização</span>
-                      <p className="truncate text-sm font-bold text-slate-700 flex items-center gap-1.5 mt-0.5">
-                        <MapPin size={14} className="text-slate-400" /> {vehicle.location}
-                      </p>
+                    <span className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-bold ${getStatusChipStyle(displayStatus(vehicle))}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${getStatusDotStyle(displayStatus(vehicle))}`} />
+                      {displayStatus(vehicle)}
+                    </span>
+
+                    <EquipmentIcons vehicle={vehicle} />
+
+                    {/* Capacidade */}
+                    <div className="font-mono text-xs leading-tight">
+                      <p className="font-bold text-slate-700">{formatWeight(vehicle.weightKg)}</p>
+                      <p className="text-slate-400">{formatVolume(vehicle.volumeM3)}</p>
                     </div>
 
-                    {/* Col 6: Capacidade (Peso/Vol) as bordered boxes matching the ETA/Ping style. */}
-                    <div className="grid min-w-0 grid-cols-2 gap-2 text-left">
-                      <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
-                        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                          <Scale size={10} className="shrink-0" /> Peso
-                        </div>
-                        <div className="mt-0.5 whitespace-nowrap text-xs font-bold text-slate-700 font-mono">{formatWeight(vehicle.weightKg)}</div>
-                      </div>
-                      <div className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5">
-                        <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                          <Box size={10} className="shrink-0" /> Volume
-                        </div>
-                        <div className="mt-0.5 whitespace-nowrap text-xs font-bold text-slate-700 font-mono">{formatVolume(vehicle.volumeM3)}</div>
-                      </div>
-                    </div>
+                    <ComplianceShield issues={vehicle.compliance} />
                   </div>
 
                   {/* AÇÕES: ESCONDIDAS POR PADRÃO */}
                   {!isEditingThis && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 bg-white pl-2 transition-opacity duration-200">
-                      <Button variant="ghost" size="icon" onClick={() => startEditing(vehicle)} className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0 transition-colors">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`${isExpandedThis ? "Recolher" : "Ver detalhes do veículo"} ${vehicle.plate}`}
+                        aria-expanded={isExpandedThis}
+                        title={isExpandedThis ? "Recolher" : "Ver detalhes"}
+                        onClick={() => setExpandedId(isExpandedThis ? null : vehicle.id)}
+                        className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-slate-100 shrink-0 transition-colors"
+                      >
+                        <ChevronDown size={15} className={`transition-transform ${isExpandedThis ? "rotate-180" : ""}`} />
+                      </Button>
+                      <Button variant="ghost" size="icon" aria-label={`Editar veículo ${vehicle.plate}`} title="Editar" onClick={() => startEditing(vehicle)} className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 shrink-0 transition-colors">
                         <Pencil size={14} />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => { setDeletingId(vehicle.id); deleteAction.reset() }} className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors">
+                      <Button variant="ghost" size="icon" aria-label={`Excluir veículo ${vehicle.plate}`} title="Excluir" onClick={() => { setDeletingId(vehicle.id); deleteAction.reset() }} className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition-colors">
                         <Trash2 size={14} />
                       </Button>
                     </div>
                   )}
                 </div>
+
+                {isExpandedThis && <VehicleDetails vehicle={vehicle} />}
 
                 {/* ESTADO: FORMULÁRIO DE EDIÇÃO INLINE COMPLETO */}
                 {isEditingThis && editForm && (
@@ -362,6 +358,15 @@ export default function FleetManagement() {
                         labelClassName="text-[10px] font-bold uppercase tracking-wider text-slate-500"
                         triggerClassName="h-9 border-slate-200 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
                       />
+                      <CompositionField
+                        value={editForm}
+                        onChange={setEditForm}
+                        errors={mapVehicleFieldErrors(saveAction.fieldErrors)}
+                        disabled={saveAction.pending}
+                        idPrefix={`vehicle-${vehicle.id}`}
+                        labelClassName="block text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                        selectClassName="h-9 text-xs"
+                      />
                       <RefrigerationField
                         value={editForm}
                         onChange={setEditForm}
@@ -401,6 +406,45 @@ export default function FleetManagement() {
                         idPrefix={`vehicle-${vehicle.id}`}
                         className="border-t border-slate-100 pt-4 md:col-span-3"
                       />
+                      <CivCippField
+                        value={editForm}
+                        onChange={setEditForm}
+                        errors={mapVehicleFieldErrors(saveAction.fieldErrors)}
+                        disabled={saveAction.pending}
+                        idPrefix={`vehicle-${vehicle.id}`}
+                        labelClassName="block text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                        inputClassName="h-9 text-xs bg-white"
+                      />
+
+                      {/* Documents: missing ones only warn (see the badge), so nothing here is required on edit. */}
+                      <div className="grid gap-6 border-t border-slate-100 pt-4 md:col-span-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Registro ANTT (RNTRC)</p>
+                          <RntrcFields
+                            value={editForm}
+                            onChange={setEditForm}
+                            errors={mapVehicleFieldErrors(saveAction.fieldErrors)}
+                            disabled={saveAction.pending}
+                            idPrefix={`vehicle-${vehicle.id}`}
+                            labelClassName="block text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                            inputClassName="h-9 text-xs bg-white"
+                            selectClassName="h-9 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Documentos do motorista</p>
+                          <DriverDocumentFields
+                            value={editForm}
+                            onChange={setEditForm}
+                            errors={mapVehicleFieldErrors(saveAction.fieldErrors)}
+                            disabled={saveAction.pending}
+                            idPrefix={`vehicle-${vehicle.id}`}
+                            labelClassName="block text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                            inputClassName="h-9 text-xs bg-white"
+                            selectClassName="h-9 text-xs"
+                          />
+                        </div>
+                      </div>
                     </div>
                     
                     <div className="flex items-center justify-between border-t border-slate-200 pt-4">

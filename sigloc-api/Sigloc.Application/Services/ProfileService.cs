@@ -4,6 +4,7 @@ using Sigloc.Application.DTOs;
 using Sigloc.Application.Exceptions;
 using Sigloc.Domain.Constants;
 using Sigloc.Domain.Entities;
+using Sigloc.Domain.Enums;
 using Sigloc.Domain.Repositories;
 
 namespace Sigloc.Application.Services;
@@ -47,6 +48,7 @@ public class ProfileService : IProfileService
 
             carrier.CompanyName = companyName;
             carrier.TradeName = tradeName;
+            PatchRntrc(carrier, dto);
 
             await _carrierRepository.UpdateAsync(carrier, cancellationToken);
             return MapCarrier(carrier);
@@ -91,6 +93,10 @@ public class ProfileService : IProfileService
         {
             ValidateContact(dto, errors);
         }
+        else
+        {
+            ValidateRntrc(dto, errors);
+        }
 
         if (errors.Count > 0)
         {
@@ -127,6 +133,46 @@ public class ProfileService : IProfileService
         }
     }
 
+    /// <summary>
+    /// The carrier's own RNTRC: 8 digits, ETC or CTC (a carrier on the platform is a company, so
+    /// never TAC) and its annual revalidation date. A blank number clears it.
+    /// </summary>
+    private static void ValidateRntrc(UpdateCompanyProfileDto dto, List<ValidationError> errors)
+    {
+        if (dto.RntrcNumber is null || string.IsNullOrWhiteSpace(dto.RntrcNumber))
+        {
+            return;
+        }
+
+        if (TransportDocuments.NormalizeRntrc(dto.RntrcNumber) is null)
+        {
+            errors.Add(new ValidationError("rntrcNumber", "Informe o RNTRC com 8 dígitos."));
+        }
+
+        if (dto.RntrcCategory is not (RntrcCategory.ETC or RntrcCategory.CTC))
+        {
+            errors.Add(new ValidationError("rntrcCategory", "Informe a categoria: ETC (empresa) ou CTC (cooperativa)."));
+        }
+
+        if (dto.RntrcValidUntil is null)
+        {
+            errors.Add(new ValidationError("rntrcValidUntil", "Informe a data de revalidação do RNTRC."));
+        }
+    }
+
+    private static void PatchRntrc(Carrier carrier, UpdateCompanyProfileDto dto)
+    {
+        if (dto.RntrcNumber is null)
+        {
+            return;
+        }
+
+        var number = TransportDocuments.NormalizeRntrc(dto.RntrcNumber);
+        carrier.RntrcNumber = number;
+        carrier.RntrcCategory = number is null ? null : dto.RntrcCategory;
+        carrier.RntrcValidUntil = number is null ? null : dto.RntrcValidUntil;
+    }
+
     /// <summary>Null keeps the stored value; blank clears it; anything else is trimmed and stored.</summary>
     private static string? Patch(string? incoming, string? current) =>
         incoming == null ? current : string.IsNullOrWhiteSpace(incoming) ? null : incoming.Trim();
@@ -152,5 +198,8 @@ public class ProfileService : IProfileService
         TradeName: carrier.TradeName,
         AverageRating: carrier.AverageRating,
         HasActiveInsurancePolicy: carrier.HasActiveInsurancePolicy,
-        OnTimeDeliveryRate: carrier.OnTimeDeliveryRate);
+        OnTimeDeliveryRate: carrier.OnTimeDeliveryRate,
+        RntrcNumber: carrier.RntrcNumber,
+        RntrcCategory: carrier.RntrcCategory,
+        RntrcValidUntil: carrier.RntrcValidUntil);
 }

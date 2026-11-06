@@ -41,6 +41,10 @@ function toProfile(dto) {
     logisticsContactName: dto.logisticsContactName ?? "",
     logisticsContactPhone: dto.logisticsContactPhone ?? "",
     logisticsContactEmail: dto.logisticsContactEmail ?? "",
+    // Carrier-only: its own RNTRC (ANTT), inherited by the vehicles that run under it.
+    rntrcNumber: dto.rntrcNumber ?? "",
+    rntrcCategory: dto.rntrcCategory ?? "",
+    rntrcValidUntil: dto.rntrcValidUntil ?? "",
   }
 }
 
@@ -56,10 +60,16 @@ export async function getProfile(options) {
  * Updates the editable company data. The company name is always required; logistics
  * contact fields are only sent when provided (omitted keeps the stored value, "" clears it).
  */
-export async function updateProfile({ companyName, tradeName, ...contact }, options) {
+export async function updateProfile({ companyName, tradeName, rntrc, ...contact }, options) {
   const body = { companyName, tradeName }
   for (const field of CONTACT_FIELDS) {
     if (contact[field] !== undefined) body[field] = contact[field].trim()
+  }
+  // Only sent when the RNTRC card saves; a blank number clears it.
+  if (rntrc) {
+    body.rntrcNumber = rntrc.rntrcNumber.trim()
+    body.rntrcCategory = rntrc.rntrcCategory === "" ? null : Number(rntrc.rntrcCategory)
+    body.rntrcValidUntil = rntrc.rntrcValidUntil || null
   }
   const payload = await apiClient.put(BASE, body, options)
   return toProfile(payload)

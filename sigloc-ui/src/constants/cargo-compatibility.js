@@ -96,6 +96,11 @@ export const allowsDangerous = (category) => category !== PRODUCT_CATEGORY.LIVE_
 
 export const requiresCargoSecuring = (bodyType) => SECURING_REQUIRED_BODIES.has(bodyType)
 
+const BULK_CATEGORIES = [PRODUCT_CATEGORY.SOLID_BULK, PRODUCT_CATEGORY.LIQUID_BULK, PRODUCT_CATEGORY.PRESSURIZED_BULK]
+
+/** Bodies that carry bulk: dangerous bulk needs CIV/CIPP in date, so only they ask for it. */
+export const carriesBulk = (bodyType) => BULK_CATEGORIES.some((category) => BODIES_BY_CATEGORY[category].includes(bodyType))
+
 /** "Baú, Sider ou Grade Baixa"; "Nenhuma carroceria compatível" when empty. */
 export function describeList(items) {
   if (items.length === 0) return "Nenhuma carroceria compatível"

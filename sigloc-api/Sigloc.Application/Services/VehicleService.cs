@@ -9,11 +9,17 @@ namespace Sigloc.Application.Services;
 public class VehicleService : IVehicleService
 {
     private readonly IVehicleRepository _repository;
+    private readonly ICarrierRepository? _carrierRepository;
 
-    public VehicleService(IVehicleRepository repository)
+    // The carrier holds its own RNTRC, which vehicles running under it inherit.
+    public VehicleService(IVehicleRepository repository, ICarrierRepository? carrierRepository = null)
     {
         _repository = repository;
+        _carrierRepository = carrierRepository;
     }
+
+    private async Task<Carrier?> LoadCarrierAsync(Guid transportadoraId, CancellationToken cancellationToken) =>
+        _carrierRepository is null ? null : await _carrierRepository.GetByIdAsync(transportadoraId, cancellationToken);
 
     public async Task<VehicleResponseDto> CreateAsync(Guid transportadoraId, CreateVehicleDto dto, CancellationToken cancellationToken = default)
     {
@@ -35,6 +41,9 @@ public class VehicleService : IVehicleService
         ValidateFields(dto.Model, dto.AxleCount, dto.CapacityWeight, dto.CapacityVolume, dto.Driver, dto.CurrentLocation,
             requireModel: true, "Não foi possível cadastrar o veículo.");
         ValidateEquipment(dto.BodyType, dto.RefrigerationLevel, dto.HasCargoSecuring, "Não foi possível cadastrar o veículo.");
+        var carrier = await LoadCarrierAsync(transportadoraId, cancellationToken);
+        var documents = ValidateDocuments(dto.Documents ?? new VehicleDocumentsDto(), dto.Driver, dto.HasMopp, carrier,
+            creating: true, "Não foi possível cadastrar o veículo.");
 
         // 3. Criação da Entidade
         var vehicle = new Vehicle(
@@ -55,9 +64,10 @@ public class VehicleService : IVehicleService
         ValidateMonitoringFields(dto.TraccarDeviceId, dto.DriverPhone);
         vehicle.TraccarDeviceId = dto.TraccarDeviceId;
         vehicle.DriverPhone = NormalizePhone(dto.DriverPhone);
+        ApplyDocuments(vehicle, documents);
         await _repository.AddAsync(vehicle, cancellationToken);
 
-        return MapToDto(vehicle);
+        return MapToDto(vehicle, carrier);
     }
 
     public async Task<VehicleResponseDto> GetByIdAsync(Guid transportadoraId, Guid id, CancellationToken cancellationToken = default)
@@ -69,14 +79,16 @@ public class VehicleService : IVehicleService
         }
 
         var onActiveTrip = await _repository.GetIdsOnActiveTripsAsync(transportadoraId, cancellationToken);
-        return MapToDto(vehicle, onActiveTrip.Contains(vehicle.Id));
+        var carrier = await LoadCarrierAsync(transportadoraId, cancellationToken);
+        return MapToDto(vehicle, carrier, onActiveTrip.Contains(vehicle.Id));
     }
 
     public async Task<IEnumerable<VehicleResponseDto>> GetAllAsync(Guid transportadoraId, CancellationToken cancellationToken = default)
     {
         var vehicles = await _repository.GetAllAsync(transportadoraId, cancellationToken);
         var onActiveTrip = await _repository.GetIdsOnActiveTripsAsync(transportadoraId, cancellationToken);
-        return vehicles.Select(v => MapToDto(v, onActiveTrip.Contains(v.Id)));
+        var carrier = await LoadCarrierAsync(transportadoraId, cancellationToken);
+        return vehicles.Select(v => MapToDto(v, carrier, onActiveTrip.Contains(v.Id))).ToList();
     }
 
     public async Task UpdateAsync(Guid transportadoraId, Guid id, UpdateVehicleDto dto, CancellationToken cancellationToken = default)
@@ -108,6 +120,15 @@ public class VehicleService : IVehicleService
         ValidateMonitoringFields(dto.TraccarDeviceId, dto.DriverPhone);
         if (dto.TraccarDeviceId.HasValue) vehicle.TraccarDeviceId = dto.TraccarDeviceId;
         if (dto.DriverPhone != null) vehicle.DriverPhone = NormalizePhone(dto.DriverPhone);
+
+        // Documents missing on older vehicles stay optional on edit (they only warn); what is sent is checked.
+        if (dto.Documents is not null)
+        {
+            var carrier = await LoadCarrierAsync(transportadoraId, cancellationToken);
+            var documents = ValidateDocuments(Merge(vehicle, dto.Documents), dto.Driver ?? vehicle.Driver, dto.HasMopp ?? vehicle.HasMopp,
+                carrier, creating: false, "Não foi possível atualizar o veículo.");
+            ApplyDocuments(vehicle, documents);
+        }
 
         vehicle.Update(
             dto.Model, dto.AxleCount, dto.CapacityWeight, dto.CapacityVolume, 
@@ -200,7 +221,136 @@ public class VehicleService : IVehicleService
         if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, "Dados de rastreamento do veículo inválidos.");
     }
 
-    private static VehicleResponseDto MapToDto(Vehicle vehicle, bool onActiveTrip = false)
+    private static VehicleDocumentsDto Merge(Vehicle vehicle, VehicleDocumentsDto dto) => new(
+        Composition: dto.Composition ?? vehicle.Composition,
+        RntrcSource: dto.RntrcSource ?? vehicle.RntrcSource,
+        RntrcNumber: dto.RntrcNumber ?? vehicle.RntrcNumber,
+        RntrcCategory: dto.RntrcCategory ?? vehicle.RntrcCategory,
+        RntrcHolderName: dto.RntrcHolderName ?? vehicle.RntrcHolderName,
+        RntrcHolderDocument: dto.RntrcHolderDocument ?? vehicle.RntrcHolderDocument,
+        RntrcValidUntil: dto.RntrcValidUntil ?? vehicle.RntrcValidUntil,
+        DriverCnhCategory: dto.DriverCnhCategory ?? vehicle.DriverCnhCategory,
+        DriverHasEar: dto.DriverHasEar ?? vehicle.DriverHasEar,
+        DriverToxicologicalExamValidUntil: dto.DriverToxicologicalExamValidUntil ?? vehicle.DriverToxicologicalExamValidUntil,
+        MoppValidUntil: dto.MoppValidUntil ?? vehicle.MoppValidUntil,
+        CivCippValidUntil: dto.CivCippValidUntil ?? vehicle.CivCippValidUntil);
+
+    internal const int MaxHolderNameLength = 120;
+
+    /// <summary>
+    /// Checks the documents and returns them normalised (RNTRC with 8 digits, document digits only,
+    /// no third-party data when the vehicle runs under the carrier's RNTRC). A new vehicle must
+    /// have them all (the driver's CNH only when a driver is assigned); on edit, what is missing
+    /// stays missing and only what is filled in is checked.
+    /// </summary>
+    private static VehicleDocumentsDto ValidateDocuments(
+        VehicleDocumentsDto dto, string? driver, bool hasMopp, Carrier? carrier, bool creating, string summary)
+    {
+        var errors = new List<Sigloc.Application.Exceptions.ValidationError>();
+
+        if (dto.Composition is VehicleComposition composition && !Enum.IsDefined(composition))
+            errors.Add(new("composition", "Selecione uma composição válida."));
+        else if (creating && dto.Composition is null)
+            errors.Add(new("composition", "Informe a composição do veículo."));
+
+        string? rntrcNumber = null;
+        string? holderDocument = null;
+        if (dto.RntrcSource is RntrcSource source && !Enum.IsDefined(source))
+        {
+            errors.Add(new("rntrcSource", "Selecione de quem é o RNTRC do veículo."));
+        }
+        else if (dto.RntrcSource == RntrcSource.Carrier)
+        {
+            if (creating && string.IsNullOrEmpty(carrier?.RntrcNumber))
+                errors.Add(new("rntrcSource", "A transportadora ainda não cadastrou o próprio RNTRC no Perfil. Cadastre-o lá ou informe o RNTRC de terceiro."));
+        }
+        else if (dto.RntrcSource == RntrcSource.ThirdParty)
+        {
+            rntrcNumber = TransportDocuments.NormalizeRntrc(dto.RntrcNumber);
+            if (rntrcNumber is null)
+                errors.Add(new("rntrcNumber", "Informe o RNTRC com 8 dígitos."));
+            if (dto.RntrcCategory is not RntrcCategory category || !Enum.IsDefined(category))
+                errors.Add(new("rntrcCategory", "Informe a categoria do RNTRC (TAC, ETC ou CTC)."));
+            if (string.IsNullOrWhiteSpace(dto.RntrcHolderName))
+                errors.Add(new("rntrcHolderName", "Informe o titular do RNTRC."));
+            else if (dto.RntrcHolderName.Trim().Length > MaxHolderNameLength)
+                errors.Add(new("rntrcHolderName", $"O titular deve ter no máximo {MaxHolderNameLength} caracteres."));
+
+            holderDocument = new string((dto.RntrcHolderDocument ?? "").Where(char.IsAsciiDigit).ToArray());
+            // A TAC is a person (CPF); companies and cooperatives have a CNPJ.
+            var individual = dto.RntrcCategory == RntrcCategory.TAC;
+            if (individual ? !TransportDocuments.IsValidCpf(holderDocument) : !CnpjValidator.IsValid(holderDocument))
+                errors.Add(new("rntrcHolderDocument", individual
+                    ? "Informe um CPF válido: o RNTRC de TAC é de pessoa física."
+                    : "Informe um CNPJ válido: o RNTRC de ETC e CTC é de pessoa jurídica."));
+            if (dto.RntrcValidUntil is null)
+                errors.Add(new("rntrcValidUntil", "Informe a data de revalidação do RNTRC."));
+        }
+        else if (creating)
+        {
+            errors.Add(new("rntrcSource", "Informe de quem é o RNTRC do veículo."));
+        }
+
+        if (dto.DriverCnhCategory is CnhCategory cnh && !Enum.IsDefined(cnh))
+        {
+            errors.Add(new("driverCnhCategory", "Selecione uma categoria de CNH válida."));
+        }
+        else if (dto.DriverCnhCategory is CnhCategory known && dto.Composition is VehicleComposition combination
+            && combination != VehicleComposition.Rigid && known != CnhCategory.E)
+        {
+            errors.Add(new("driverCnhCategory", $"{combination.ToLabel()} exige motorista com CNH categoria E."));
+        }
+
+        if (creating && !string.IsNullOrWhiteSpace(driver))
+        {
+            if (dto.DriverCnhCategory is null) errors.Add(new("driverCnhCategory", "Informe a categoria da CNH do motorista."));
+            if (dto.DriverHasEar is null) errors.Add(new("driverHasEar", "Informe se a CNH do motorista tem EAR."));
+            if (dto.DriverToxicologicalExamValidUntil is null)
+                errors.Add(new("driverToxicologicalExamValidUntil", "Informe a validade do exame toxicológico do motorista."));
+        }
+
+        if (creating && hasMopp && dto.MoppValidUntil is null)
+            errors.Add(new("moppValidUntil", "Informe a validade do MOPP do motorista."));
+
+        if (errors.Count > 0) throw new Sigloc.Application.Exceptions.ValidationException(errors, summary);
+
+        var thirdParty = dto.RntrcSource == RntrcSource.ThirdParty;
+        return dto with
+        {
+            RntrcNumber = thirdParty ? rntrcNumber : null,
+            RntrcCategory = thirdParty ? dto.RntrcCategory : null,
+            RntrcHolderName = thirdParty ? dto.RntrcHolderName!.Trim() : null,
+            RntrcHolderDocument = thirdParty ? holderDocument : null,
+            RntrcValidUntil = thirdParty ? dto.RntrcValidUntil : null,
+        };
+    }
+
+    private static void ApplyDocuments(Vehicle vehicle, VehicleDocumentsDto documents)
+    {
+        vehicle.Composition = documents.Composition;
+        vehicle.RntrcSource = documents.RntrcSource;
+        vehicle.RntrcNumber = documents.RntrcNumber;
+        vehicle.RntrcCategory = documents.RntrcCategory;
+        vehicle.RntrcHolderName = documents.RntrcHolderName;
+        vehicle.RntrcHolderDocument = documents.RntrcHolderDocument;
+        vehicle.RntrcValidUntil = documents.RntrcValidUntil;
+        vehicle.DriverCnhCategory = documents.DriverCnhCategory;
+        vehicle.DriverHasEar = documents.DriverHasEar;
+        vehicle.DriverToxicologicalExamValidUntil = documents.DriverToxicologicalExamValidUntil;
+        vehicle.MoppValidUntil = documents.MoppValidUntil;
+        vehicle.CivCippValidUntil = documents.CivCippValidUntil;
+    }
+
+    private static VehicleDocumentsDto DocumentsOf(Vehicle vehicle) => new(
+        vehicle.Composition, vehicle.RntrcSource, vehicle.RntrcNumber, vehicle.RntrcCategory, vehicle.RntrcHolderName,
+        vehicle.RntrcHolderDocument, vehicle.RntrcValidUntil, vehicle.DriverCnhCategory, vehicle.DriverHasEar,
+        vehicle.DriverToxicologicalExamValidUntil, vehicle.MoppValidUntil, vehicle.CivCippValidUntil);
+
+    internal static IReadOnlyList<ComplianceIssueDto> ToDto(IEnumerable<ComplianceIssue> issues) =>
+        issues.Select(i => new ComplianceIssueDto(i.Code, i.Severity == ComplianceSeverity.Blocking ? "BLOCKING" : "WARNING", i.Message))
+            .ToList();
+
+    private static VehicleResponseDto MapToDto(Vehicle vehicle, Carrier? carrier, bool onActiveTrip = false)
     {
         return new VehicleResponseDto(
             vehicle.Id,
@@ -219,7 +369,9 @@ public class VehicleService : IVehicleService
             vehicle.Status,
             vehicle.TraccarDeviceId,
             vehicle.DriverPhone,
-            onActiveTrip
+            onActiveTrip,
+            DocumentsOf(vehicle),
+            ToDto(VehicleCompliance.Check(vehicle, carrier, BrasiliaTime.Today))
         );
     }
 }
