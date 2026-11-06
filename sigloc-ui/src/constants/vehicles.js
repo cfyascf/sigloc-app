@@ -40,6 +40,31 @@ export const BODY_TYPE_BY_VALUE = {
   12: BODY_TYPE.GAIOLA,
 }
 
+/** VehicleComposition (backend enum, 1-based). Anything but a single truck needs CNH E. */
+export const COMPOSITION_BY_VALUE = {
+  1: "Caminhão simples",
+  2: "Cavalo + carreta",
+  3: "Caminhão + reboque",
+  4: "Bitrem",
+  5: "Rodotrem",
+}
+export const RIGID_COMPOSITION = 1
+
+/** Whose RNTRC (ANTT) the vehicle runs under (backend RntrcSource). */
+export const RNTRC_SOURCE = { CARRIER: 1, THIRD_PARTY: 2 }
+
+/** RntrcCategory (backend enum, 1-based). A TAC is a person (CPF); ETC and CTC have a CNPJ. */
+export const RNTRC_CATEGORY_BY_VALUE = {
+  1: "TAC (Transportador Autônomo)",
+  2: "ETC (Empresa de Transporte)",
+  3: "CTC (Cooperativa de Transporte)",
+}
+export const RNTRC_CATEGORY = { TAC: 1, ETC: 2, CTC: 3 }
+
+/** CnhCategory (backend enum, 1-based). */
+export const CNH_CATEGORY_BY_VALUE = { 1: "C", 2: "D", 3: "E" }
+export const CNH_E = 3
+
 /** RefrigerationLevel (backend enum, 0-based). */
 export const REFRIGERATION_BY_VALUE = {
   0: "Nenhuma",

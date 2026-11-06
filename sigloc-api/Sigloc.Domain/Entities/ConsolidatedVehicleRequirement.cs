@@ -11,7 +11,8 @@ public sealed record ConsolidatedVehicleRequirement(
     IReadOnlyList<VehicleBodyType> AcceptedBodyTypes,
     string MinRefrigerationLevel,
     bool RequiresMopp,
-    bool RequiresCargoFixing)
+    bool RequiresCargoFixing,
+    bool RequiresCivCipp = false)
 {
     /// <summary>Accepted body types as display text ("Baú, Sider ou Grade Baixa").</summary>
     public string BaseBodyworkType => CargoCompatibility.Describe(AcceptedBodyTypes);
@@ -40,6 +41,7 @@ public sealed record ConsolidatedVehicleRequirement(
             AcceptedBodyTypes: accepted,
             MinRefrigerationLevel: CargoCompatibility.RequiredRefrigeration(environment).ToString(),
             RequiresMopp: list.Any(p => p.Dangerous),
-            RequiresCargoFixing: fragile);
+            RequiresCargoFixing: fragile,
+            RequiresCivCipp: list.Any(p => p.Dangerous && CargoCompatibility.IsBulk(p.Category)));
     }
 }

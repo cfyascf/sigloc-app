@@ -53,6 +53,51 @@ export function toVehicle(dto) {
     refrigerationLevel: dto.refrigerationLevel ?? 0,
     hasMopp: Boolean(dto.hasMopp),
     hasCargoSecuring: Boolean(dto.hasCargoSecuring),
+    ...documentsToForm(dto.documents),
+    // Missing ("WARNING") or invalid ("BLOCKING") documents, as the API worked them out.
+    compliance: dto.compliance ?? [],
+  }
+}
+
+/**
+ * Document fields of the vehicle form: enums as numbers ("" when unset), dates as "yyyy-mm-dd"
+ * ("" when unset), EAR as true/false/null (unknown on vehicles saved before it was asked).
+ */
+export function documentsToForm(documents) {
+  const d = documents ?? {}
+  return {
+    composition: d.composition ?? "",
+    rntrcSource: d.rntrcSource ?? "",
+    rntrcNumber: d.rntrcNumber ?? "",
+    rntrcCategory: d.rntrcCategory ?? "",
+    rntrcHolderName: d.rntrcHolderName ?? "",
+    rntrcHolderDocument: d.rntrcHolderDocument ?? "",
+    rntrcValidUntil: d.rntrcValidUntil ?? "",
+    driverCnhCategory: d.driverCnhCategory ?? "",
+    driverHasEar: d.driverHasEar ?? null,
+    driverToxicologicalExamValidUntil: d.driverToxicologicalExamValidUntil ?? "",
+    moppValidUntil: d.moppValidUntil ?? "",
+    civCippValidUntil: d.civCippValidUntil ?? "",
+  }
+}
+
+/** `VehicleDocumentsDto` from the form; blank fields go as null (on edit, null keeps the stored value). */
+export function toDocumentsDto(form) {
+  const text = (value) => (typeof value === "string" && value.trim() ? value.trim() : null)
+  const number = (value) => (value === "" || value === null || value === undefined ? null : Number(value))
+  return {
+    composition: number(form.composition),
+    rntrcSource: number(form.rntrcSource),
+    rntrcNumber: text(form.rntrcNumber),
+    rntrcCategory: number(form.rntrcCategory),
+    rntrcHolderName: text(form.rntrcHolderName),
+    rntrcHolderDocument: text(form.rntrcHolderDocument)?.replace(/\D/g, "") ?? null,
+    rntrcValidUntil: text(form.rntrcValidUntil),
+    driverCnhCategory: number(form.driverCnhCategory),
+    driverHasEar: typeof form.driverHasEar === "boolean" ? form.driverHasEar : null,
+    driverToxicologicalExamValidUntil: text(form.driverToxicologicalExamValidUntil),
+    moppValidUntil: form.hasMopp ? text(form.moppValidUntil) : null,
+    civCippValidUntil: text(form.civCippValidUntil),
   }
 }
 
@@ -78,6 +123,7 @@ export function toUpdateDto(vehicle) {
     ...toTrackingDto(vehicle),
     currentLocation: vehicle.location?.trim() || null,
     status: statusValue(vehicle.status),
+    documents: toDocumentsDto(vehicle),
   }
 }
 

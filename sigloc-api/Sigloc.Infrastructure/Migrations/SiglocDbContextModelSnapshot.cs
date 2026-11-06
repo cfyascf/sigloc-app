@@ -189,6 +189,15 @@ namespace Sigloc.Infrastructure.Migrations
                     b.Property<int>("OnTimeDeliveryRate")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("RntrcCategory")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RntrcNumber")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly?>("RntrcValidUntil")
+                        .HasColumnType("date");
+
                     b.Property<string>("TradeName")
                         .HasColumnType("text");
 
@@ -1165,6 +1174,12 @@ namespace Sigloc.Infrastructure.Migrations
                     b.Property<decimal>("CapacityWeight")
                         .HasColumnType("numeric");
 
+                    b.Property<DateOnly?>("CivCippValidUntil")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("Composition")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1176,9 +1191,18 @@ namespace Sigloc.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("DriverCnhCategory")
+                        .HasColumnType("integer");
+
+                    b.Property<bool?>("DriverHasEar")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("DriverPhone")
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
+
+                    b.Property<DateOnly?>("DriverToxicologicalExamValidUntil")
+                        .HasColumnType("date");
 
                     b.Property<bool>("HasCargoSecuring")
                         .HasColumnType("boolean");
@@ -1190,12 +1214,33 @@ namespace Sigloc.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateOnly?>("MoppValidUntil")
+                        .HasColumnType("date");
+
                     b.Property<string>("Plate")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("RefrigerationLevel")
                         .HasColumnType("integer");
+
+                    b.Property<int?>("RntrcCategory")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RntrcHolderDocument")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RntrcHolderName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RntrcNumber")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("RntrcSource")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("RntrcValidUntil")
+                        .HasColumnType("date");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");

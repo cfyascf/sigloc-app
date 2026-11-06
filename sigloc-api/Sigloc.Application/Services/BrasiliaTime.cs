@@ -13,4 +13,7 @@ internal static class BrasiliaTime
 
     public static string Format(DateTimeOffset value)
         => value.ToOffset(Offset).ToString("dd/MM/yyyy HH:mm", PtBr);
+
+    /// <summary>Today's date in Brasília, for document validity dates.</summary>
+    public static DateOnly Today => DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(Offset).DateTime);
 }

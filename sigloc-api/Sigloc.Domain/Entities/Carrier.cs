@@ -30,4 +30,15 @@ public class Carrier : BaseEntity
     /// would be a view computed from the Trip history; for now it is stored directly.
     /// </summary>
     public int OnTimeDeliveryRate { get; set; }
+
+    /// <summary>
+    /// The company's own RNTRC (ANTT), 8 digits. Vehicles that run under it read the number,
+    /// category and revalidation date from here, so a renewal is entered once.
+    /// </summary>
+    public string? RntrcNumber { get; set; }
+
+    public Enums.RntrcCategory? RntrcCategory { get; set; }
+
+    /// <summary>Revalidation due date (annual).</summary>
+    public DateOnly? RntrcValidUntil { get; set; }
 }

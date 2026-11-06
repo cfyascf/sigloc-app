@@ -26,6 +26,7 @@ public class AuctionService : IAuctionService
     private readonly IRouteGeocodingService _geocodingService;
     private readonly IAuctionNotifier _notifier;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICarrierRepository? _carrierRepository;
 
     public AuctionService(
         IRouteSegmentRepository segmentRepository,
@@ -37,8 +38,10 @@ public class AuctionService : IAuctionService
         IBlockedBidAttemptRepository blockedBidAttemptRepository,
         IRouteGeocodingService geocodingService,
         IAuctionNotifier notifier,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ICarrierRepository? carrierRepository = null)
     {
+        _carrierRepository = carrierRepository;
         _segmentRepository = segmentRepository;
         _routeRepository = routeRepository;
         _auctionRepository = auctionRepository;
@@ -768,6 +771,17 @@ public class AuctionService : IAuctionService
         {
             await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Equipment, cancellationToken);
             throw equipmentRejection;
+        }
+
+        // Documents (RNTRC, driver's CNH, MOPP, CIV/CIPP): only data known to be invalid blocks;
+        // what is missing on older vehicles is shown on the fleet instead.
+        var carrier = _carrierRepository is null ? null : await _carrierRepository.GetByIdAsync(carrierId, cancellationToken);
+        var blocking = VehicleCompliance.CheckForCargo(vehicle, carrier, BrasiliaTime.Today, requirement)
+            .FirstOrDefault(i => i.Severity == ComplianceSeverity.Blocking);
+        if (blocking is not null)
+        {
+            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Equipment, cancellationToken);
+            throw new BidRejectedException(BidRejectionCode.EquipmentMismatch, $"Documentação irregular: {blocking.Message}");
         }
 
         // --- 5. Temporal trava: anti-overbooking --------------------------------

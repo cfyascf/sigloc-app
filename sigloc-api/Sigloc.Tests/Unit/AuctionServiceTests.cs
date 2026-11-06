@@ -1207,6 +1207,26 @@ public class AuctionServiceTests
     }
 
     [Fact]
+    public async Task PlaceBidAsync_vehicle_with_expired_rntrc_is_rejected()
+    {
+        var offer = AvailableOffer(weightKg: 100, volumeM3: 5, products: new[] { TestData.Product() });
+        _auctionRepository.GetAvailableForCarrierAsync(offer.Auction.Id, _carrierId, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(offer);
+        var vehicleId = Guid.NewGuid();
+        var vehicle = TestData.Vehicle(carrierId: _carrierId);
+        vehicle.RntrcSource = RntrcSource.ThirdParty;
+        vehicle.RntrcNumber = "12345678";
+        vehicle.RntrcValidUntil = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-10);
+        _vehicleRepository.GetByIdAsync(vehicleId, _carrierId, Arg.Any<CancellationToken>()).Returns(vehicle);
+
+        var act = () => _service.PlaceBidAsync(_carrierId, offer.Auction.Id, new PlaceBidRequestDto(100m, vehicleId));
+
+        var rejection = (await act.Should().ThrowAsync<BidRejectedException>()).Which;
+        rejection.Code.Should().Be(BidRejectionCode.EquipmentMismatch);
+        rejection.Message.Should().Contain("RNTRC vencido");
+    }
+
+    [Fact]
     public async Task PlaceBidAsync_overbooking_rejected_and_logs_blocked_attempt()
     {
         var pickup = DateTimeOffset.UtcNow.AddDays(1);
