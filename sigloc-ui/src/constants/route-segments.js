@@ -115,7 +115,8 @@ export function cargoSelectionBlock(segment, selectedClass, selectedRange = null
  */
 const AMBIENT_RANGE = { min: 0, max: 35 }
 
-function productTemperatureRange(item) {
+/** Temperature range a product tolerates: 0–35 °C for dry goods, else its own limits. */
+export function productTemperatureRange(item) {
   if (!item.transportEnvironment || item.transportEnvironment === TRANSPORT_ENVIRONMENT.DRY) {
     return AMBIENT_RANGE
   }
@@ -131,7 +132,7 @@ export function intersectTemperatureRanges(ranges) {
   }
 }
 
-const isEmptyRange = (range) => Boolean(range) && range.min > range.max
+export const isEmptyRange = (range) => Boolean(range) && range.min > range.max
 
 /** Temperature range every product of the segment tolerates, or null when it has no products. */
 export function segmentTemperatureRange(segment) {

@@ -48,3 +48,29 @@ test("each end is sent as an address or as a coordinate, never both", () => {
   })
   assert.deepEqual(locations.toLocationRequest("São Paulo, SP"), { text: "São Paulo, SP", coordinate: null })
 })
+
+test("the city found counts as typed regardless of accents, case and punctuation", () => {
+  assert.equal(locations.placeMatchesTyped("São Paulo, SP", "Av. Paulista 1000 - sao paulo/sp"), true)
+  assert.equal(locations.placeMatchesTyped("São Paulo, SP", "Rua Inexistente"), false)
+  // Whole words only: "Pará" is not inside "Paraná".
+  assert.equal(locations.placeMatchesTyped("Pará, PA", "Rua X, Paraná"), false)
+  assert.equal(locations.placeMatchesTyped(null, "Rua X"), true)
+})
+
+test("an address that landed in a city nobody typed needs confirmation until confirmed", () => {
+  const lookup = { address: "Rua Inexistente", found: true, place: "São Paulo, SP", confirmed: false }
+  const location = { mode: "address", address: "Rua Inexistente ", latitude: "", longitude: "", lookup }
+  assert.equal(locations.needsPlaceConfirmation(location), true)
+  assert.equal(locations.needsPlaceConfirmation({ ...location, lookup: { ...lookup, confirmed: true } }), false)
+  // Typing again makes the lookup stale: nothing to confirm until the new text is looked up.
+  assert.equal(locations.needsPlaceConfirmation({ ...location, address: "Rua Inexistente, Curitiba" }), false)
+  assert.equal(locations.needsPlaceConfirmation({ ...location, lookup: { ...lookup, address: "Rua Inexistente, São Paulo", place: "São Paulo, SP" }, address: "Rua Inexistente, São Paulo" }), false)
+  assert.equal(locations.needsPlaceConfirmation({ ...location, lookup: { ...lookup, found: false, place: null } }), false)
+})
+
+test("a reopened segment keeps its saved city as already confirmed", () => {
+  const location = locations.locationFromText("Rua Inexistente", "São Paulo, SP")
+  assert.deepEqual(location.lookup, { address: "Rua Inexistente", found: true, place: "São Paulo, SP", confirmed: true })
+  assert.equal(locations.needsPlaceConfirmation(location), false)
+  assert.equal(locations.locationFromText("Rua Inexistente").lookup, null)
+})

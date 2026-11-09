@@ -11,6 +11,7 @@ import { formatCnpj } from "@/lib/formatters"
 import { profileService } from "@/services/profile-service"
 import { ROLES } from "@/constants/roles"
 import { RNTRC_CATEGORY, RNTRC_CATEGORY_BY_VALUE } from "@/constants/vehicles"
+import { formatIsoDate, validityStatus } from "@/lib/document-validity"
 import { useAuth } from "@/contexts/AuthContext"
 
 function MetricTile({ icon: Icon, label, value }) {
@@ -150,6 +151,10 @@ export default function Profile() {
       setRntrcSuccess("RNTRC atualizado.")
     }
   }
+
+  // Status of the saved RNTRC: vehicles registered with "RNTRC da transportadora" use it, so an
+  // expired date blocks all their bids.
+  const savedRntrc = profile?.rntrcNumber ? validityStatus(profile.rntrcValidUntil) : null
 
   const isCarrier = profile?.role === ROLES.CARRIER
   const isContractor = profile?.role === ROLES.CONTRACTOR
@@ -334,6 +339,18 @@ export default function Profile() {
                 <CardContent>
                   <form noValidate onSubmit={handleRntrcSubmit} className="space-y-4">
                     {rntrcAction.error ? <FormAlert message={rntrcAction.error.message} /> : null}
+                    {savedRntrc?.kind === "expired" ? (
+                      <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                        RNTRC vencido em {formatIsoDate(profile.rntrcValidUntil)}. Os veículos cadastrados com o RNTRC da
+                        transportadora não podem dar lances até a revalidação na ANTT.
+                      </div>
+                    ) : savedRntrc?.kind === "expiring" ? (
+                      <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                        RNTRC vence em {formatIsoDate(profile.rntrcValidUntil)}
+                        {savedRntrc.days === 0 ? " (hoje)" : ` (em ${savedRntrc.days} ${savedRntrc.days === 1 ? "dia" : "dias"})`}. Revalide na
+                        ANTT para os veículos continuarem dando lances.
+                      </div>
+                    ) : null}
                     {rntrcSuccess ? (
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
                         {rntrcSuccess}

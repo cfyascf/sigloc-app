@@ -269,13 +269,19 @@ public record CarrierAnalysisPhysicalRequirementsDto(
     IReadOnlyList<string> HandlingRestrictions);
 
 /// <summary>A single vehicle of the carrier's fleet offered in the bid dropdown.</summary>
+/// <summary>
+/// A vehicle of the carrier for the bid form. <see cref="UnavailableReason"/> is set when the bid
+/// would refuse it for this load (capacity, body/equipment, documents or an overlapping trip); the
+/// check for reaching the first pickup from a previous trip still runs on submit only.
+/// </summary>
 public record CarrierAnalysisVehicleDto(
     Guid VehicleId,
     string Plate,
     string Model,
     decimal CapacityWeightKg,
     decimal CapacityVolumeM3,
-    IReadOnlyList<string> Specifications);
+    IReadOnlyList<string> Specifications,
+    string? UnavailableReason = null);
 
 /// <summary>A single stop of the Milking Run travel plan for the carrier workspace.</summary>
 public record CarrierAnalysisTravelStopDto(

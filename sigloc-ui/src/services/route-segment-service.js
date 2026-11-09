@@ -192,6 +192,15 @@ export async function updateRouteSegment(id, form, options) {
   return toRouteSegment(payload)
 }
 
+/**
+ * Where an address resolves to, before saving: `{ found, place }`, with `place` the geocoded
+ * "City, UF" (null when the match has no city) and `found` false when nothing matched.
+ */
+export async function locateAddress(address, options) {
+  const payload = await apiClient.get(`${BASE}/locate?address=${encodeURIComponent(address)}`, options)
+  return { found: Boolean(payload?.found), place: payload?.place ?? null }
+}
+
 /** Deletes a route segment. Resolves to void on success (204). */
 export async function deleteRouteSegment(id, options) {
   await apiClient.delete(`${BASE}/${id}`, options)
@@ -203,6 +212,7 @@ export const routeSegmentService = {
   createRouteSegment,
   updateRouteSegment,
   deleteRouteSegment,
+  locateAddress,
   toRequestDto,
   toRouteSegment,
   toDateTimeLocal,

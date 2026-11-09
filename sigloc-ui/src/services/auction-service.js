@@ -342,6 +342,8 @@ export function toCarrierAnalysis(dto) {
       capacityWeightKg: v.capacityWeightKg ?? 0,
       capacityVolumeM3: v.capacityVolumeM3 ?? 0,
       specifications: v.specifications ?? [],
+      // Set when the bid would refuse this vehicle for this load (capacity, body, documents, overlapping trip).
+      unavailableReason: v.unavailableReason ?? null,
     })),
     travelPlan: (dto.travelPlan ?? []).map((stop) => ({
       order: stop.order ?? 0,

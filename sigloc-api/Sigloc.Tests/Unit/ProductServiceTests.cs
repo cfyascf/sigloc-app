@@ -2,6 +2,7 @@ using Sigloc.Application.DTOs;
 using Sigloc.Application.Exceptions;
 using Sigloc.Application.Services;
 using Sigloc.Domain.Entities;
+using Sigloc.Domain.Enums;
 using Sigloc.Domain.Repositories;
 using Sigloc.Tests.Common;
 
@@ -231,6 +232,22 @@ public class ProductServiceTests
 
         result.TotalItems.Should().Be(45);
         result.TotalPages.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task SearchAsync_returns_the_temperature_range_for_the_segment_picker()
+    {
+        var frozen = TestData.Product(_contractorId);
+        frozen.TransportEnvironment = TransportEnvironment.Frozen;
+        frozen.TempMin = -18;
+        frozen.TempMax = -12;
+        _repository.SearchAsync(_contractorId, null, null, 1, 20, Arg.Any<CancellationToken>())
+            .Returns((new List<Product> { frozen }, 1));
+
+        var result = await _service.SearchAsync(_contractorId, new ProductQueryDto(null, null, 1, 20));
+
+        result.Items.Single().TempMin.Should().Be(-18);
+        result.Items.Single().TempMax.Should().Be(-12);
     }
 
     [Fact]

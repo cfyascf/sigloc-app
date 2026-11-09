@@ -103,3 +103,9 @@ public record PagedRouteSegmentsDto(
     int PageSize,
     int TotalItems,
     int TotalPages);
+
+/// <summary>
+/// Where a typed address resolves to: <see cref="Place"/> is the geocoded "City, UF" (null when the
+/// match has no city); <see cref="Found"/> is false when the geocoder matched nothing.
+/// </summary>
+public sealed record AddressLocationDto(bool Found, string? Place);

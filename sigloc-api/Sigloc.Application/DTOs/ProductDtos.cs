@@ -49,6 +49,10 @@ public record ProductResponseDto(
     DateTimeOffset UpdatedAt);
 
 /// <summary>Lightweight product summary used by the list endpoint.</summary>
+/// <remarks>
+/// <see cref="TempMin"/>/<see cref="TempMax"/> let the segment form grey out products that can't
+/// travel at the same temperature before the save rejects them.
+/// </remarks>
 public record ProductListItemDto(
     Guid Id,
     string Sku,
@@ -58,7 +62,9 @@ public record ProductListItemDto(
     bool Dangerous,
     bool Fragile,
     double DefaultWeight,
-    double DefaultVolume);
+    double DefaultVolume,
+    double? TempMin = null,
+    double? TempMax = null);
 
 /// <summary>Query parameters for the list endpoint.</summary>
 public record ProductQueryDto(

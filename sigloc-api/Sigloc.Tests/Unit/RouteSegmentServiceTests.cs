@@ -660,6 +660,37 @@ public class RouteSegmentServiceTests
                 new() { ProductId = product.Id, Quantity = quantity, Product = product }
             }
         };
+
+    [Fact]
+    public async Task LocateAsync_returns_the_city_the_address_resolved_to()
+    {
+        _geocoding.LocateAsync("Rua Inexistente", Arg.Any<CancellationToken>()).Returns("São Paulo, SP");
+
+        var result = await _service.LocateAsync("  Rua Inexistente ");
+
+        result.Should().Be(new AddressLocationDto(Found: true, Place: "São Paulo, SP"));
+    }
+
+    [Fact]
+    public async Task LocateAsync_reports_an_address_the_geocoder_cannot_find_as_not_found()
+    {
+        _geocoding.LocateAsync("zzqqx wwvvk", Arg.Any<CancellationToken>())
+            .Returns<string?>(_ => throw new AddressNotFoundException("zzqqx wwvvk"));
+
+        var result = await _service.LocateAsync("zzqqx wwvvk");
+
+        result.Should().Be(new AddressLocationDto(Found: false, Place: null));
+    }
+
+    [Fact]
+    public async Task LocateAsync_requires_an_address()
+    {
+        var act = () => _service.LocateAsync("   ");
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors
+            .Should().ContainSingle(e => e.Field == "address");
+        await _geocoding.DidNotReceive().LocateAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
 }
 
 public class RouteAggregatorTests

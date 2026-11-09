@@ -32,3 +32,14 @@ test("carrier analysis defaults a missing toll to zero and a missing floor to nu
   assert.equal(auctions.toCarrierAnalysis({}).competition.estimatedToll, 0)
   assert.equal(auctions.toCarrierAnalysis({}).competition.estimatedAnttFloor, null)
 })
+
+test("bid-form vehicles keep the reason the bid would refuse them", () => {
+  const analysis = auctions.toCarrierAnalysis({
+    carrierAvailableFleet: [
+      { vehicleId: "v1", plate: "TAN1A02", unavailableReason: "Incompatibilidade de Equipamento: a carroceria Tanque não atende esta carga." },
+      { vehicleId: "v2", plate: "ABC1D23" },
+    ],
+  })
+  assert.match(analysis.carrierAvailableFleet[0].unavailableReason, /carroceria Tanque/)
+  assert.equal(analysis.carrierAvailableFleet[1].unavailableReason, null)
+})

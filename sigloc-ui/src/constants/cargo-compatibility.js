@@ -66,6 +66,15 @@ export function refrigerationLevelsFor(bodyType) {
 
 const maxRefrigeration = (bodyType) => Math.max(...refrigerationLevelsFor(bodyType))
 
+/**
+ * Refrigeration the vehicle really offers: the stored level capped by what its body allows (same as
+ * CargoCompatibility.EffectiveRefrigeration in the API). Older records can say "Grade Baixa +
+ * Resfriado"; the bid check ignores that cold, so the fleet must not advertise it either.
+ */
+export function effectiveRefrigeration(bodyType, level) {
+  return Math.min(Number(level) || REFRIGERATION.NONE, maxRefrigeration(bodyType))
+}
+
 /** Body types that carry the category at this environment, without open bodies when fragile. */
 export function acceptedBodies(category, environment = TRANSPORT_ENVIRONMENT.DRY, fragile = false) {
   const required = REQUIRED_REFRIGERATION[environment] ?? REFRIGERATION.NONE

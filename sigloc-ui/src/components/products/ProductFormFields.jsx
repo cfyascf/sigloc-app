@@ -1,4 +1,5 @@
 /* eslint-disable react/prop-types */
+import { useId } from "react"
 import {
   AlertTriangle,
   Info,
@@ -58,6 +59,7 @@ function FieldError({ message }) {
 }
 
 function ToggleCard({ active, onToggle, disabled, title, hint, tone }) {
+  const hintId = useId()
   const tones = {
     amber: "border-amber-300 bg-amber-50/40",
     rose: "border-rose-300 bg-rose-50/40",
@@ -79,6 +81,10 @@ function ToggleCard({ active, onToggle, disabled, title, hint, tone }) {
       <div className="flex items-start gap-3">
         <button
           type="button"
+          role="checkbox"
+          aria-checked={Boolean(active)}
+          aria-label={title}
+          aria-describedby={hint ? hintId : undefined}
           disabled={disabled}
           onClick={onToggle}
           className={cn(
@@ -111,7 +117,7 @@ function ToggleCard({ active, onToggle, disabled, title, hint, tone }) {
           >
             {title}
           </p>
-          {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
+          {hint && <p id={hintId} className="mt-0.5 text-xs text-slate-500">{hint}</p>}
         </div>
       </div>
     </div>

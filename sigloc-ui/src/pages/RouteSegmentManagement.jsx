@@ -56,7 +56,7 @@ import {
 } from "@/constants/route-segments"
 import { categoryLabel } from "@/constants/products"
 import { LocationField } from "@/components/route-segments/LocationField"
-import { locationFromText } from "@/lib/locations"
+import { locationFromText, needsPlaceConfirmation, PLACE_CONFIRMATION_ERROR } from "@/lib/locations"
 import { isSingleProductCategory } from "@/constants/cargo-compatibility"
 
 const SEARCH_DEBOUNCE_MS = 350
@@ -143,6 +143,10 @@ export default function RouteSegmentManagement() {
 
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(null)
+  // Set by a save attempt: from then on an unconfirmed city shows as the field's error.
+  const [placeCheckShown, setPlaceCheckShown] = useState(false)
+  const placeError = (location) =>
+    placeCheckShown && needsPlaceConfirmation(location) ? PLACE_CONFIRMATION_ERROR : null
   const [deletingId, setDeletingId] = useState(null)
   const [expandedId, setExpandedId] = useState(null)
 
@@ -266,8 +270,8 @@ export default function RouteSegmentManagement() {
     setEditingId(segment.id)
     setExpandedId(null)
     setEditForm({
-      origin: locationFromText(segment.origin),
-      destination: locationFromText(segment.destination),
+      origin: locationFromText(segment.origin, segment.originCity),
+      destination: locationFromText(segment.destination, segment.destinationCity),
       budgetCeiling: segment.budgetCeiling ?? "",
       estimatedTollCost: segment.estimatedTollCost ?? "",
       pickupDeadline: toDateTimeLocal(segment.pickupDeadline),
@@ -278,6 +282,7 @@ export default function RouteSegmentManagement() {
       })),
     })
     setDeletingId(null)
+    setPlaceCheckShown(false)
     saveAction.reset()
   }
 
@@ -288,6 +293,9 @@ export default function RouteSegmentManagement() {
   }
 
   const saveEdit = async () => {
+    // An address that landed in a city nobody typed is saved only once the contractor confirms it.
+    setPlaceCheckShown(true)
+    if (needsPlaceConfirmation(editForm.origin) || needsPlaceConfirmation(editForm.destination)) return
     const result = await saveAction.run({ id: editingId, payload: editForm })
     if (result.ok) {
       setEditingId(null)
@@ -673,8 +681,8 @@ export default function RouteSegmentManagement() {
                           label="Local de Coleta (Origem)"
                           labelClassName="text-[10px] font-bold uppercase tracking-wider text-slate-500"
                           value={editForm.origin}
-                          onChange={(origin) => setEditForm({ ...editForm, origin })}
-                          error={mappedFieldErrors.origin}
+                          onChange={(origin) => setEditForm((form) => ({ ...form, origin }))}
+                          error={placeError(editForm.origin) ?? mappedFieldErrors.origin}
                           errorClassName="text-[10px] font-medium text-rose-600"
                           inputClassName="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
                         />
@@ -683,8 +691,8 @@ export default function RouteSegmentManagement() {
                           label="Local de Entrega (Destino)"
                           labelClassName="text-[10px] font-bold uppercase tracking-wider text-slate-500"
                           value={editForm.destination}
-                          onChange={(destination) => setEditForm({ ...editForm, destination })}
-                          error={mappedFieldErrors.destination}
+                          onChange={(destination) => setEditForm((form) => ({ ...form, destination }))}
+                          error={placeError(editForm.destination) ?? mappedFieldErrors.destination}
                           errorClassName="text-[10px] font-medium text-rose-600"
                           inputClassName="h-9 text-xs bg-white focus:border-blue-500 focus:ring-blue-500"
                         />

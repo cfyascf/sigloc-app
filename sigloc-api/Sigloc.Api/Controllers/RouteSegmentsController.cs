@@ -29,6 +29,15 @@ public class RouteSegmentsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
+    /// <summary>Where an address typed in the segment form resolves to, shown before saving.</summary>
+    [HttpGet("locate")]
+    [Authorize(Policy = Policies.RequireShipperAccess)]
+    public async Task<IActionResult> Locate([FromQuery] string? address, CancellationToken cancellationToken)
+    {
+        var result = await _routeSegmentService.LocateAsync(address, cancellationToken);
+        return Ok(result);
+    }
+
     [HttpGet("{id:guid}")]
     [Authorize(Policy = Policies.RequireShipperAccess)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)

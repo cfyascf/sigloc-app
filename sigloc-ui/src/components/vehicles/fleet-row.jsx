@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { categoriesFor } from "@/constants/cargo-compatibility"
+import { categoriesFor, effectiveRefrigeration } from "@/constants/cargo-compatibility"
 import {
   BODY_TYPE,
   CNH_CATEGORY_BY_VALUE,
@@ -72,9 +72,10 @@ export function BodyTypeIcon({ bodyType }) {
 /** Refrigeration, MOPP and cargo securing as icon markers; "Padrão" when the vehicle has none. */
 export function EquipmentIcons({ vehicle }) {
   const markers = []
-  if (vehicle.refrigerationLevel === 2) {
+  const refrigeration = effectiveRefrigeration(vehicle.bodyType, vehicle.refrigerationLevel)
+  if (refrigeration === 2) {
     markers.push({ key: "frozen", Icon: Snowflake, title: "Refrigeração: congelado", className: "bg-indigo-50 text-indigo-700" })
-  } else if (vehicle.refrigerationLevel === 1) {
+  } else if (refrigeration === 1) {
     markers.push({ key: "chilled", Icon: Thermometer, title: "Refrigeração: resfriado", className: "bg-sky-50 text-sky-700" })
   }
   if (vehicle.hasMopp) {
@@ -155,7 +156,7 @@ export function VehicleDetails({ vehicle }) {
         <Detail label="Carroceria">{vehicle.bodyType}</Detail>
         <Detail label="Composição">{COMPOSITION_BY_VALUE[vehicle.composition]}</Detail>
         <Detail label="Eixos">{vehicle.axleCount || null}</Detail>
-        <Detail label="Refrigeração">{["Nenhuma", "Resfriado", "Congelado"][vehicle.refrigerationLevel]}</Detail>
+        <Detail label="Refrigeração">{["Nenhuma", "Resfriado", "Congelado"][effectiveRefrigeration(vehicle.bodyType, vehicle.refrigerationLevel)]}</Detail>
         <Detail label="Fixação de carga">{yesNo(vehicle.hasCargoSecuring)}</Detail>
         <Detail label="CIV/CIPP até">{formatDate(vehicle.civCippValidUntil)}</Detail>
       </Section>
