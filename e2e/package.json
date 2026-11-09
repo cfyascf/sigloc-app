@@ -1,0 +1,14 @@
+{
+  "name": "sigloc-e2e",
+  "private": true,
+  "description": "End-to-end UI tests for the deployed Sigloc app (Playwright).",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
+  }
+}
