@@ -1052,6 +1052,32 @@ public class AuctionServiceTests
     }
 
     [Fact]
+    public async Task GetCarrierAnalysisAsync_flags_the_vehicles_the_bid_would_refuse()
+    {
+        var route = Route(ceiling: 6000m, weightKg: 1500);
+        var auction = Auction(routeId: route.Id);
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var seg = Segment(pickup: pickup, delivery: pickup.AddHours(10), products: TestData.Product());
+        _auctionRepository.GetAvailableForCarrierAsync(auction.Id, _carrierId, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(new CarrierAuctionWithRoute(auction, route, new[] { seg }, "Contratante"));
+
+        var suitable = TestData.Vehicle(carrierId: _carrierId, plate: "AAA1A11");
+        var tanker = TestData.Vehicle(carrierId: _carrierId, plate: "TAN1A02", bodyType: VehicleBodyType.Tanque);
+        var busy = TestData.Vehicle(carrierId: _carrierId, plate: "BSY1A03");
+        foreach (var v in new[] { suitable, tanker, busy }) v.Id = Guid.NewGuid();
+        _vehicleRepository.GetAllAsync(_carrierId, Arg.Any<CancellationToken>()).Returns(new[] { suitable, tanker, busy });
+        _tripRepository.GetActiveWindowsForVehicleAsync(busy.Id, Arg.Any<CancellationToken>())
+            .Returns(new[] { new TripScheduleWindow(pickup.AddHours(2), pickup.AddHours(20)) });
+
+        var result = await _service.GetCarrierAnalysisAsync(_carrierId, auction.Id);
+
+        var byPlate = result.CarrierAvailableFleet.ToDictionary(v => v.Plate);
+        byPlate["AAA1A11"].UnavailableReason.Should().BeNull();
+        byPlate["TAN1A02"].UnavailableReason.Should().Contain("carroceria Tanque");
+        byPlate["BSY1A03"].UnavailableReason.Should().StartWith("Overbooking");
+    }
+
+    [Fact]
     public async Task GetCarrierAnalysisAsync_null_mybid_maps_to_null()
     {
         var route = Route();

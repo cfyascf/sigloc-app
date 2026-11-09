@@ -24,16 +24,28 @@ import { Badge } from "@/components/ui/badge"
 import { FormAlert } from "@/components/auth/FormAlert"
 import { useProductOptions } from "@/hooks/use-product-options"
 import { LocationField } from "@/components/route-segments/LocationField"
-import { emptyLocation } from "@/lib/locations"
+import { emptyLocation, needsPlaceConfirmation, PLACE_CONFIRMATION_ERROR } from "@/lib/locations"
 import { useAsyncAction } from "@/hooks/use-async-action"
 import { createRouteSegment } from "@/services/route-segment-service"
-import { cargoClassName, cargoClassOfProduct, CARGO_CLASS, mapRouteSegmentFieldErrors } from "@/constants/route-segments"
+import {
+  cargoClassName,
+  cargoClassOfProduct,
+  CARGO_CLASS,
+  formatTemperatureRange,
+  intersectTemperatureRanges,
+  isEmptyRange,
+  mapRouteSegmentFieldErrors,
+  productTemperatureRange,
+} from "@/constants/route-segments"
 import { isSingleProductCategory } from "@/constants/cargo-compatibility"
 import {
   categoryLabel,
   environmentLabel,
   TRANSPORT_ENVIRONMENT,
 } from "@/constants/products"
+
+// Same format as the product catalogue: "1.000 kg", "25,5 kg".
+const weightFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 })
 
 /**
  * Catalog row styled like the product-management list: SKU code, hazard/thermal
@@ -111,7 +123,7 @@ function CatalogItem({ product, selected, onToggle, blockedReason = null }) {
         </h3>
         <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
           <Tag size={12} /> {categoryLabel(product.category)}
-          {product.defaultWeight != null ? ` • ${product.defaultWeight}kg` : ""}
+          {product.defaultWeight != null ? ` • ${weightFormat.format(product.defaultWeight)} kg` : ""}
         </p>
         {blockedReason && <p className="mt-1 text-[10px] font-semibold text-slate-500">{blockedReason}</p>}
       </div>
@@ -126,6 +138,10 @@ export default function CreateRouteSegment() {
 
   const [origin, setOrigin] = useState(emptyLocation)
   const [destination, setDestination] = useState(emptyLocation)
+  // Set by a save attempt: from then on an unconfirmed city shows as the field's error.
+  const [placeCheckShown, setPlaceCheckShown] = useState(false)
+  const placeError = (location) =>
+    placeCheckShown && needsPlaceConfirmation(location) ? PLACE_CONFIRMATION_ERROR : null
   const [pickupDeadline, setPickupDeadline] = useState("")
   const [deliveryDeadline, setDeliveryDeadline] = useState("")
   const [budgetCeiling, setBudgetCeiling] = useState("")
@@ -164,6 +180,7 @@ export default function CreateRouteSegment() {
   // class (dangerous, fragile or common): once a product is in, only products matching both can be added.
   const loadCategory = selectedProducts[0]?.category ?? null
   const loadClass = selectedProducts.length > 0 ? cargoClassOfProduct(selectedProducts[0]) : null
+  const loadTemperature = intersectTemperatureRanges(selectedProducts.map(productTemperatureRange))
   const blockedReasonFor = (product) => {
     if (!loadClass || selectedValues.has(product.value)) return null
     if (loadCategory && product.category !== loadCategory) {
@@ -174,6 +191,11 @@ export default function CreateRouteSegment() {
     }
     if (cargoClassOfProduct(product) !== loadClass) {
       return `Não pode ir junto com ${cargoClassName(loadClass)}: crie outro trecho para ${cargoClassName(cargoClassOfProduct(product))}.`
+    }
+    // Same rule the save applies: every product must tolerate one common temperature.
+    const productRange = productTemperatureRange(product)
+    if (isEmptyRange(intersectTemperatureRanges([loadTemperature, productRange]))) {
+      return `Temperatura incompatível: este produto exige ${formatTemperatureRange(productRange)} e a carga selecionada, ${formatTemperatureRange(loadTemperature)}. Crie um trecho para cada faixa de temperatura.`
     }
     return null
   }
@@ -209,6 +231,10 @@ export default function CreateRouteSegment() {
     const badItem = selectedProducts.findIndex((p) => !(Number.isInteger(Number(p.quantity)) && Number(p.quantity) > 0))
     setItemsError(badItem >= 0 ? `A quantidade do item ${badItem + 1} deve ser um número inteiro maior que zero.` : null)
     if (badItem >= 0) return
+
+    // An address that landed in a city nobody typed is saved only once the contractor confirms it.
+    setPlaceCheckShown(true)
+    if (needsPlaceConfirmation(origin) || needsPlaceConfirmation(destination)) return
 
     const form = {
       origin,
@@ -425,7 +451,7 @@ export default function CreateRouteSegment() {
                         labelClassName="text-xs font-bold text-slate-600"
                         value={origin}
                         onChange={setOrigin}
-                        error={mappedFieldErrors.origin}
+                        error={placeError(origin) ?? mappedFieldErrors.origin}
                         placeholder="Ex: Curitiba, PR"
                         inputClassName="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500"
                       />
@@ -439,7 +465,7 @@ export default function CreateRouteSegment() {
                         labelClassName="text-xs font-bold text-slate-600"
                         value={destination}
                         onChange={setDestination}
-                        error={mappedFieldErrors.destination}
+                        error={placeError(destination) ?? mappedFieldErrors.destination}
                         placeholder="Ex: São Paulo, SP"
                         inputClassName="h-10 border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500"
                       />

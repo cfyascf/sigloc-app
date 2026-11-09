@@ -24,6 +24,9 @@ function toOption(item) {
     dangerous: Boolean(item.dangerous),
     fragile: Boolean(item.fragile),
     defaultWeight: item.defaultWeight,
+    // Temperature limits, so the segment form can grey out products that can't travel together.
+    tempMin: item.tempMin ?? null,
+    tempMax: item.tempMax ?? null,
   }
 }
 

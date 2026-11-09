@@ -22,6 +22,32 @@ public class RouteSegmentService : IRouteSegmentService
         _geocodingService = geocodingService;
     }
 
+    /// <summary>
+    /// "City, UF" the address resolves to, using the same geocoding as the save. The geocoder can
+    /// match a street in a city that wasn't typed ("Rua Inexistente" lands in São Paulo), so the form
+    /// shows this for the contractor to confirm. An address that matches nothing comes back as not
+    /// found instead of an error: the form shows it as a hint and the save reports it again.
+    /// </summary>
+    public async Task<AddressLocationDto> LocateAsync(string? address, CancellationToken cancellationToken = default)
+    {
+        var text = address?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            throw new ValidationException(
+                new[] { new ValidationError("address", "Informe o endereço.") },
+                "Não foi possível localizar o endereço.");
+        }
+
+        try
+        {
+            return new AddressLocationDto(Found: true, Place: await _geocodingService.LocateAsync(text, cancellationToken));
+        }
+        catch (AddressNotFoundException)
+        {
+            return new AddressLocationDto(Found: false, Place: null);
+        }
+    }
+
     // An address the provider cannot find is a problem with the form, not with our upstream,
     // so report it under the field that holds it.
     private async Task<RouteGeometry> ResolveGeometryAsync(string origin, string destination, CancellationToken cancellationToken)

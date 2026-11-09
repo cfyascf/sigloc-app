@@ -67,3 +67,12 @@ test("the selection hint names the class and the temperature still allowed", () 
   )
   assert.equal(segments.selectionCompatibilityHint(null, null), null)
 })
+
+test("the segment picker's temperature rule: dry and frozen products don't share a range", () => {
+  const dry = segments.productTemperatureRange({ transportEnvironment: "Seco" })
+  const frozen = segments.productTemperatureRange({ transportEnvironment: "Congelado", tempMin: -18, tempMax: -12 })
+  const chilled = segments.productTemperatureRange({ transportEnvironment: "Resfriado", tempMin: 2, tempMax: 8 })
+  assert.deepEqual(dry, { min: 0, max: 35 })
+  assert.equal(segments.isEmptyRange(segments.intersectTemperatureRanges([dry, frozen])), true)
+  assert.equal(segments.isEmptyRange(segments.intersectTemperatureRanges([dry, chilled])), false)
+})

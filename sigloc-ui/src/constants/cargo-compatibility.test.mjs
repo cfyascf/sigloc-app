@@ -77,3 +77,11 @@ test("bulk and live cargo segments are offered alone and carry a single product"
   assert.equal(segments.cargoSelectionBlock(general, "COMUM", null, "Geral"), null)
   assert.match(segments.selectionCompatibilityHint("COMUM", null, "CargaViva"), /ofertados sozinhos/)
 })
+
+test("effective refrigeration is capped by what the body allows", () => {
+  // Levels: 0 nenhuma, 1 resfriado, 2 congelado.
+  assert.equal(rules.effectiveRefrigeration("Grade Baixa", 1), 0)
+  assert.equal(rules.effectiveRefrigeration("Tanque", 2), 1)
+  assert.equal(rules.effectiveRefrigeration("Baú Refrigerado", 2), 2)
+  assert.equal(rules.effectiveRefrigeration("Baú", undefined), 0)
+})

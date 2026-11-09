@@ -645,6 +645,22 @@ public class AuctionService : IAuctionService
 
         var fleet = await _vehicleRepository.GetAllAsync(carrierId, cancellationToken);
 
+        // Same checks as the bid (minus the routing call for reaching the first pickup), so the form can
+        // grey out vehicles the bid would refuse instead of letting the carrier find out on submit.
+        var carrier = _carrierRepository is null ? null : await _carrierRepository.GetByIdAsync(carrierId, cancellationToken);
+        var unavailable = new Dictionary<Guid, string>();
+        foreach (var vehicle in fleet)
+        {
+            if (CheckVehicle(vehicle, detail.Route, requirement, carrier) is { } block)
+            {
+                unavailable[vehicle.Id] = block.Message;
+            }
+            else if (await OverlapsActiveTripAsync(vehicle.Id, detail.Segments, cancellationToken))
+            {
+                unavailable[vehicle.Id] = "Overbooking: o veículo já possui uma viagem ativa que se sobrepõe à janela desta rota.";
+            }
+        }
+
         var myBid = await _bidRepository.GetByCarrierAndAuctionAsync(carrierId, auctionId, cancellationToken);
         var myBidDto = myBid is null
             ? null
@@ -691,7 +707,8 @@ public class AuctionService : IAuctionService
                     Model: v.Model,
                     CapacityWeightKg: v.CapacityWeight,
                     CapacityVolumeM3: v.CapacityVolume,
-                    Specifications: BuildVehicleSpecifications(v)))
+                    Specifications: BuildVehicleSpecifications(v),
+                    UnavailableReason: unavailable.GetValueOrDefault(v.Id)))
                 .ToList(),
             TravelPlan: stops
                 .Select(s => new CarrierAnalysisTravelStopDto(s.Order, s.CityState, s.ActionType))
@@ -738,50 +755,20 @@ public class AuctionService : IAuctionService
         var vehicle = await _vehicleRepository.GetByIdAsync(dto.VeiculoId, carrierId, cancellationToken)
             ?? throw new KeyNotFoundException($"Veículo {dto.VeiculoId} não encontrado para esta transportadora.");
 
-        // --- 2. Physical trava: weight ------------------------------------------
-        if ((decimal)route.TotalWeightKg > vehicle.CapacityWeight)
-        {
-            var excess = (decimal)route.TotalWeightKg - vehicle.CapacityWeight;
-            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Weight, cancellationToken);
-            throw new BidRejectedException(
-                BidRejectionCode.Overweight,
-                $"Excesso de Peso: a carga excede a capacidade do veículo em {excess:N0} kg.");
-        }
-
-        // --- 3. Physical trava: volume ------------------------------------------
-        if ((decimal)route.TotalVolumeM3 > vehicle.CapacityVolume)
-        {
-            var excess = (decimal)route.TotalVolumeM3 - vehicle.CapacityVolume;
-            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Volume, cancellationToken);
-            throw new BidRejectedException(
-                BidRejectionCode.Overvolume,
-                $"Excesso de Volume: a carga excede a capacidade do veículo em {excess:N0} m³.");
-        }
-
-        // --- 4. Equipment / compliance trava ------------------------------------
+        // --- 2–4. Physical, equipment and document travas ------------------------
         var products = detail.Segments
             .SelectMany(s => s.Items)
             .Where(i => i.Product is not null)
             .Select(i => i.Product!)
             .ToList();
         var requirement = ConsolidatedVehicleRequirement.From(products);
-
-        var equipmentRejection = VehicleCompatibilityEvaluator.Evaluate(vehicle, requirement);
-        if (equipmentRejection is not null)
-        {
-            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Equipment, cancellationToken);
-            throw equipmentRejection;
-        }
-
-        // Documents (RNTRC, driver's CNH, MOPP, CIV/CIPP): only data known to be invalid blocks;
-        // what is missing on older vehicles is shown on the fleet instead.
         var carrier = _carrierRepository is null ? null : await _carrierRepository.GetByIdAsync(carrierId, cancellationToken);
-        var blocking = VehicleCompliance.CheckForCargo(vehicle, carrier, BrasiliaTime.Today, requirement)
-            .FirstOrDefault(i => i.Severity == ComplianceSeverity.Blocking);
-        if (blocking is not null)
+
+        var block = CheckVehicle(vehicle, route, requirement, carrier);
+        if (block is not null)
         {
-            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, BlockedReason.Equipment, cancellationToken);
-            throw new BidRejectedException(BidRejectionCode.EquipmentMismatch, $"Documentação irregular: {blocking.Message}");
+            await LogBlockedAttemptAsync(route.ContractorId, auctionId, carrierId, block.Reason, cancellationToken);
+            throw new BidRejectedException(block.Code, block.Message);
         }
 
         // --- 5. Temporal trava: anti-overbooking --------------------------------
@@ -866,6 +853,47 @@ public class AuctionService : IAuctionService
 
     // True when the vehicle already has an active trip whose window overlaps the window of these
     // segments (first pickup deadline to last delivery deadline).
+    /// <summary>Why a vehicle can't bid on this load, from the checks that need no routing call.</summary>
+    private sealed record VehicleBlock(BidRejectionCode Code, BlockedReason Reason, string Message);
+
+    /// <summary>
+    /// Weight, volume, body/equipment and document checks, in the order the bid applies them. Shared
+    /// by the bid and by the carrier analysis, so the bid form greys out exactly the vehicles the bid
+    /// would refuse. Documents: only data known to be invalid blocks; what is missing on older
+    /// vehicles is shown on the fleet instead.
+    /// </summary>
+    private static VehicleBlock? CheckVehicle(
+        Vehicle vehicle,
+        ConsolidatedRoute route,
+        ConsolidatedVehicleRequirement requirement,
+        Carrier? carrier)
+    {
+        if ((decimal)route.TotalWeightKg > vehicle.CapacityWeight)
+        {
+            var excess = (decimal)route.TotalWeightKg - vehicle.CapacityWeight;
+            return new VehicleBlock(BidRejectionCode.Overweight, BlockedReason.Weight,
+                $"Excesso de Peso: a carga excede a capacidade do veículo em {excess:N0} kg.");
+        }
+
+        if ((decimal)route.TotalVolumeM3 > vehicle.CapacityVolume)
+        {
+            var excess = (decimal)route.TotalVolumeM3 - vehicle.CapacityVolume;
+            return new VehicleBlock(BidRejectionCode.Overvolume, BlockedReason.Volume,
+                $"Excesso de Volume: a carga excede a capacidade do veículo em {excess:N0} m³.");
+        }
+
+        if (VehicleCompatibilityEvaluator.Evaluate(vehicle, requirement) is { } equipment)
+        {
+            return new VehicleBlock(equipment.Code, BlockedReason.Equipment, equipment.Message);
+        }
+
+        var blocking = VehicleCompliance.CheckForCargo(vehicle, carrier, BrasiliaTime.Today, requirement)
+            .FirstOrDefault(i => i.Severity == ComplianceSeverity.Blocking);
+        return blocking is null
+            ? null
+            : new VehicleBlock(BidRejectionCode.EquipmentMismatch, BlockedReason.Equipment, $"Documentação irregular: {blocking.Message}");
+    }
+
     private async Task<bool> OverlapsActiveTripAsync(
         Guid vehicleId,
         IReadOnlyCollection<RouteSegment> segments,

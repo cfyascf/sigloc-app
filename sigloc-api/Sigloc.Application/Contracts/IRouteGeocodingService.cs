@@ -30,6 +30,13 @@ public interface IRouteGeocodingService
     Task<RouteGeometry> ResolveAsync(string originAddress, string destinationAddress, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Geocodes a single address the same way <see cref="ResolveAsync"/> does and returns the
+    /// "City, UF" it resolved to (null when the match has no city), so the form can show where the
+    /// address landed before saving. Throws <c>AddressNotFoundException</c> when nothing matches.
+    /// </summary>
+    Task<string?> LocateAsync(string address, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Computes the outbound driving distance/duration between two already-known
     /// coordinates (each formatted as "longitude,latitude"). Used to measure the leg
     /// between consecutive segments (destination of one → origin of the next).

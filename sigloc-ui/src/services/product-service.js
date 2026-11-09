@@ -108,6 +108,9 @@ export async function listProducts(query, options) {
       fragile: Boolean(item.fragile),
       defaultWeight: item.defaultWeight,
       defaultVolume: item.defaultVolume,
+      // The segment form greys out products whose temperature range can't share the load's.
+      tempMin: item.tempMin ?? null,
+      tempMax: item.tempMax ?? null,
     })),
     currentPage: payload?.currentPage ?? 1,
     pageSize: payload?.pageSize ?? 20,

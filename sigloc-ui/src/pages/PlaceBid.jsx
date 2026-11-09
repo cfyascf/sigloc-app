@@ -379,7 +379,7 @@ export default function PlaceBid() {
                   step={2}
                   done={Boolean(selectedVehicle)}
                   title="Veículo"
-                  description="Compare a capacidade com as exigências da carga. A compatibilidade é auditada ao confirmar o lance."
+                  description="Veículos que não podem levar esta carga aparecem desativados, com o motivo. Ao confirmar, o lance também verifica se o veículo chega à coleta a partir da viagem anterior."
                 >
                   {carrierAvailableFleet.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-slate-200 p-4 text-center">
@@ -389,16 +389,20 @@ export default function PlaceBid() {
                   ) : (
                     // lg: exactly two vehicle rows (61px each + 8px gap); the rest scrolls inside the list.
                     <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1 lg:max-h-[130px]">
-                      {carrierAvailableFleet.map((vehicle) => {
+                      {/* Vehicles that can bid first; the others stay listed, greyed out with the reason. */}
+                      {[...carrierAvailableFleet].sort((a, b) => Number(Boolean(a.unavailableReason)) - Number(Boolean(b.unavailableReason))).map((vehicle) => {
                         const isSelected = selectedVehicleId === vehicle.vehicleId
                         const details = [vehicle.model, ...vehicle.specifications].filter(Boolean).join(" · ")
+                        const unavailable = Boolean(vehicle.unavailableReason)
                         return (
                           <button
                             key={vehicle.vehicleId}
                             type="button"
+                            disabled={unavailable}
+                            title={vehicle.unavailableReason ?? undefined}
                             onClick={() => setSelectedVehicleId(vehicle.vehicleId)}
-                            className={`flex w-full flex-col gap-3 rounded-lg border p-3 text-left transition-colors sm:flex-row sm:items-center sm:gap-6 ${
-                              isSelected ? "border-blue-500 bg-blue-50/50" : "border-slate-200 bg-white hover:border-slate-300"
+                            className={`flex w-full flex-col gap-3 rounded-lg border p-3 text-left transition-colors sm:flex-row sm:items-center sm:gap-6 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60 ${
+                              isSelected ? "border-blue-500 bg-blue-50/50" : "border-slate-200 bg-white hover:border-slate-300 disabled:hover:border-slate-200"
                             }`}
                           >
                             <div className="flex min-w-0 items-center gap-3 sm:w-56 sm:shrink-0">
@@ -408,6 +412,9 @@ export default function PlaceBid() {
                               <div className="min-w-0">
                                 <p className="font-mono text-sm font-black text-slate-900">{vehicle.plate}</p>
                                 <p className="truncate text-[10px] text-slate-500">{details}</p>
+                                {unavailable && (
+                                  <p className="line-clamp-2 text-[10px] font-semibold text-rose-600">{vehicle.unavailableReason}</p>
+                                )}
                               </div>
                             </div>
 

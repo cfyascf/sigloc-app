@@ -316,7 +316,9 @@ public class ProductService : IProductService
             product.Dangerous,
             product.Fragile,
             product.DefaultWeight,
-            product.DefaultVolume);
+            product.DefaultVolume,
+            product.TempMin,
+            product.TempMax);
     }
 
     private sealed record ValidatedProduct(

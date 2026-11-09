@@ -63,6 +63,9 @@ public class OpenRouteServiceGeocodingService : IRouteGeocodingService
             DestinationPlace: destination.Place);
     }
 
+    public async Task<string?> LocateAsync(string address, CancellationToken cancellationToken = default)
+        => (await GeocodeAsync(address, cancellationToken)).Place;
+
     public async Task<RouteLeg> ComputeLegAsync(
         string fromCoordinate,
         string toCoordinate,
