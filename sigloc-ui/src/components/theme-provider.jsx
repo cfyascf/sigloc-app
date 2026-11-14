@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react"
 
-const COLOR_SCHEME_QUERY = "(prefers-color-scheme: light)"
+const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)"
 const THEME_VALUES = ["dark", "light", "system"]
 
 const ThemeProviderContext = React.createContext(undefined)
