@@ -323,7 +323,7 @@ export default function PlaceBid() {
                       <AlertTriangle size={12} /> Manuseio
                     </span>
                     {restrictions.map((restriction) => (
-                      <Badge key={restriction} variant="outline" className="border-rose-200 bg-white text-rose-600 text-[10px] font-semibold">
+                      <Badge key={restriction} variant="outline" className="h-auto max-w-full whitespace-normal break-words border-rose-200 bg-white text-left text-rose-600 text-[10px] font-semibold leading-snug">
                         {restriction}
                       </Badge>
                     ))}

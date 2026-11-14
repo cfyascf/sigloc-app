@@ -200,7 +200,7 @@ export default function BidAnalysis() {
                     {physicalRequirements.handlingRestrictions.length > 0 ? (
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {physicalRequirements.handlingRestrictions.map((r) => (
-                          <Badge key={r} variant="outline" className="border-rose-200 bg-rose-50 text-rose-600 text-[9px] font-semibold">
+                          <Badge key={r} variant="outline" className="h-auto max-w-full whitespace-normal break-words border-rose-200 bg-rose-50 text-left text-rose-600 text-[9px] font-semibold leading-snug">
                             {r}
                           </Badge>
                         ))}
