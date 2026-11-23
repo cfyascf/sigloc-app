@@ -269,6 +269,43 @@ public class AuctionServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_pickups_in_different_cities_at_the_same_time_throw_Validation()
+    {
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var first = Segment(contractorId: _contractorId, pickup: pickup, delivery: pickup.AddHours(30), products: TestData.Product());
+        var second = Segment(contractorId: _contractorId, pickup: pickup, delivery: pickup.AddHours(36), products: TestData.Product());
+        second.OriginCoordinate = "-46.33,-23.96";
+        second.DestinationCoordinate = "-46.25,-23.99";
+        _segmentRepository.GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), true, Arg.Any<CancellationToken>())
+            .Returns(new[] { first, second });
+        _geocodingService.ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new RouteLeg(70, 1));
+
+        var act = () => _service.CreateAsync(_contractorId,
+            new CreateAuctionRequestDto(SegmentIds: new[] { first.Id, second.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddHours(12), AutomaticAward: false));
+
+        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Should().ContainSingle(e => e.Field == "segmentIds");
+        first.RouteId.Should().BeNull();
+        await _auctionRepository.DidNotReceive().AddAsync(Arg.Any<Auction>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_stops_with_enough_time_to_drive_between_them_are_allowed()
+    {
+        var pickup = DateTimeOffset.UtcNow.AddDays(1);
+        var first = Segment(contractorId: _contractorId, pickup: pickup, delivery: pickup.AddHours(10), products: TestData.Product());
+        var second = Segment(contractorId: _contractorId, pickup: pickup.AddHours(12), delivery: pickup.AddHours(30), products: TestData.Product());
+        second.OriginCoordinate = "-46.33,-23.96";
+        _segmentRepository.GetByIdsAsync(_contractorId, Arg.Any<IReadOnlyCollection<Guid>>(), true, Arg.Any<CancellationToken>())
+            .Returns(new[] { first, second });
+        _geocodingService.ComputeLegAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(new RouteLeg(70, 1));
+
+        var result = await _service.CreateAsync(_contractorId,
+            new CreateAuctionRequestDto(SegmentIds: new[] { first.Id, second.Id }, ExpiresAt: DateTimeOffset.UtcNow.AddHours(12), AutomaticAward: false));
+
+        result.Auction.Status.Should().Be(AuctionStatus.Open.ToWire());
+    }
+
+    [Fact]
     public async Task CreateAsync_expiry_not_before_first_pickup_throws_Validation()
     {
         var pickup = DateTimeOffset.UtcNow.AddDays(1);

@@ -82,6 +82,7 @@ public class AuctionService : IAuctionService
         var aggregate = await RouteAggregator.AggregateAsync(segmentIds, segments, _geocodingService, cancellationToken);
 
         ValidateDeadlineWindow(segments, aggregate.EstimatedTimeHours);
+        await ValidateStopSequenceAsync(segments, cancellationToken);
         ValidateExpiryBeforeFirstPickup(expiresAt, segments, StartAuctionFailed);
 
         var openedAt = DateTimeOffset.UtcNow;
@@ -1202,6 +1203,59 @@ public class AuctionService : IAuctionService
                 },
                 StartAuctionFailed);
         }
+    }
+
+    private sealed record SequenceStop(RouteSegment Segment, bool IsPickup, string Coordinate, string Place, DateTimeOffset Deadline);
+
+    // Walks the pickups and deliveries in deadline order (the same order as the travel plan) and
+    // rejects the route when the vehicle cannot drive from one stop to the next in the time between
+    // their deadlines, e.g. two pickups in different cities at the same time.
+    private async Task ValidateStopSequenceAsync(IReadOnlyList<RouteSegment> segments, CancellationToken cancellationToken)
+    {
+        if (segments.Count < 2)
+        {
+            return;
+        }
+
+        var stops = segments
+            .SelectMany(s => new[]
+            {
+                new SequenceStop(s, true, s.OriginCoordinate, s.OriginPlace, s.PickupDeadline),
+                new SequenceStop(s, false, s.DestinationCoordinate, s.DestinationPlace, s.DeliveryDeadline)
+            })
+            .OrderBy(s => s.Deadline)
+            .ThenBy(s => s.IsPickup ? 0 : 1)
+            .ToList();
+
+        for (var i = 0; i < stops.Count - 1; i++)
+        {
+            var from = stops[i];
+            var to = stops[i + 1];
+            if (from.Segment.Id == to.Segment.Id || from.Coordinate == to.Coordinate)
+            {
+                continue;
+            }
+
+            var leg = await _geocodingService.ComputeLegAsync(from.Coordinate, to.Coordinate, cancellationToken);
+            var availableHours = (to.Deadline - from.Deadline).TotalHours;
+            if (leg.EstimatedTimeHours <= availableHours)
+            {
+                continue;
+            }
+
+            throw new ValidationException(
+                new[]
+                {
+                    new ValidationError(
+                        "segmentIds",
+                        $"Os prazos dos trechos são incompatíveis: {Describe(from)} e {Describe(to)} têm só {FormatHours(Math.Max(availableHours, 0))} "
+                        + $"entre si, mas o deslocamento leva {FormatHours(leg.EstimatedTimeHours)}. Ajuste as datas de coleta/entrega ou ofereça os trechos separadamente.")
+                },
+                StartAuctionFailed);
+        }
+
+        static string Describe(SequenceStop stop) =>
+            $"{(stop.IsPickup ? "a coleta" : "a entrega")} em {stop.Place} ({BrasiliaTime.Format(stop.Deadline)})";
     }
 
     private static CreateAuctionResponseDto MapToResponse(Auction auction, ConsolidatedRoute route, int updatedSegments)
