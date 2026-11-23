@@ -248,7 +248,7 @@ export default function LoadManagement() {
 
             <Button
               asChild
-              className="h-9 bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700"
+              className="h-9 bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700 [a]:hover:bg-blue-700"
             >
               <Link to="/create-load">
                 <Plus size={14} className="mr-1.5" /> Novo Trecho
