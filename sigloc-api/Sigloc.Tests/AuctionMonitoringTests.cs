@@ -58,14 +58,17 @@ public class AuctionMonitoringTests
         var segments = Stub<IRouteSegmentRepository>.New((_, _) => Task.FromResult<IReadOnlyList<RouteSegment>>(new[] { second, first }));
         var routes = Stub<IConsolidatedRouteRepository>.New((_, args) => { Assert.True(unit.InTransaction); route = (ConsolidatedRoute)args![0]!; return Task.CompletedTask; });
         var auctions = Stub<IAuctionRepository>.New((_, _) => { Assert.True(unit.InTransaction); return Task.CompletedTask; });
+        var connectingLegRequested = false;
         var geography = Stub<IRouteGeocodingService>.New((name, args) =>
         {
-            Assert.Equal("ComputeLegAsync", name); Assert.Equal(first.DestinationCoordinate, args![0]);
-            Assert.Equal(second.OriginCoordinate, args[1]); return Task.FromResult(new RouteLeg(5, 0.5));
+            Assert.Equal("ComputeLegAsync", name);
+            connectingLegRequested |= Equals(args![0], first.DestinationCoordinate) && Equals(args[1], second.OriginCoordinate);
+            return Task.FromResult(new RouteLeg(5, 0.5));
         });
         var notifier = Stub<IAuctionNotifier>.New((_, _) => Task.CompletedTask);
         var service = new AuctionService(segments, routes, auctions, null!, null!, null!, null!, geography, notifier, unit);
         await service.CreateAsync(Guid.NewGuid(), new CreateAuctionRequestDto(new[] { first.Id, second.Id }, DateTimeOffset.UtcNow.AddHours(1), false));
+        Assert.True(connectingLegRequested);
         Assert.Equal(1, first.RouteSequence); Assert.Equal(2, second.RouteSequence);
         Assert.NotNull(route); Assert.Equal(35, route.TotalDistanceKm); Assert.Equal(1, unit.Commits);
     }

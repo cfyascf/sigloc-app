@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { FormAlert } from "@/components/auth/FormAlert"
 import { useAsyncAction } from "@/hooks/use-async-action"
+import { useToast } from "@/components/ui/toast"
 import { buildUnifiedTimeline } from "@/lib/travel-timeline"
 import {
   earliestPickup,
@@ -73,6 +74,7 @@ function BackButton() {
 export default function OfferFreight() {
   const location = useLocation()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const segmentIds = useMemo(
     () => location.state?.segmentIds ?? [],
@@ -135,7 +137,14 @@ export default function OfferFreight() {
     })
     if (result.ok) {
       navigate("/route-segment-management")
+      return
     }
+
+    const details = Array.isArray(result.error?.details)
+      ? result.error.details.map((detail) => detail?.message)
+      : []
+    const message = [result.error?.message, ...details].filter(Boolean).join(" ")
+    toast.error("Leilão não iniciado", message || "Não foi possível iniciar o leilão. Tente novamente.")
   }
 
   if (segmentIds.length === 0) {
